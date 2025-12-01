@@ -13,6 +13,11 @@ export function registerPingTool(server: McpServer): void {
 			outputSchema: {
 				message: z.string(),
 			},
+			annotations: {
+				readOnlyHint: true,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
 		},
 		async ({ message }) => {
 			const output = { message };

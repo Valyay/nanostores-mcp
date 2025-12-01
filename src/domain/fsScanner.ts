@@ -90,11 +90,16 @@ const projectIndexCache = new Map<string, CacheEntry>();
 /** TTL кэша в миллисекундах (по умолчанию 30 секунд) */
 const CACHE_TTL_MS = 30_000;
 
+/** Callback для отчёта о прогрессе сканирования */
+export type ProgressCallback = (progress: number, total: number, message: string) => void;
+
 export interface ScanOptions {
 	/** Принудительно пересканировать, игнорируя кэш */
 	force?: boolean;
 	/** Кастомный TTL кэша в миллисекундах */
 	cacheTtlMs?: number;
+	/** Callback для отчёта о прогрессе */
+	onProgress?: ProgressCallback;
 }
 
 /**
@@ -125,13 +130,14 @@ export async function scanProject(
 	rootDir: string,
 	options: ScanOptions = {},
 ): Promise<ProjectIndex> {
-	const { force = false, cacheTtlMs = CACHE_TTL_MS } = options;
+	const { force = false, cacheTtlMs = CACHE_TTL_MS, onProgress } = options;
 	const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
 
 	// Проверяем кэш
 	if (!force) {
 		const cached = projectIndexCache.get(absRoot);
 		if (cached && Date.now() - cached.timestamp < cacheTtlMs) {
+			onProgress?.(1, 1, "Using cached index");
 			return cached.index;
 		}
 	}
@@ -151,10 +157,12 @@ export async function scanProject(
 	});
 
 	// Собираем список файлов для анализа
+	onProgress?.(0, 4, "Walking directory tree");
 	const files: string[] = [];
 	await walkDir(absRoot, files);
 
 	// Добавляем файлы в ts-morph проект
+	onProgress?.(1, 4, `Loading ${files.length} source files`);
 	for (const filePath of files) {
 		try {
 			project.addSourceFileAtPath(filePath);
@@ -163,6 +171,8 @@ export async function scanProject(
 			continue;
 		}
 	}
+
+	onProgress?.(2, 4, "Analyzing AST for stores and subscribers");
 
 	const stores: StoreMatch[] = [];
 	const subscribers: SubscriberMatch[] = [];
@@ -356,6 +366,8 @@ export async function scanProject(
 		}
 	}
 
+	onProgress?.(3, 4, "Building relations graph");
+
 	const result: ProjectIndex = {
 		rootDir: absRoot,
 		filesScanned: files.length,
@@ -369,6 +381,8 @@ export async function scanProject(
 		index: result,
 		timestamp: Date.now(),
 	});
+
+	onProgress?.(4, 4, "Scan complete");
 
 	return result;
 }

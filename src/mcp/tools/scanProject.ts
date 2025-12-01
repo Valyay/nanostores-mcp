@@ -1,4 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
+import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
@@ -47,9 +49,34 @@ export function registerScanProjectTool(server: McpServer): void {
 				),
 				errors: z.array(z.string()).optional(),
 			},
+			annotations: {
+				readOnlyHint: true,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
 		},
-		async ({ rootUri }) => {
+		async ({ rootUri }, extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => {
 			const errors: string[] = [];
+			const progressToken = extra._meta?.progressToken;
+
+			// Helper to send progress notifications if client requested them
+			const reportProgress = async (
+				progress: number,
+				total: number,
+				message: string,
+			): Promise<void> => {
+				if (progressToken !== undefined) {
+					await extra.sendNotification({
+						method: "notifications/progress",
+						params: {
+							progressToken,
+							progress,
+							total,
+							message,
+						},
+					});
+				}
+			};
 
 			let rootToReport = "";
 			let filesScanned = 0;
@@ -80,7 +107,12 @@ export function registerScanProjectTool(server: McpServer): void {
 				const rootPath = resolveWorkspaceRoot(rootUri);
 				rootToReport = rootPath;
 
-				const result = await scanProject(rootPath);
+				const result = await scanProject(rootPath, {
+					onProgress: (progress, total, message) => {
+						// Fire-and-forget: we don't await to avoid blocking scan
+						void reportProgress(progress, total, message);
+					},
+				});
 
 				rootToReport = result.rootDir;
 				filesScanned = result.filesScanned;

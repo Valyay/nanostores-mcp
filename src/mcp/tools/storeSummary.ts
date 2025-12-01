@@ -274,6 +274,11 @@ export function registerStoreSummaryTool(server: McpServer): void {
 				"Finds a Nanostores store by id or name and returns its details: kind, file, subscribers and derived relations.",
 			inputSchema: StoreSummaryInputSchema,
 			outputSchema: StoreSummaryOutputSchema,
+			annotations: {
+				readOnlyHint: true,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
 		},
 		async ({ storeId, name, file }) => {
 			if (!storeId && !name) {
