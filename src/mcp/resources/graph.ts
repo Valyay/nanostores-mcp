@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { scanProject } from "../../domain/fsScanner.js";
 import { buildStoreGraph } from "../../domain/graphBuilder.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
-import type { StoreGraph } from "../../domain/graphBuilder.js";
+import type { StoreGraph, StoreNode, SubscriberNode } from "../../domain/graphBuilder.js";
 
 function buildGraphSummary(graph: StoreGraph): string {
 	const lines: string[] = [];
@@ -36,7 +36,7 @@ function buildGraphSummary(graph: StoreGraph): string {
 		lines.push("");
 		lines.push("Example stores:");
 		for (const node of storeNodes) {
-			const store = node as any;
+			const store = node as StoreNode;
 			lines.push(`- [${store.kind}] ${store.name ?? store.label} (file: ${store.file})`);
 		}
 	}
@@ -45,7 +45,7 @@ function buildGraphSummary(graph: StoreGraph): string {
 		lines.push("");
 		lines.push("Example subscribers:");
 		for (const node of subscriberNodes) {
-			const sub = node as any;
+			const sub = node as SubscriberNode;
 			lines.push(`- [${sub.kind}] ${sub.name ?? sub.label} (file: ${sub.file})`);
 		}
 	}

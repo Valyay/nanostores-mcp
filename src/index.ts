@@ -11,6 +11,7 @@ async function main(): Promise<void> {
 // eslint / ts не любят "висящие" промисы, поэтому явно ловим ошибку
 main().catch(error => {
 	// Логи MCP-серверов обычно уходят в stderr, чтобы не мешать протоколу
+	// eslint-disable-next-line no-console
 	console.error("[nanostores-mcp] Fatal error:", error);
 	process.exit(1);
 });
