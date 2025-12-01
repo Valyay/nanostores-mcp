@@ -3,6 +3,7 @@ import { registerPingTool } from "./mcp/tools/ping.js";
 import { registerScanProjectTool } from "./mcp/tools/scanProject.js";
 import { registerStoresResource } from "./mcp/resources/stores.js";
 import { registerGraphResource } from "./mcp/resources/graph.js";
+import { registerGraphMermaidResource } from "./mcp/resources/graphMermaid.js";
 import { registerExplainProjectPrompt } from "./mcp/prompts/explainProject.js";
 
 const SERVER_NAME = "nanostores-mcp";
@@ -14,15 +15,16 @@ export function buildNanostoresServer(): McpServer {
 		version: SERVER_VERSION,
 	});
 
-	// MCP tools
+	// tools
 	registerPingTool(server);
 	registerScanProjectTool(server);
 
-	// MCP resources
+	// resources
 	registerStoresResource(server);
 	registerGraphResource(server);
+	registerGraphMermaidResource(server);
 
-	// MCP prompts
+	// prompts
 	registerExplainProjectPrompt(server);
 
 	return server;

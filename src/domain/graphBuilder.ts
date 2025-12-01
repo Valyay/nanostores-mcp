@@ -1,8 +1,14 @@
-import type { ProjectIndex, StoreKind, ConsumerKind, StoreRelation } from "./fsScanner.js";
+import type {
+	ProjectIndex,
+	StoreKind,
+	SubscriberKind,
+	StoreRelation,
+	GraphEdgeType,
+} from "./fsScanner.js";
 
-export type GraphNodeType = "file" | "store" | "consumer";
+export type GraphNodeType = "file" | "store" | "subscriber";
 
-export interface BaseNode {
+interface BaseNode {
 	id: string;
 	type: GraphNodeType;
 	label: string;
@@ -20,57 +26,53 @@ export interface StoreNode extends BaseNode {
 	name?: string;
 }
 
-export interface ConsumerNode extends BaseNode {
-	type: "consumer";
+export interface SubscriberNode extends BaseNode {
+	type: "subscriber";
 	file: string;
-	kind: ConsumerKind;
+	kind: SubscriberKind;
 	name?: string;
-	line?: number;
 }
 
-export type GraphNode = FileNode | StoreNode | ConsumerNode;
+export type GraphNode = FileNode | StoreNode | SubscriberNode;
 
-export type RelationType = "declares" | "uses" | "depends_on";
+export type GraphEdge = StoreRelation;
 
-export interface GraphEdge {
-	from: string;
-	to: string;
-	type: RelationType;
-	file?: string;
-	line?: number;
+export interface HotStore {
+	storeId: string;
+	name: string;
+	file: string;
+	subscribers: number;
+	derivedDependents: number;
+	totalDegree: number;
 }
 
 export interface StoreGraph {
 	rootDir: string;
 	nodes: GraphNode[];
 	edges: GraphEdge[];
+	stats: {
+		filesWithStores: number;
+		totalStores: number;
+		subscribers: number;
+		edgesByType: Record<GraphEdgeType, number>;
+	};
+	hotStores: HotStore[];
 }
 
+/**
+ * Преобразуем ProjectIndex в граф:
+ * - file / store / subscriber узлы
+ * - рёбра из relations
+ * - базовая статистика и «горячие» stores
+ */
 export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 	const nodes = new Map<string, GraphNode>();
 	const edges: GraphEdge[] = [];
 
-	const ensureFileNode = (relativePath: string): FileNode => {
-		const id = `file:${relativePath}`;
-		const existing = nodes.get(id);
-		if (existing && existing.type === "file") {
-			return existing;
-		}
-
-		const node: FileNode = {
-			id,
-			type: "file",
-			label: relativePath,
-			path: relativePath,
-		};
-		nodes.set(id, node);
-		return node;
-	};
-
-	// --- Узлы store + file-узлы для них ---
+	const filesWithStores = new Set<string>();
 
 	for (const store of index.stores) {
-		ensureFileNode(store.file);
+		filesWithStores.add(store.file);
 
 		const node: StoreNode = {
 			id: store.id,
@@ -80,35 +82,43 @@ export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 			kind: store.kind,
 			name: store.name,
 		};
-
 		nodes.set(node.id, node);
 	}
 
-	// --- Узлы consumer + file-узлы для них ---
+	for (const subscriber of index.subscribers) {
+		filesWithStores.add(subscriber.file);
 
-	for (const consumer of index.consumers) {
-		ensureFileNode(consumer.file);
-
-		const node: ConsumerNode = {
-			id: consumer.id,
-			type: "consumer",
-			label: consumer.name ?? consumer.file,
-			file: consumer.file,
-			kind: consumer.kind,
-			name: consumer.name,
-			line: consumer.line,
+		const node: SubscriberNode = {
+			id: subscriber.id,
+			type: "subscriber",
+			label: subscriber.name ?? subscriber.id,
+			file: subscriber.file,
+			kind: subscriber.kind,
+			name: subscriber.name,
 		};
-
 		nodes.set(node.id, node);
 	}
 
-	// --- Рёбра из relations: только если обе стороны существуют ---
+	for (const file of filesWithStores) {
+		const id = `file:${file}`;
+		if (!nodes.has(id)) {
+			const node: FileNode = {
+				id,
+				type: "file",
+				label: file,
+				path: file,
+			};
+			nodes.set(node.id, node);
+		}
+	}
 
-	const addEdgeFromRelation = (rel: StoreRelation) => {
-		const fromNode = nodes.get(rel.from);
-		const toNode = nodes.get(rel.to);
-		if (!fromNode || !toNode) return;
+	const edgeCounts: Record<GraphEdgeType, number> = {
+		declares: 0,
+		subscribes_to: 0,
+		derives_from: 0,
+	};
 
+	for (const rel of index.relations) {
 		edges.push({
 			from: rel.from,
 			to: rel.to,
@@ -116,15 +126,50 @@ export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 			file: rel.file,
 			line: rel.line,
 		});
-	};
-
-	for (const rel of index.relations) {
-		addEdgeFromRelation(rel);
+		edgeCounts[rel.type] = (edgeCounts[rel.type] ?? 0) + 1;
 	}
+
+	// вычисляем "горячие" stores по количеству подписчиков и derived-зависимостей
+	const storeIds = new Set(index.stores.map(s => s.id));
+	const subscribersCount = new Map<string, number>();
+	const derivedCount = new Map<string, number>();
+
+	for (const edge of edges) {
+		if (edge.type === "subscribes_to" && storeIds.has(edge.to)) {
+			subscribersCount.set(edge.to, (subscribersCount.get(edge.to) ?? 0) + 1);
+		}
+		if (edge.type === "derives_from" && storeIds.has(edge.to)) {
+			derivedCount.set(edge.to, (derivedCount.get(edge.to) ?? 0) + 1);
+		}
+	}
+
+	const hotStores: HotStore[] = index.stores
+		.map(store => {
+			const subs = subscribersCount.get(store.id) ?? 0;
+			const deps = derivedCount.get(store.id) ?? 0;
+			return {
+				storeId: store.id,
+				name: store.name ?? store.id,
+				file: store.file,
+				subscribers: subs,
+				derivedDependents: deps,
+				totalDegree: subs + deps,
+			};
+		})
+		.filter(s => s.totalDegree > 0)
+		.sort((a, b) => b.totalDegree - a.totalDegree)
+		.slice(0, 10);
 
 	return {
 		rootDir: index.rootDir,
 		nodes: Array.from(nodes.values()),
 		edges,
+		stats: {
+			filesWithStores: filesWithStores.size,
+			totalStores: index.stores.length,
+			subscribers: index.subscribers.length,
+			edgesByType: edgeCounts,
+		},
+		hotStores,
 	};
 }

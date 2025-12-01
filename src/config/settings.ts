@@ -1,4 +1,3 @@
-// src/config/settings.ts
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { normalizeFsPath, resolveSafePath } from "./security.js";

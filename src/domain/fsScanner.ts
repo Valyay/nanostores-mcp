@@ -28,7 +28,7 @@ export type StoreKind =
 	| "computedTemplate"
 	| "unknown";
 
-export type ConsumerKind = "file" | "component" | "hook";
+export type SubscriberKind = "component" | "hook" | "effect" | "unknown";
 
 export interface StoreMatch {
 	/** Идентификатор store-узла в графе: store:relativePath#name */
@@ -41,28 +41,23 @@ export interface StoreMatch {
 	name?: string;
 }
 
-export interface ConsumerMatch {
-	/** Идентификатор consumer-узла в графе: consumer:relativePath[#Name] */
+export interface SubscriberMatch {
+	/** Идентификатор подписчика: subscriber:relativePath[#Name] */
 	id: string;
-	/** Путь файла относительно rootDir */
 	file: string;
-	/** Примерная природа consumer-а (сейчас всегда 'file') */
-	kind: ConsumerKind;
-	/** Человеко-читаемое имя: компонент/хук или просто имя файла */
+	line: number;
+	kind: SubscriberKind;
 	name?: string;
-	/** Первая строка, где встретилось использование store */
-	line?: number;
+	/** На какие stores подписан этот подписчик (по relations типа subscribes_to) */
+	storeIds: string[];
 }
 
-export type RelationType = "declares" | "uses" | "depends_on";
+export type GraphEdgeType = "declares" | "subscribes_to" | "derives_from";
 
 export interface StoreRelation {
-	type: RelationType;
-	/** ID узла-источника (file:*, store:*, consumer:*) */
+	type: GraphEdgeType;
 	from: string;
-	/** ID узла-приёмника (store:*) */
 	to: string;
-	/** Для отладки: где это встретилось */
 	file?: string;
 	line?: number;
 }
@@ -71,21 +66,23 @@ export interface ProjectIndex {
 	rootDir: string;
 	filesScanned: number;
 	stores: StoreMatch[];
-	consumers: ConsumerMatch[];
+	subscribers: SubscriberMatch[];
 	relations: StoreRelation[];
 }
 
-// Внутренний тип для черновых зависимостей по именам
-interface DependencyStub {
-	fromStoreName: string;
-	toStoreName: string;
+interface DerivedStub {
+	derivedVar: string;
+	dependsOnVar: string;
 	file: string;
 	line: number;
 }
 
 /**
- * Публичный API домена: просканировать проект на Nanostores
- * и собрать индекс: stores, consumers, relations.
+ * Публичный API домена:
+ * просканировать проект и собрать индекс nanostores:
+ * - stores
+ * - subscribers (компоненты/хуки/эффекты, которые читают stores)
+ * - relations (declares / subscribes_to / derives_from)
  */
 export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 	const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
@@ -100,72 +97,153 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 
 	const fileTexts = new Map<string, string>();
 	const stores: StoreMatch[] = [];
-	const consumers: ConsumerMatch[] = [];
+	const subscribers: SubscriberMatch[] = [];
 	const relations: StoreRelation[] = [];
 
 	// storeName -> StoreMatch[]
 	const storesByName = new Map<string, StoreMatch[]>();
-	const dependencyStubs: DependencyStub[] = [];
+	const derivedStubs: DerivedStub[] = [];
 
-	// --- Первый проход: читаем файлы, находим stores + черновые зависимости между store-ами ---
+	// --- Первый проход: читаем файлы, находим stores + черновые зависимости derived -> base по именам ---
 
-	for (const filePath of files) {
-		const text = await fs.readFile(filePath, "utf8");
-		fileTexts.set(filePath, text);
+	for (const absPath of files) {
+		const text = await fs.readFile(absPath, "utf8");
+		fileTexts.set(absPath, text);
 
-		const fileStores = scanTextForStores(absRoot, filePath, text, dependencyStubs);
+		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
+		const lines = text.split(/\r?\n/);
 
-		// добавляем в общий список stores
-		for (const store of fileStores) {
+		const storeDeclRegex =
+			/\bconst\s+([A-Za-z0-9_$]+)\s*=\s*(atom|map|computed|persistentAtom|persistentMap|atomFamily|mapTemplate|computedTemplate)\s*\(/;
+
+		const storeTokenRegex = /\$[A-Za-z0-9_]+/g;
+
+		for (let i = 0; i < lines.length; i += 1) {
+			const line = lines[i];
+
+			const declMatch = storeDeclRegex.exec(line);
+			if (!declMatch) continue;
+
+			const [, varName, ctorName] = declMatch;
+			const kind = normalizeStoreKind(ctorName);
+
+			const id = `store:${relativeFile}#${varName}`;
+
+			const store: StoreMatch = {
+				id,
+				file: relativeFile,
+				line: i + 1,
+				kind,
+				name: varName,
+			};
 			stores.push(store);
 
-			if (store.name) {
-				const arr = storesByName.get(store.name) ?? [];
-				arr.push(store);
-				storesByName.set(store.name, arr);
-			}
+			const byName = storesByName.get(varName) ?? [];
+			byName.push(store);
+			storesByName.set(varName, byName);
 
-			// связь file -> store (declares)
+			// file -> store
 			relations.push({
 				type: "declares",
-				from: `file:${store.file}`,
-				to: store.id,
-				file: store.file,
-				line: store.line,
+				from: `file:${relativeFile}`,
+				to: id,
+				file: relativeFile,
+				line: i + 1,
 			});
+
+			// Если это derived store (computed / templates), попробуем найти на этой строке зависимости на другие stores
+			if (isDerivedKind(kind)) {
+				storeTokenRegex.lastIndex = 0;
+				let tokenMatch: RegExpExecArray | null;
+				while ((tokenMatch = storeTokenRegex.exec(line)) !== null) {
+					const tokenName = tokenMatch[0];
+					if (tokenName === varName) continue;
+
+					derivedStubs.push({
+						derivedVar: varName,
+						dependsOnVar: tokenName,
+						file: relativeFile,
+						line: i + 1,
+					});
+				}
+			}
 		}
 	}
 
-	// --- Второй проход: находим consumers и связи uses (consumer -> store) ---
+	// --- Второй проход: находим подписчиков (subscribers) и связи subscribes_to: subscriber -> store ---
 
-	for (const filePath of files) {
-		const text = fileTexts.get(filePath);
+	for (const absPath of files) {
+		const text = fileTexts.get(absPath);
 		if (!text) continue;
 
-		const { consumers: fileConsumers, relations: fileRelations } = scanTextForConsumers(
-			absRoot,
-			filePath,
-			text,
-			storesByName,
-		);
+		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
+		const lines = text.split(/\r?\n/);
 
-		consumers.push(...fileConsumers);
-		relations.push(...fileRelations);
+		const useStoreRegex = /\buseStore\s*\(\s*([A-Za-z0-9_$]+)/g;
+
+		const storeIds = new Set<string>();
+		let firstUseLine: number | undefined;
+
+		for (let i = 0; i < lines.length; i += 1) {
+			const line = lines[i];
+
+			useStoreRegex.lastIndex = 0;
+			let match: RegExpExecArray | null;
+			while ((match = useStoreRegex.exec(line)) !== null) {
+				const storeVarName = match[1];
+
+				const matches = storesByName.get(storeVarName) ?? [];
+				for (const store of matches) {
+					storeIds.add(store.id);
+				}
+
+				if (matches.length > 0 && firstUseLine === undefined) {
+					firstUseLine = i + 1;
+				}
+			}
+		}
+
+		if (storeIds.size > 0) {
+			const subscriberId = `subscriber:${relativeFile}`;
+			const kind = inferSubscriberKind(relativeFile);
+
+			const baseName = path.basename(relativeFile, path.extname(relativeFile));
+
+			const subscriber: SubscriberMatch = {
+				id: subscriberId,
+				file: relativeFile,
+				line: firstUseLine ?? 1,
+				kind,
+				name: baseName,
+				storeIds: Array.from(storeIds),
+			};
+
+			subscribers.push(subscriber);
+
+			for (const storeId of storeIds) {
+				relations.push({
+					type: "subscribes_to",
+					from: subscriberId,
+					to: storeId,
+					file: relativeFile,
+					line: firstUseLine,
+				});
+			}
+		}
 	}
 
-	// --- Резолвим зависимости store -> store (depends_on) по stub-ам ---
+	// --- Третий проход: резолвим derived -> base (derives_from) по stub-ам ---
 
-	for (const stub of dependencyStubs) {
-		const fromMatches = storesByName.get(stub.fromStoreName) ?? [];
-		const toMatches = storesByName.get(stub.toStoreName) ?? [];
+	for (const stub of derivedStubs) {
+		const derivedMatches = storesByName.get(stub.derivedVar) ?? [];
+		const baseMatches = storesByName.get(stub.dependsOnVar) ?? [];
 
-		for (const fromStore of fromMatches) {
-			for (const toStore of toMatches) {
-				if (fromStore.id === toStore.id) continue; // не ссылаемся сами на себя
+		for (const derivedStore of derivedMatches) {
+			for (const baseStore of baseMatches) {
 				relations.push({
-					type: "depends_on",
-					from: fromStore.id,
-					to: toStore.id,
+					type: "derives_from",
+					from: derivedStore.id,
+					to: baseStore.id,
 					file: stub.file,
 					line: stub.line,
 				});
@@ -177,13 +255,13 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 		rootDir: absRoot,
 		filesScanned: files.length,
 		stores,
-		consumers,
+		subscribers,
 		relations,
 	};
 }
 
 /**
- * Рекурсивный обход директорий с игнором системных/закрытых папок.
+ * Рекурсивный обход директорий с игнором служебных / тяжёлых папок.
  */
 async function walkDir(currentDir: string, files: string[]): Promise<void> {
 	let entries: Dirent[];
@@ -194,7 +272,6 @@ async function walkDir(currentDir: string, files: string[]): Promise<void> {
 		const err = error as NodeJS.ErrnoException;
 
 		if (err.code === "EACCES" || err.code === "EPERM" || err.code === "ENOENT") {
-			// Логируем в stderr, stdout MCP-протокола не трогаем
 			console.error(
 				"[nanostores-mcp] Skipping directory due to permissions or missing path:",
 				currentDir,
@@ -220,121 +297,42 @@ async function walkDir(currentDir: string, files: string[]): Promise<void> {
 	}
 }
 
-/**
- * Парсим один файл на предмет объявлений stores и записываем
- * черновые зависимости между store-ами по именам.
- */
-function scanTextForStores(
-	rootDir: string,
-	filePath: string,
-	text: string,
-	dependencyStubs: DependencyStub[],
-): StoreMatch[] {
-	const relativeFile = path.relative(rootDir, filePath) || path.basename(filePath);
-	const lines = text.split(/\r?\n/);
-	const stores: StoreMatch[] = [];
-
-	const storeDeclRegex =
-		/\bconst\s+([A-Za-z0-9_$]+)\s*=\s*(atom|map|computed|persistentAtom|persistentMap|atomFamily|mapTemplate|computedTemplate)\s*\(/;
-
-	const storeTokenRegex = /\$[A-Za-z0-9_]+/g;
-
-	for (let i = 0; i < lines.length; i += 1) {
-		const line = lines[i];
-
-		const declMatch = storeDeclRegex.exec(line);
-		if (!declMatch) continue;
-
-		const [, varName, kind] = declMatch;
-		const id = `store:${relativeFile}#${varName}`;
-
-		stores.push({
-			id,
-			file: relativeFile,
-			line: i + 1,
-			kind: kind as StoreKind,
-			name: varName,
-		});
-
-		// Попробуем найти на этой же строке зависимости на другие stores вида $something
-		storeTokenRegex.lastIndex = 0;
-		let tokenMatch: RegExpExecArray | null;
-		while ((tokenMatch = storeTokenRegex.exec(line)) !== null) {
-			const tokenName = tokenMatch[0];
-			if (tokenName === varName) continue;
-
-			dependencyStubs.push({
-				fromStoreName: varName,
-				toStoreName: tokenName,
-				file: relativeFile,
-				line: i + 1,
-			});
-		}
+function normalizeStoreKind(raw: string): StoreKind {
+	switch (raw) {
+		case "atom":
+		case "map":
+		case "computed":
+		case "persistentAtom":
+		case "persistentMap":
+		case "atomFamily":
+		case "mapTemplate":
+		case "computedTemplate":
+			return raw;
+		default:
+			return "unknown";
 	}
-
-	return stores;
 }
 
-/**
- * Находим в файле "подписчиков" на stores и связи uses: consumer -> store.
- *
- * Сейчас очень простой хак:
- * - consumer = сам файл (kind: 'file');
- * - поиск useStore($storeName);
- */
-function scanTextForConsumers(
-	rootDir: string,
-	filePath: string,
-	text: string,
-	storesByName: Map<string, StoreMatch[]>,
-): { consumers: ConsumerMatch[]; relations: StoreRelation[] } {
-	const relativeFile = path.relative(rootDir, filePath) || path.basename(filePath);
-	const lines = text.split(/\r?\n/);
+function isDerivedKind(kind: StoreKind): boolean {
+	return (
+		kind === "computed" ||
+		kind === "mapTemplate" ||
+		kind === "computedTemplate" ||
+		kind === "atomFamily"
+	);
+}
 
-	const useStoreRegex = /\buseStore\s*\(\s*([A-Za-z0-9_$]+)/g;
+function inferSubscriberKind(relativeFile: string): SubscriberKind {
+	const ext = path.extname(relativeFile);
+	const base = path.basename(relativeFile, ext);
 
-	const consumers: ConsumerMatch[] = [];
-	const relations: StoreRelation[] = [];
-
-	const consumerId = `consumer:${relativeFile}`;
-	let firstUseLine: number | undefined;
-	let hasConsumer = false;
-
-	for (let i = 0; i < lines.length; i += 1) {
-		const line = lines[i];
-
-		useStoreRegex.lastIndex = 0;
-		let match: RegExpExecArray | null;
-		while ((match = useStoreRegex.exec(line)) !== null) {
-			const storeVarName = match[1];
-
-			if (!hasConsumer) {
-				hasConsumer = true;
-				firstUseLine = i + 1;
-			}
-
-			const storeMatches = storesByName.get(storeVarName) ?? [];
-			for (const store of storeMatches) {
-				relations.push({
-					type: "uses",
-					from: consumerId,
-					to: store.id,
-					file: relativeFile,
-					line: i + 1,
-				});
-			}
-		}
+	if (base.startsWith("use")) {
+		return "hook";
 	}
 
-	if (hasConsumer) {
-		consumers.push({
-			id: consumerId,
-			file: relativeFile,
-			kind: "file",
-			name: relativeFile,
-			line: firstUseLine,
-		});
+	if (ext === ".tsx" || ext === ".jsx") {
+		return "component";
 	}
 
-	return { consumers, relations };
+	return "unknown";
 }
