@@ -14,6 +14,25 @@ function sanitizeId(id: string): string {
 	return id.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
+/**
+ * Санитизирует label для использования внутри Mermaid node label.
+ * Экранирует или удаляет спецсимволы, которые могут сломать парсинг Mermaid.
+ */
+function sanitizeLabel(label: string): string {
+	// Заменяем кавычки и скобки, которые могут сломать Mermaid
+	return label
+		.replace(/"/g, "'") // двойные кавычки → одинарные
+		.replace(/\[/g, "(") // квадратные скобки → круглые
+		.replace(/\]/g, ")")
+		.replace(/</g, "‹") // угловые скобки → типографские
+		.replace(/>/g, "›")
+		.replace(/\{/g, "(") // фигурные скобки → круглые
+		.replace(/\}/g, ")")
+		.replace(/\|/g, "¦") // pipe → broken bar
+		.replace(/\n/g, " ") // переводы строки → пробелы
+		.trim();
+}
+
 function kindLabelForSubscriber(kind: SubscriberNode["kind"]): string {
 	switch (kind) {
 		case "component":
@@ -93,7 +112,7 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 		const bucket = byFile.get(file);
 		if (!bucket) continue;
 
-		const title = file;
+		const title = sanitizeLabel(file);
 
 		lines.push(`subgraph "${title}"`);
 
@@ -102,8 +121,8 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 			const mid = sanitizeId(store.id);
 			nodeIdMap.set(store.id, mid);
 
-			const display = displayNameForStore(store);
-			const kind = store.kind ?? "store";
+			const display = sanitizeLabel(displayNameForStore(store));
+			const kind = sanitizeLabel(store.kind ?? "store");
 
 			lines.push(`${mid}["🧱 ${display} (${kind})"]`);
 		}
@@ -113,8 +132,8 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 			const mid = sanitizeId(sub.id);
 			nodeIdMap.set(sub.id, mid);
 
-			const display = displayNameForSubscriber(sub);
-			const kindLabel = kindLabelForSubscriber(sub.kind);
+			const display = sanitizeLabel(displayNameForSubscriber(sub));
+			const kindLabel = sanitizeLabel(kindLabelForSubscriber(sub.kind));
 
 			lines.push(`${mid}["🧩 ${display} (${kindLabel})"]`);
 		}
