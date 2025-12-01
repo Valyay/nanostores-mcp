@@ -1,14 +1,10 @@
 #!/usr/bin/env node
+/**
+ * CLI entry point for nanostores-mcp.
+ * This is a thin shim that delegates to the main module.
+ */
 
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { buildNanostoresServer } from "./server.js";
-
-async function main(): Promise<void> {
-	const server = buildNanostoresServer();
-
-	const transport = new StdioServerTransport();
-	await server.connect(transport);
-}
+import { main } from "./index.js";
 
 main().catch(error => {
 	// eslint-disable-next-line no-console
