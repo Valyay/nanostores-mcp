@@ -1,0 +1,68 @@
+{
+  "name": "nanostores-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Nano Stores: devtools, migration helpers, logger integration",
+  "repository": "https://github.com/Valyay/nanostores-mcp",
+  "homepage": "https://github.com/Valyay/nanostores-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Valyay/nanostores-mcp/issues"
+  },
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "nanostores-mcp": "dist/cli.js"
+  },
+  "author": "Evgeniy Valyaev <dev.valyay@gmail.com>",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/http.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint . --ext .ts,.tsx,.js,.cjs,.mjs",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "test": "node --test",
+    "check": "npm run lint && npm run format && npm test && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "nanostores",
+    "devtools",
+    "logger"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.23.0",
+    "@nanostores/logger": "^1.0.0",
+    "express": "^5.1.0",
+    "nanostores": "^1.1.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.7.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.48.0"
+  }
+}
