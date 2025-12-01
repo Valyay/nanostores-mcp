@@ -78,6 +78,37 @@ interface DerivedStub {
 	line: number;
 }
 
+// --- Кэширование индекса проекта ---
+
+interface CacheEntry {
+	index: ProjectIndex;
+	timestamp: number;
+}
+
+const projectIndexCache = new Map<string, CacheEntry>();
+
+/** TTL кэша в миллисекундах (по умолчанию 30 секунд) */
+const CACHE_TTL_MS = 30_000;
+
+export interface ScanOptions {
+	/** Принудительно пересканировать, игнорируя кэш */
+	force?: boolean;
+	/** Кастомный TTL кэша в миллисекундах */
+	cacheTtlMs?: number;
+}
+
+/**
+ * Очистить кэш индекса для конкретного root или весь кэш.
+ */
+export function clearProjectIndexCache(rootDir?: string): void {
+	if (rootDir) {
+		const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
+		projectIndexCache.delete(absRoot);
+	} else {
+		projectIndexCache.clear();
+	}
+}
+
 /**
  * Публичный API домена:
  * просканировать проект и собрать индекс nanostores:
@@ -86,9 +117,24 @@ interface DerivedStub {
  * - relations (declares / subscribes_to / derives_from)
  *
  * Использует ts-morph для точного AST-анализа вместо регулярных выражений.
+ *
+ * Результат кэшируется на CACHE_TTL_MS (30 сек по умолчанию).
+ * Используйте options.force = true для принудительного пересканирования.
  */
-export async function scanProject(rootDir: string): Promise<ProjectIndex> {
+export async function scanProject(
+	rootDir: string,
+	options: ScanOptions = {},
+): Promise<ProjectIndex> {
+	const { force = false, cacheTtlMs = CACHE_TTL_MS } = options;
 	const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
+
+	// Проверяем кэш
+	if (!force) {
+		const cached = projectIndexCache.get(absRoot);
+		if (cached && Date.now() - cached.timestamp < cacheTtlMs) {
+			return cached.index;
+		}
+	}
 
 	const stat = await fs.stat(absRoot);
 	if (!stat.isDirectory()) {
@@ -310,13 +356,21 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 		}
 	}
 
-	return {
+	const result: ProjectIndex = {
 		rootDir: absRoot,
 		filesScanned: files.length,
 		stores,
 		subscribers,
 		relations,
 	};
+
+	// Сохраняем в кэш
+	projectIndexCache.set(absRoot, {
+		index: result,
+		timestamp: Date.now(),
+	});
+
+	return result;
 }
 
 /**
