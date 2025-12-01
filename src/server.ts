@@ -12,10 +12,19 @@ const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = "0.1.0";
 
 export function buildNanostoresServer(): McpServer {
-	const server = new McpServer({
-		name: SERVER_NAME,
-		version: SERVER_VERSION,
-	});
+	const server = new McpServer(
+		{
+			name: SERVER_NAME,
+			version: SERVER_VERSION,
+		},
+		{
+			capabilities: {
+				tools: {},
+				resources: {},
+				prompts: {},
+			},
+		},
+	);
 
 	// tools
 	registerPingTool(server);
