@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
+import { Project, SyntaxKind } from "ts-morph";
 
 const IGNORED_DIRS = new Set([
 	"node_modules",
@@ -83,6 +84,8 @@ interface DerivedStub {
  * - stores
  * - subscribers (компоненты/хуки/эффекты, которые читают stores)
  * - relations (declares / subscribes_to / derives_from)
+ *
+ * Использует ts-morph для точного AST-анализа вместо регулярных выражений.
  */
 export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 	const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
@@ -92,10 +95,29 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 		throw new Error(`Provided root is not a directory: ${absRoot}`);
 	}
 
+	// Инициализация ts-morph проекта
+	const project = new Project({
+		skipAddingFilesFromTsConfig: true,
+		compilerOptions: {
+			allowJs: true,
+			jsx: 1, // Preserve
+		},
+	});
+
+	// Собираем список файлов для анализа
 	const files: string[] = [];
 	await walkDir(absRoot, files);
 
-	const fileTexts = new Map<string, string>();
+	// Добавляем файлы в ts-morph проект
+	for (const filePath of files) {
+		try {
+			project.addSourceFileAtPath(filePath);
+		} catch {
+			// Пропускаем файлы с синтаксическими ошибками
+			continue;
+		}
+	}
+
 	const stores: StoreMatch[] = [];
 	const subscribers: SubscriberMatch[] = [];
 	const relations: StoreRelation[] = [];
@@ -104,109 +126,147 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 	const storesByName = new Map<string, StoreMatch[]>();
 	const derivedStubs: DerivedStub[] = [];
 
-	// --- Первый проход: читаем файлы, находим stores + черновые зависимости derived -> base по именам ---
+	// Nanostores функции-конструкторы
+	const STORE_CREATORS = new Set([
+		"atom",
+		"map",
+		"computed",
+		"persistentAtom",
+		"persistentMap",
+		"atomFamily",
+		"mapTemplate",
+		"computedTemplate",
+	]);
 
-	for (const absPath of files) {
-		const text = await fs.readFile(absPath, "utf8");
-		fileTexts.set(absPath, text);
-
+	// --- Первый проход: находим stores через AST ---
+	for (const sourceFile of project.getSourceFiles()) {
+		const absPath = sourceFile.getFilePath();
 		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
-		const lines = text.split(/\r?\n/);
 
-		const storeDeclRegex =
-			/\bconst\s+([A-Za-z0-9_$]+)\s*=\s*(atom|map|computed|persistentAtom|persistentMap|atomFamily|mapTemplate|computedTemplate)\s*\(/;
+		// Находим все variable declarations
+		const variableStatements = sourceFile.getVariableStatements();
 
-		const storeTokenRegex = /\$[A-Za-z0-9_]+/g;
+		for (const statement of variableStatements) {
+			for (const declaration of statement.getDeclarations()) {
+				const initializer = declaration.getInitializer();
+				if (!initializer) continue;
 
-		for (let i = 0; i < lines.length; i += 1) {
-			const line = lines[i];
+				// Проверяем, является ли инициализатор вызовом функции
+				if (initializer.getKind() === SyntaxKind.CallExpression) {
+					const callExpr = initializer.asKindOrThrow(SyntaxKind.CallExpression);
+					const expression = callExpr.getExpression();
 
-			const declMatch = storeDeclRegex.exec(line);
-			if (!declMatch) continue;
+					// Получаем имя вызываемой функции
+					let functionName: string | undefined;
+					if (expression.getKind() === SyntaxKind.Identifier) {
+						functionName = expression.getText();
+					}
 
-			const [, varName, ctorName] = declMatch;
-			const kind = normalizeStoreKind(ctorName);
+					// Проверяем, что это один из конструкторов nanostores
+					if (functionName && STORE_CREATORS.has(functionName)) {
+						const varName = declaration.getName();
+						const kind = normalizeStoreKind(functionName);
+						const line = declaration.getStartLineNumber();
 
-			const id = `store:${relativeFile}#${varName}`;
+						const id = `store:${relativeFile}#${varName}`;
 
-			const store: StoreMatch = {
-				id,
-				file: relativeFile,
-				line: i + 1,
-				kind,
-				name: varName,
-			};
-			stores.push(store);
+						const store: StoreMatch = {
+							id,
+							file: relativeFile,
+							line,
+							kind,
+							name: varName,
+						};
+						stores.push(store);
 
-			const byName = storesByName.get(varName) ?? [];
-			byName.push(store);
-			storesByName.set(varName, byName);
+						const byName = storesByName.get(varName) ?? [];
+						byName.push(store);
+						storesByName.set(varName, byName);
 
-			// file -> store
-			relations.push({
-				type: "declares",
-				from: `file:${relativeFile}`,
-				to: id,
-				file: relativeFile,
-				line: i + 1,
-			});
+						// file -> store relation
+						relations.push({
+							type: "declares",
+							from: `file:${relativeFile}`,
+							to: id,
+							file: relativeFile,
+							line,
+						});
 
-			// Если это derived store (computed / templates), попробуем найти на этой строке зависимости на другие stores
-			if (isDerivedKind(kind)) {
-				storeTokenRegex.lastIndex = 0;
-				let tokenMatch: RegExpExecArray | null;
-				while ((tokenMatch = storeTokenRegex.exec(line)) !== null) {
-					const tokenName = tokenMatch[0];
-					if (tokenName === varName) continue;
+						// Для derived stores находим зависимости
+						if (isDerivedKind(kind)) {
+							// Анализируем аргументы вызова
+							const args = callExpr.getArguments();
+							for (const arg of args) {
+								// Находим все identifier-ы в аргументах
+								const identifiers = arg.getDescendantsOfKind(SyntaxKind.Identifier);
+								for (const identifier of identifiers) {
+									const depName = identifier.getText();
+									// Пропускаем сам derived store
+									if (depName === varName) continue;
 
-					derivedStubs.push({
-						derivedVar: varName,
-						dependsOnVar: tokenName,
-						file: relativeFile,
-						line: i + 1,
-					});
+									// Проверяем, что это похоже на имя стора
+									if (storesByName.has(depName) || depName.startsWith("$")) {
+										derivedStubs.push({
+											derivedVar: varName,
+											dependsOnVar: depName,
+											file: relativeFile,
+											line,
+										});
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}
 	}
 
-	// --- Второй проход: находим подписчиков (subscribers) и связи subscribes_to: subscriber -> store ---
-
-	for (const absPath of files) {
-		const text = fileTexts.get(absPath);
-		if (!text) continue;
-
+	// --- Второй проход: находим подписчиков (subscribers) через AST ---
+	for (const sourceFile of project.getSourceFiles()) {
+		const absPath = sourceFile.getFilePath();
 		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
-		const lines = text.split(/\r?\n/);
-
-		const useStoreRegex = /\buseStore\s*\(\s*([A-Za-z0-9_$]+)/g;
 
 		const storeIds = new Set<string>();
 		let firstUseLine: number | undefined;
 
-		for (let i = 0; i < lines.length; i += 1) {
-			const line = lines[i];
+		// Находим все вызовы useStore
+		const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
-			useStoreRegex.lastIndex = 0;
-			let match: RegExpExecArray | null;
-			while ((match = useStoreRegex.exec(line)) !== null) {
-				const storeVarName = match[1];
+		for (const callExpr of callExpressions) {
+			const expression = callExpr.getExpression();
 
-				const matches = storesByName.get(storeVarName) ?? [];
-				for (const store of matches) {
-					storeIds.add(store.id);
-				}
+			// Проверяем, что вызывается useStore
+			if (expression.getKind() === SyntaxKind.Identifier) {
+				const functionName = expression.getText();
 
-				if (matches.length > 0 && firstUseLine === undefined) {
-					firstUseLine = i + 1;
+				if (functionName === "useStore") {
+					const args = callExpr.getArguments();
+					if (args.length > 0) {
+						const firstArg = args[0];
+
+						// Получаем имя стора из первого аргумента
+						if (firstArg.getKind() === SyntaxKind.Identifier) {
+							const storeVarName = firstArg.getText();
+							const matches = storesByName.get(storeVarName) ?? [];
+
+							for (const store of matches) {
+								storeIds.add(store.id);
+							}
+
+							if (matches.length > 0 && firstUseLine === undefined) {
+								firstUseLine = callExpr.getStartLineNumber();
+							}
+						}
+					}
 				}
 			}
 		}
 
+		// Создаем subscriber если найдены использования
 		if (storeIds.size > 0) {
 			const subscriberId = `subscriber:${relativeFile}`;
 			const kind = inferSubscriberKind(relativeFile);
-
 			const baseName = path.basename(relativeFile, path.extname(relativeFile));
 
 			const subscriber: SubscriberMatch = {
@@ -233,7 +293,6 @@ export async function scanProject(rootDir: string): Promise<ProjectIndex> {
 	}
 
 	// --- Третий проход: резолвим derived -> base (derives_from) по stub-ам ---
-
 	for (const stub of derivedStubs) {
 		const derivedMatches = storesByName.get(stub.derivedVar) ?? [];
 		const baseMatches = storesByName.get(stub.dependsOnVar) ?? [];
@@ -272,11 +331,7 @@ async function walkDir(currentDir: string, files: string[]): Promise<void> {
 		const err = error as NodeJS.ErrnoException;
 
 		if (err.code === "EACCES" || err.code === "EPERM" || err.code === "ENOENT") {
-			console.error(
-				"[nanostores-mcp] Skipping directory due to permissions or missing path:",
-				currentDir,
-				err.code,
-			);
+			// Пропускаем директории с проблемами доступа
 			return;
 		}
 

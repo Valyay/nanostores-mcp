@@ -50,6 +50,7 @@
     "@nanostores/logger": "^1.0.0",
     "express": "^5.1.0",
     "nanostores": "^1.1.0",
+    "ts-morph": "^27.0.2",
     "zod": "^4.1.0"
   },
   "devDependencies": {
