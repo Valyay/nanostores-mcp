@@ -1,22 +1,9 @@
 import fs from "node:fs/promises";
-import type { Dirent } from "node:fs";
 import path from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
+import { globby } from "globby";
 
-const IGNORED_DIRS = new Set([
-	"node_modules",
-	".git",
-	".hg",
-	".svn",
-	"dist",
-	"build",
-	".next",
-	".turbo",
-	".cache",
-	"coverage",
-]);
-
-const SOURCE_EXT_REGEX = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+const SOURCE_EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
 
 export type StoreKind =
 	| "atom"
@@ -158,8 +145,13 @@ export async function scanProject(
 
 	// Собираем список файлов для анализа
 	onProgress?.(0, 4, "Walking directory tree");
-	const files: string[] = [];
-	await walkDir(absRoot, files);
+	const patterns = SOURCE_EXTENSIONS.map(ext => `**/*.${ext}`);
+	const files = await globby(patterns, {
+		cwd: absRoot,
+		absolute: true,
+		gitignore: true,
+		ignore: ["**/node_modules/**", "**/.git/**"],
+	});
 
 	// Добавляем файлы в ts-morph проект
 	onProgress?.(1, 4, `Loading ${files.length} source files`);
@@ -385,39 +377,6 @@ export async function scanProject(
 	onProgress?.(4, 4, "Scan complete");
 
 	return result;
-}
-
-/**
- * Рекурсивный обход директорий с игнором служебных / тяжёлых папок.
- */
-async function walkDir(currentDir: string, files: string[]): Promise<void> {
-	let entries: Dirent[];
-
-	try {
-		entries = await fs.readdir(currentDir, { withFileTypes: true });
-	} catch (error) {
-		const err = error as NodeJS.ErrnoException;
-
-		if (err.code === "EACCES" || err.code === "EPERM" || err.code === "ENOENT") {
-			// Пропускаем директории с проблемами доступа
-			return;
-		}
-
-		throw error;
-	}
-
-	for (const entry of entries) {
-		const entryPath = path.join(currentDir, entry.name);
-
-		if (entry.isDirectory()) {
-			if (IGNORED_DIRS.has(entry.name)) continue;
-			await walkDir(entryPath, files);
-		} else if (entry.isFile()) {
-			if (SOURCE_EXT_REGEX.test(entry.name)) {
-				files.push(entryPath);
-			}
-		}
-	}
 }
 
 function normalizeStoreKind(raw: string): StoreKind {
