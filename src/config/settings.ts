@@ -1,6 +1,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { normalizeFsPath, resolveSafePath } from "./security.js";
+import { normalizeFsPath, resolveSafePath, realpathSafe } from "./security.js";
+import { envConfig } from "./envConfig.js";
 
 export interface WorkspaceRoot {
 	/** Оригинальный URI (если есть) или сгенерированный из fsPath. */
@@ -28,7 +29,7 @@ export function getEnvWorkspaceRoots(): string[] {
 	const roots: string[] = [];
 	const delimiter = path.delimiter;
 
-	const multi = process.env.NANOSTORES_MCP_ROOTS;
+	const multi = envConfig.NANOSTORES_MCP_ROOTS;
 	if (multi) {
 		for (const raw of multi.split(delimiter)) {
 			const trimmed = raw.trim();
@@ -37,9 +38,7 @@ export function getEnvWorkspaceRoots(): string[] {
 	}
 
 	const single =
-		process.env.NANOSTORES_MCP_ROOT ||
-		process.env.WORKSPACE_FOLDER ||
-		process.env.WORKSPACE_FOLDER_PATHS;
+		envConfig.NANOSTORES_MCP_ROOT || envConfig.WORKSPACE_FOLDER || envConfig.WORKSPACE_FOLDER_PATHS;
 
 	if (single) {
 		for (const raw of single.split(delimiter)) {
@@ -65,14 +64,16 @@ export function getWorkspaceRoots(): WorkspaceRoot[] {
 	if (cachedWorkspaceRoots) return cachedWorkspaceRoots;
 
 	const envRoots = getEnvWorkspaceRoots();
-
 	const fsRoots: string[] = envRoots.length ? envRoots : [normalizeFsPath(process.cwd())];
 
-	cachedWorkspaceRoots = fsRoots.map(fsPath => ({
-		fsPath,
-		uri: pathToFileURL(fsPath).href,
-		name: undefined,
-	}));
+	cachedWorkspaceRoots = fsRoots.map(fsPath => {
+		const finalPath = realpathSafe(fsPath);
+		return {
+			fsPath: finalPath,
+			uri: pathToFileURL(finalPath).href,
+			name: undefined,
+		};
+	});
 
 	return cachedWorkspaceRoots;
 }

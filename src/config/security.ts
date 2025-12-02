@@ -1,49 +1,66 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import isPathInsideLib from "is-path-inside";
 
-/**
- * Нормализация пути:
- * - снимаем относительность (., ..)
- * - убираем лишние слэши и т.п.
- */
+type ErrnoException = NodeJS.ErrnoException;
+
+function isErrnoException(error: unknown): error is ErrnoException {
+	return typeof error === "object" && error !== null && "code" in error;
+}
+
 export function normalizeFsPath(fsPath: string): string {
 	return path.resolve(fsPath);
 }
 
-/**
- * Переводим file:// URI или обычную строку в нормализованный FS-путь.
- */
 export function uriToFsPath(uriOrPath: string): string {
-	// file://
 	if (uriOrPath.startsWith("file://")) {
-		const url = new URL(uriOrPath);
-		return normalizeFsPath(fileURLToPath(url));
+		// URL → абсолютный fs путь
+		return normalizeFsPath(fileURLToPath(uriOrPath));
 	}
 
-	// считаем, что это и так путь (абсолютный или относительный)
 	return normalizeFsPath(uriOrPath);
 }
 
 /**
- * Проверяем, что target лежит внутри root (или совпадает с ним).
+ * Безопасный realpath:
+ * - нормализует путь;
+ * - пытается зареалпазить;
+ * - для несуществующих файлов realpath делается для директории.
  */
-export function isPathInsideRoot(targetPath: string, rootPath: string): boolean {
-	const target = normalizeFsPath(targetPath);
-	const root = normalizeFsPath(rootPath);
+export function realpathSafe(p: string): string {
+	const normalized = normalizeFsPath(p);
 
-	if (target === root) return true;
+	const realpathFn = fs.realpathSync.native ?? fs.realpathSync;
 
-	const rel = path.relative(root, target);
+	try {
+		return realpathFn(normalized);
+	} catch (err: unknown) {
+		if (isErrnoException(err) && err.code === "ENOENT") {
+			// Файл/директория ещё не существует → realpath для родителя
+			const dir = path.dirname(normalized);
+			const base = path.basename(normalized);
 
-	return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+			const realDir = realpathSafe(dir);
+			return path.join(realDir, base);
+		}
+
+		throw err;
+	}
 }
 
 /**
- * Переводит строку (URI или путь) в FS-путь и гарантирует,
- * что он лежит внутри хотя бы одного из roots.
- *
- * Если нет ни одного root или путь вне всех — кидаем ошибку.
+ * Проверяем, что target лежит внутри root (с учётом symlink’ов).
  */
+export function isPathInsideRoot(targetPath: string, rootPath: string): boolean {
+	const targetReal = realpathSafe(targetPath);
+	const rootReal = realpathSafe(rootPath);
+
+	if (targetReal === rootReal) return true;
+
+	return isPathInsideLib(targetReal, rootReal);
+}
+
 export function resolveSafePath(uriOrPath: string, roots: readonly string[]): string {
 	if (!roots.length) {
 		throw new Error("No workspace roots configured; cannot safely resolve filesystem path.");
