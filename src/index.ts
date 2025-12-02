@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { buildNanostoresServer } from "./server.js";
 
@@ -19,11 +20,9 @@ export async function main(): Promise<void> {
 // Check if this module is the entry point
 const isMainModule =
 	typeof process !== "undefined" &&
+	typeof import.meta !== "undefined" &&
 	process.argv[1] &&
-	(process.argv[1].endsWith("/index.js") ||
-		process.argv[1].endsWith("/index.ts") ||
-		process.argv[1].includes("nanostores-mcp/dist/index") ||
-		process.argv[1].includes("nanostores-mcp/src/index"));
+	pathToFileURL(process.argv[1]).href === import.meta.url;
 
 if (isMainModule) {
 	main().catch(error => {
