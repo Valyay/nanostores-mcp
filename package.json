@@ -16,6 +16,7 @@
   "bin": {
     "nanostores-mcp": "dist/cli.js"
   },
+  "sideEffects": false,
   "author": "Evgeniy Valyaev <dev.valyay@gmail.com>",
   "exports": {
     ".": {
@@ -34,11 +35,11 @@
     "dev:http": "tsx src/http.ts",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs,.mjs",
-    "lint:fix": "npm run lint -- --fix",
+    "lint:fix": "pnpm run lint -- --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test": "node --test",
-    "check": "npm run lint && npm run format && npm test && npm run build"
+    "check": "pnpm run lint && pnpm run format && pnpm run test && pnpm run build"
   },
   "keywords": [
     "mcp",
@@ -47,6 +48,7 @@
     "devtools",
     "logger"
   ],
+  "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20.0.0"
   },
