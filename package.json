@@ -24,6 +24,11 @@
     },
     "./cli": "./dist/cli.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
     "dev:http": "tsx src/http.ts",
@@ -43,7 +48,7 @@
     "logger"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
