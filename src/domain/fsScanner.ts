@@ -1,9 +1,6 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import { globby } from "globby";
-
-const SOURCE_EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
 
 export type StoreKind =
 	| "atom"
@@ -129,11 +126,6 @@ export async function scanProject(
 		}
 	}
 
-	const stat = await fs.stat(absRoot);
-	if (!stat.isDirectory()) {
-		throw new Error(`Provided root is not a directory: ${absRoot}`);
-	}
-
 	// Инициализация ts-morph проекта
 	const project = new Project({
 		skipAddingFilesFromTsConfig: true,
@@ -143,17 +135,17 @@ export async function scanProject(
 		},
 	});
 
-	// Собираем список файлов для анализа
-	onProgress?.(0, 4, "Walking directory tree");
-	const patterns = SOURCE_EXTENSIONS.map(ext => `**/*.${ext}`);
-	const files = await globby(patterns, {
+	// Собираем список файлов для анализа с помощью globby
+	// Используем brace expansion для компактной записи всех расширений
+	// globby автоматически обработает несуществующие директории и .gitignore
+	onProgress?.(0, 4, "Scanning source files");
+	const files = await globby("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
 		cwd: absRoot,
 		absolute: true,
 		gitignore: true,
-		ignore: ["**/node_modules/**", "**/.git/**"],
+		onlyFiles: true,
 	});
 
-	// Добавляем файлы в ts-morph проект
 	onProgress?.(1, 4, `Loading ${files.length} source files`);
 	for (const filePath of files) {
 		try {
