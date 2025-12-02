@@ -1,6 +1,8 @@
 import path from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import { globby } from "globby";
+import { isErrnoException, realpathSafe } from "../config/security.js";
+import fs from "node:fs/promises";
 
 export type StoreKind =
 	| "atom"
@@ -91,7 +93,9 @@ export interface ScanOptions {
  */
 export function clearProjectIndexCache(rootDir?: string): void {
 	if (rootDir) {
-		const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
+		const absRoot = realpathSafe(
+			path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
+		);
 		projectIndexCache.delete(absRoot);
 	} else {
 		projectIndexCache.clear();
@@ -115,9 +119,10 @@ export async function scanProject(
 	options: ScanOptions = {},
 ): Promise<ProjectIndex> {
 	const { force = false, cacheTtlMs = CACHE_TTL_MS, onProgress } = options;
-	const absRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir);
+	const absRoot = realpathSafe(
+		path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
+	);
 
-	// Проверяем кэш
 	if (!force) {
 		const cached = projectIndexCache.get(absRoot);
 		if (cached && Date.now() - cached.timestamp < cacheTtlMs) {
@@ -139,6 +144,19 @@ export async function scanProject(
 	// Используем brace expansion для компактной записи всех расширений
 	// globby автоматически обработает несуществующие директории и .gitignore
 	onProgress?.(0, 4, "Scanning source files");
+
+	try {
+		const stat = await fs.stat(absRoot);
+		if (!stat.isDirectory()) {
+			throw new Error(`Provided root is not a directory: ${absRoot}`);
+		}
+	} catch (err) {
+		if (isErrnoException(err) && err.code === "ENOENT") {
+			throw new Error(`Workspace root does not exist: ${absRoot}`);
+		}
+		throw err;
+	}
+
 	const files = await globby("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
 		cwd: absRoot,
 		absolute: true,

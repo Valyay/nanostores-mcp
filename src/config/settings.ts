@@ -104,9 +104,9 @@ export function resolveWorkspacePath(uriOrPath: string): string {
  */
 export function resolveWorkspaceRoot(rootUri?: string): string {
 	const roots = getWorkspaceRootPaths();
+
 	if (!roots.length) {
-		// на всякий случай, но по идее сюда не дойдём
-		return normalizeFsPath(process.cwd());
+		throw new Error("No workspace roots configured; cannot resolve workspace root.");
 	}
 
 	if (!rootUri || rootUri.trim().length === 0) {

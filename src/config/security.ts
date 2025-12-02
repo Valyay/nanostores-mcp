@@ -5,7 +5,7 @@ import isPathInsideLib from "is-path-inside";
 
 type ErrnoException = NodeJS.ErrnoException;
 
-function isErrnoException(error: unknown): error is ErrnoException {
+export function isErrnoException(error: unknown): error is ErrnoException {
 	return typeof error === "object" && error !== null && "code" in error;
 }
 
@@ -30,16 +30,18 @@ export function uriToFsPath(uriOrPath: string): string {
  */
 export function realpathSafe(p: string): string {
 	const normalized = normalizeFsPath(p);
-
 	const realpathFn = fs.realpathSync.native ?? fs.realpathSync;
 
 	try {
 		return realpathFn(normalized);
 	} catch (err: unknown) {
 		if (isErrnoException(err) && err.code === "ENOENT") {
-			// Файл/директория ещё не существует → realpath для родителя
 			const dir = path.dirname(normalized);
 			const base = path.basename(normalized);
+
+			if (dir === normalized) {
+				return normalized;
+			}
 
 			const realDir = realpathSafe(dir);
 			return path.join(realDir, base);
@@ -70,7 +72,7 @@ export function resolveSafePath(uriOrPath: string, roots: readonly string[]): st
 
 	for (const root of roots) {
 		if (isPathInsideRoot(fsPath, root)) {
-			return fsPath;
+			return realpathSafe(fsPath);
 		}
 	}
 
