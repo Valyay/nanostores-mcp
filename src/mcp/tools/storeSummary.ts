@@ -8,24 +8,13 @@ type StoreMatch = ScanResult["stores"][number];
 type SubscriberMatch = ScanResult["subscribers"][number];
 type StoreRelation = ScanResult["relations"][number];
 
-const StoreSummaryInputSchema = {
-	storeId: z
-		.string()
-		.describe(
-			"Exact store id (e.g. 'store:src/stores/cart.ts#$cartTotal'). If provided, takes priority.",
-		)
-		.optional(),
-	name: z
-		.string()
-		.describe("Store name (e.g. '$cartTotal' or 'cartTotal'). Used if storeId is not provided.")
-		.optional(),
-	file: z
-		.string()
-		.describe("Optional relative file path to disambiguate store name (e.g. 'src/stores/cart.ts').")
-		.optional(),
-};
+const StoreSummaryInputSchema = z.object({
+	storeId: z.string().describe("Exact store id. If provided, takes priority.").optional(),
+	name: z.string().describe("Store name. Used if storeId is not provided.").optional(),
+	file: z.string().describe("Optional relative file path to disambiguate store name.").optional(),
+});
 
-const StoreSummaryOutputSchema = {
+const StoreSummaryOutputSchema = z.object({
 	store: z.object({
 		id: z.string(),
 		file: z.string(),
@@ -88,7 +77,7 @@ const StoreSummaryOutputSchema = {
 			}),
 		),
 	}),
-};
+});
 
 function resolveStoreById(result: ScanResult, id: string): StoreMatch | undefined {
 	return result.stores.find(s => s.id === id);

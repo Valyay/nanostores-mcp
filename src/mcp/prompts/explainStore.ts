@@ -1,4 +1,3 @@
-// src/mcp/prompts/explainStore.ts
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
@@ -64,19 +63,12 @@ export function registerExplainStorePrompt(server: McpServer): void {
 						return suggestStoreNames(value);
 					},
 				),
-				detail_level: z
-					.enum(["short", "full"])
-					.default("short")
-					.describe("Level of detail for the explanation."),
 			},
 		},
-		({ store_name, detail_level }) => {
+		({ store_name }) => {
 			const detailInstruction =
-				detail_level === "full"
-					? "Give a thorough explanation including data shape, derived/computed dependencies, subscribers and typical usage patterns."
-					: "Give a concise explanation (2–4 sentences) focusing on what the store represents and how it’s used.";
+				"Give a thorough explanation including data shape, derived/computed dependencies, subscribers and typical usage patterns.";
 
-			// В prompts поддерживаются только роли "user" и "assistant"
 			return {
 				messages: [
 					{

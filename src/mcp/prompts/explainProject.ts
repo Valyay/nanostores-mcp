@@ -1,6 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+const ExplainProjectArgsSchema = {
+	focus: z
+		.string()
+		.describe('Optional focus area (e.g. "cart", "auth", "filters", "notifications").')
+		.optional(),
+};
+
 export function registerExplainProjectPrompt(server: McpServer): void {
 	server.registerPrompt(
 		"explain-project",
@@ -8,21 +15,9 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 			title: "Explain Nanostores usage in this project",
 			description:
 				"High-level explanation of how Nanostores is used in the current project, based on nanostores://graph.",
-			argsSchema: {
-				focus: z
-					.string()
-					.describe('Optional focus area (e.g. "cart", "auth", "filters", "notifications").')
-					.optional(),
-				detail: z
-					.enum(["overview", "detailed"])
-					.describe("Level of detail for the explanation.")
-					.default("overview")
-					.optional(),
-			},
+			argsSchema: ExplainProjectArgsSchema,
 		},
-		({ focus, detail }) => {
-			const detailLabel = detail ?? "overview";
-
+		({ focus }) => {
 			const focusText = focus
 				? `Focus especially on anything related to "${focus}". If there are multiple relevant stores or files, group them logically and explain how they work together.\n\n`
 				: "";
@@ -45,7 +40,7 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 				`2. Read its JSON representation (the entry with mimeType "application/json").`,
 				`3. Use that JSON graph as the single source of truth about which Nanostores stores exist and where they live.`,
 				``,
-				`Then, based ONLY on that graph, produce a ${detailLabel} human-readable explanation that covers:`,
+				`Then, based ONLY on that graph, produce a detailed human-readable explanation that covers:`,
 				`- Overall layout: which folders/files contain Nanostores stores (e.g. "src/stores", "features/cart/stores", etc.).`,
 				`- Key stores and their responsibilities (group related stores together).`,
 				`- Distribution of store kinds (atom, map, computed, persistentAtom, persistentMap, etc.) and what that implies about the architecture.`,

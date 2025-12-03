@@ -5,6 +5,45 @@ import { z } from "zod";
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
+const ScanProjectInputSchema = z.object({
+	// file:// URI или путь внутри workspace; если не указан — берётся первый root
+	rootUri: z.string().optional(),
+});
+
+const ScanProjectOutputSchema = z.object({
+	root: z.string(),
+	filesScanned: z.number(),
+	stores: z.array(
+		z.object({
+			id: z.string(),
+			file: z.string(),
+			line: z.number(),
+			kind: z.string(), // StoreKind
+			name: z.string().optional(),
+		}),
+	),
+	subscribers: z.array(
+		z.object({
+			id: z.string(),
+			file: z.string(),
+			line: z.number(),
+			kind: z.string(), // SubscriberKind
+			name: z.string().optional(),
+			storeIds: z.array(z.string()),
+		}),
+	),
+	relations: z.array(
+		z.object({
+			type: z.enum(["declares", "subscribes_to", "derives_from"]),
+			from: z.string(),
+			to: z.string(),
+			file: z.string().optional(),
+			line: z.number().optional(),
+		}),
+	),
+	errors: z.array(z.string()).optional(),
+});
+
 export function registerScanProjectTool(server: McpServer): void {
 	server.registerTool(
 		"scan_project",
@@ -12,43 +51,8 @@ export function registerScanProjectTool(server: McpServer): void {
 			title: "Scan project for Nanostores usage",
 			description:
 				"Scans the project for nanostores stores, subscribers (components/hooks) and simple store-to-store dependencies.",
-			inputSchema: {
-				// file:// URI или путь внутри workspace; если не указан — берётся первый root
-				rootUri: z.string().optional(),
-			},
-			outputSchema: {
-				root: z.string(),
-				filesScanned: z.number(),
-				stores: z.array(
-					z.object({
-						id: z.string(),
-						file: z.string(),
-						line: z.number(),
-						kind: z.string(), // StoreKind
-						name: z.string().optional(),
-					}),
-				),
-				subscribers: z.array(
-					z.object({
-						id: z.string(),
-						file: z.string(),
-						line: z.number(),
-						kind: z.string(), // SubscriberKind
-						name: z.string().optional(),
-						storeIds: z.array(z.string()),
-					}),
-				),
-				relations: z.array(
-					z.object({
-						type: z.enum(["declares", "subscribes_to", "derives_from"]),
-						from: z.string(),
-						to: z.string(),
-						file: z.string().optional(),
-						line: z.number().optional(),
-					}),
-				),
-				errors: z.array(z.string()).optional(),
-			},
+			inputSchema: ScanProjectInputSchema,
+			outputSchema: ScanProjectOutputSchema,
 			annotations: {
 				readOnlyHint: true,
 				idempotentHint: true,
