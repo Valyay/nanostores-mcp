@@ -7,9 +7,10 @@ import { registerGraphMermaidResource } from "./mcp/resources/graphMermaid.js";
 import { registerExplainProjectPrompt } from "./mcp/prompts/explainProject.js";
 import { registerStoreSummaryTool } from "./mcp/tools/storeSummary.js";
 import { registerExplainStorePrompt } from "./mcp/prompts/explainStore.js";
+import packageJson from "../package.json" with { type: "json" };
 
 const SERVER_NAME = "nanostores-mcp";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = (packageJson as { version: string }).version;
 
 export function buildNanostoresServer(): McpServer {
 	const server = new McpServer(
