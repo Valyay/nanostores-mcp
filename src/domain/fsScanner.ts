@@ -1,8 +1,16 @@
 import path from "node:path";
-import { Project, SyntaxKind } from "ts-morph";
+import {
+	Project,
+	SyntaxKind,
+	SourceFile,
+	CallExpression,
+	Node,
+	Symbol as TsSymbol,
+} from "ts-morph";
 import { globby } from "globby";
 import { isErrnoException, realpathSafe } from "../config/security.js";
 import fs from "node:fs/promises";
+import { JsxEmit } from "typescript";
 
 export type StoreKind =
 	| "atom"
@@ -62,6 +70,21 @@ interface DerivedStub {
 	dependsOnVar: string;
 	file: string;
 	line: number;
+	derivedSymbolKey?: string;
+	dependsOnSymbolKey?: string;
+}
+
+interface SubscriberContainerInfo {
+	containerName?: string;
+	containerStartLine: number;
+}
+
+interface SubscriberAccumulator {
+	storeIds: Set<string>;
+	firstUseLine?: number;
+	kind: SubscriberKind;
+	name?: string;
+	containerStartLine: number;
 }
 
 // --- Кэширование индекса проекта ---
@@ -103,6 +126,267 @@ export function clearProjectIndexCache(rootDir?: string): void {
 }
 
 /**
+ * Набор модулей, из которых считаем импорты nanostores-сто́ров.
+ * Можно расширить в рантайме: NANOSTORES_BASE_MODULES.add("my-nanostores-wrapper")
+ */
+export const NANOSTORES_BASE_MODULES = new Set<string>(["nanostores", "@nanostores/core"]);
+
+export const NANOSTORES_PERSISTENT_MODULES = new Set<string>([
+	"@nanostores/persistent",
+	"nanostores/persistent",
+]);
+
+/**
+ * Модули, из которых считаем useStore() nanostores/react.
+ * Можно расширить при необходимости (например, для своих врапперов).
+ */
+export const NANOSTORES_REACT_MODULES = new Set<string>(["nanostores/react", "@nanostores/react"]);
+
+interface NanostoresStoreImports {
+	storeFactories: Map<string, StoreKind>;
+	nanostoresNamespaces: Set<string>;
+}
+
+/**
+ * Собираем информацию об импортированных фабриках сто́ров nanostores в файле:
+ * - storeFactories: локальное имя → StoreKind
+ * - nanostoresNamespaces: локальные имена namespace-импортов (import * as ns from "nanostores")
+ */
+function collectNanostoresStoreImports(sourceFile: SourceFile): NanostoresStoreImports {
+	const storeFactories = new Map<string, StoreKind>();
+	const nanostoresNamespaces = new Set<string>();
+
+	for (const imp of sourceFile.getImportDeclarations()) {
+		const module = imp.getModuleSpecifierValue();
+
+		// Основной модуль сто́ров
+		const isBaseModule = NANOSTORES_BASE_MODULES.has(module);
+
+		// Модуль persistent-сто́ров
+		const isPersistentModule = NANOSTORES_PERSISTENT_MODULES.has(module);
+
+		if (!isBaseModule && !isPersistentModule) continue;
+
+		// Именованные импорты: atom, map, computed, persistentAtom, ...
+		for (const named of imp.getNamedImports()) {
+			const importedName = named.getName();
+			const localName = named.getAliasNode()?.getText() ?? importedName;
+			const kind = normalizeStoreKind(importedName);
+
+			if (kind !== "unknown") {
+				storeFactories.set(localName, kind);
+			}
+		}
+
+		// namespace-импорты: import * as ns from "nanostores"
+		if (isBaseModule) {
+			const ns = imp.getNamespaceImport();
+			if (ns) {
+				nanostoresNamespaces.add(ns.getText());
+			}
+		}
+	}
+
+	return { storeFactories, nanostoresNamespaces };
+}
+
+/**
+ * Определяем StoreKind из вызова функции, учитывая:
+ * - алиасы: import { atom as createAtom } from "nanostores"
+ * - namespace: import * as ns from "nanostores"; ns.atom(...)
+ */
+function getStoreKindFromCall(
+	callExpr: CallExpression,
+	importsInfo: NanostoresStoreImports,
+): StoreKind | undefined {
+	const expression = callExpr.getExpression();
+
+	// createAtom(...)
+	if (expression.getKind() === SyntaxKind.Identifier) {
+		const localName = expression.getText();
+		const kind = importsInfo.storeFactories.get(localName);
+		return kind;
+	}
+
+	// ns.atom(...)
+	if (expression.getKind() === SyntaxKind.PropertyAccessExpression) {
+		const propAccess = expression.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+		const nsName = propAccess.getExpression().getText();
+		const methodName = propAccess.getName();
+
+		if (importsInfo.nanostoresNamespaces.has(nsName)) {
+			return normalizeStoreKind(methodName);
+		}
+	}
+
+	return undefined;
+}
+
+interface NanostoresReactImports {
+	useStoreFns: Set<string>;
+	reactNamespaces: Set<string>;
+}
+
+/**
+ * Собираем информацию об импортированном useStore из nanostores/react:
+ * - useStoreFns: локальные имена функций (useStore, useNanoStore, ...)
+ * - reactNamespaces: namespace-импорты (import * as nsReact from "nanostores/react")
+ */
+function collectNanostoresReactImports(sourceFile: SourceFile): NanostoresReactImports {
+	const useStoreFns = new Set<string>();
+	const reactNamespaces = new Set<string>();
+
+	for (const imp of sourceFile.getImportDeclarations()) {
+		const module = imp.getModuleSpecifierValue();
+
+		if (!NANOSTORES_REACT_MODULES.has(module)) {
+			continue;
+		}
+
+		// import { useStore, useStore as useNanoStore } from "nanostores/react"
+		for (const named of imp.getNamedImports()) {
+			const imported = named.getName();
+			const local = named.getAliasNode()?.getText() ?? imported;
+			if (imported === "useStore") {
+				useStoreFns.add(local);
+			}
+		}
+
+		// import * as nsReact from "nanostores/react"
+		const ns = imp.getNamespaceImport();
+		if (ns) {
+			reactNamespaces.add(ns.getText());
+		}
+	}
+
+	return { useStoreFns, reactNamespaces };
+}
+
+/**
+ * Проверяем, что вызов — это именно useStore из nanostores/react:
+ * - useStore(...) или useNanoStore(...)
+ * - nsReact.useStore(...)
+ */
+function isUseStoreCall(callExpr: CallExpression, imports: NanostoresReactImports): boolean {
+	const expr = callExpr.getExpression();
+
+	// useStore(...)
+	if (expr.getKind() === SyntaxKind.Identifier) {
+		const fnName = expr.getText();
+		return imports.useStoreFns.has(fnName);
+	}
+
+	// nsReact.useStore(...)
+	if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+		const propAccess = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+		const objName = propAccess.getExpression().getText();
+		const propName = propAccess.getName();
+
+		return imports.reactNamespaces.has(objName) && propName === "useStore";
+	}
+
+	return false;
+}
+
+function findSubscriberContainerInfo(callExpr: CallExpression): SubscriberContainerInfo {
+	let node: Node | undefined = callExpr;
+
+	while (node && !Node.isSourceFile(node)) {
+		// function Counter() { ... }
+		if (Node.isFunctionDeclaration(node)) {
+			const name = node.getName() ?? undefined;
+			const startLine = node.getNameNode()?.getStartLineNumber() ?? node.getStartLineNumber();
+			return {
+				containerName: name,
+				containerStartLine: startLine,
+			};
+		}
+
+		// const Counter = () => { ... }
+		// const useCounter = function () { ... }
+		if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
+			const varDecl = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+
+			if (varDecl) {
+				const name = varDecl.getName();
+				return {
+					containerName: name,
+					containerStartLine: varDecl.getStartLineNumber(),
+				};
+			}
+
+			// анонимная функция без переменной — считаем подписчиком саму функцию
+			return {
+				containerName: undefined,
+				containerStartLine: node.getStartLineNumber(),
+			};
+		}
+
+		// class Counter { render() { useStore(...) } }
+		if (Node.isMethodDeclaration(node)) {
+			const methodName = node.getName();
+			const classDecl = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
+			const className = classDecl?.getName();
+
+			const name = className && methodName ? `${className}.${methodName}` : methodName || className;
+
+			return {
+				containerName: name,
+				containerStartLine: node.getStartLineNumber(),
+			};
+		}
+
+		// useStore прямо в теле класса
+		if (Node.isClassDeclaration(node)) {
+			const name = node.getName();
+			if (name) {
+				return {
+					containerName: name,
+					containerStartLine: node.getStartLineNumber(),
+				};
+			}
+		}
+
+		node = node.getParent();
+	}
+
+	// Фоллбек: считаем подписчиком сам файл/тело
+	return {
+		containerName: undefined,
+		containerStartLine: callExpr.getStartLineNumber(),
+	};
+}
+
+function getSymbolKey(symbol: TsSymbol): string {
+	const decl = (symbol.getDeclarations()[0] ?? undefined) as Node | undefined;
+	if (decl) {
+		const filePath = decl.getSourceFile().getFilePath();
+		const line = decl.getStartLineNumber();
+		return `${symbol.getName()}@${filePath}:${line}`;
+	}
+	return symbol.getName();
+}
+
+function makeRelationKey(rel: StoreRelation): string {
+	// file и line могут быть undefined — нормализуем в строку,
+	// чтобы ключ был детерминированный.
+	const filePart = rel.file ?? "";
+	const linePart = rel.line != null ? String(rel.line) : "";
+	return `${rel.type}|${rel.from}|${rel.to}|${filePart}|${linePart}`;
+}
+
+function addRelation(
+	rel: StoreRelation,
+	relations: StoreRelation[],
+	relationKeys: Set<string>,
+): void {
+	const key = makeRelationKey(rel);
+	if (relationKeys.has(key)) return;
+	relationKeys.add(key);
+	relations.push(rel);
+}
+
+/**
  * Публичный API домена:
  * просканировать проект и собрать индекс nanostores:
  * - stores
@@ -131,12 +415,14 @@ export async function scanProject(
 		}
 	}
 
+	onProgress?.(0, 4, `Validating workspace root: ${absRoot}`);
+
 	// Инициализация ts-morph проекта
 	const project = new Project({
 		skipAddingFilesFromTsConfig: true,
 		compilerOptions: {
 			allowJs: true,
-			jsx: 1, // Preserve
+			jsx: JsxEmit.Preserve,
 		},
 	});
 
@@ -162,16 +448,47 @@ export async function scanProject(
 		absolute: true,
 		gitignore: true,
 		onlyFiles: true,
+		// В реальных проектах сильно снижает шум и время сканирования
+		ignore: [
+			"**/node_modules/**",
+			"**/dist/**",
+			"**/build/**",
+			"**/.next/**",
+			"**/.turbo/**",
+			"**/coverage/**",
+		],
 	});
 
-	onProgress?.(1, 4, `Loading ${files.length} source files`);
+	onProgress?.(1, 4, `Found ${files.length} candidate source files`);
+
+	let loadedFiles = 0;
+	let skippedFiles = 0;
+	const parseErrorFiles: string[] = [];
+
 	for (const filePath of files) {
 		try {
 			project.addSourceFileAtPath(filePath);
-		} catch {
-			// Пропускаем файлы с синтаксическими ошибками
+			loadedFiles += 1;
+		} catch (err) {
+			// Пропускаем файлы с синтаксическими ошибками, но считаем их и даём пример имён
+			skippedFiles += 1;
+			if (parseErrorFiles.length < 5) {
+				const relativeFile = path.relative(absRoot, filePath) || path.basename(filePath);
+				parseErrorFiles.push(relativeFile);
+			}
 			continue;
 		}
+	}
+
+	if (skippedFiles > 0) {
+		const examples = parseErrorFiles.length > 0 ? ` (examples: ${parseErrorFiles.join(", ")})` : "";
+		onProgress?.(
+			1,
+			4,
+			`Loaded ${loadedFiles} files, skipped ${skippedFiles} files with parse errors${examples}`,
+		);
+	} else {
+		onProgress?.(1, 4, `Loaded ${loadedFiles} source files without parse errors`);
 	}
 
 	onProgress?.(2, 4, "Analyzing AST for stores and subscribers");
@@ -179,27 +496,21 @@ export async function scanProject(
 	const stores: StoreMatch[] = [];
 	const subscribers: SubscriberMatch[] = [];
 	const relations: StoreRelation[] = [];
+	const relationKeys = new Set<string>();
 
 	// storeName -> StoreMatch[]
 	const storesByName = new Map<string, StoreMatch[]>();
+	// символ (в виде строки) -> StoreMatch[]
+	const storesBySymbol = new Map<string, StoreMatch[]>();
 	const derivedStubs: DerivedStub[] = [];
-
-	// Nanostores функции-конструкторы
-	const STORE_CREATORS = new Set([
-		"atom",
-		"map",
-		"computed",
-		"persistentAtom",
-		"persistentMap",
-		"atomFamily",
-		"mapTemplate",
-		"computedTemplate",
-	]);
 
 	// --- Первый проход: находим stores через AST ---
 	for (const sourceFile of project.getSourceFiles()) {
 		const absPath = sourceFile.getFilePath();
 		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
+
+		// Собираем информацию о том, какие фабрики сто́ров импортированы в этом файле
+		const importsInfo = collectNanostoresStoreImports(sourceFile);
 
 		// Находим все variable declarations
 		const variableStatements = sourceFile.getVariableStatements();
@@ -207,163 +518,291 @@ export async function scanProject(
 		for (const statement of variableStatements) {
 			for (const declaration of statement.getDeclarations()) {
 				const initializer = declaration.getInitializer();
-				if (!initializer) continue;
+				if (!initializer || initializer.getKind() !== SyntaxKind.CallExpression) continue;
 
-				// Проверяем, является ли инициализатор вызовом функции
-				if (initializer.getKind() === SyntaxKind.CallExpression) {
-					const callExpr = initializer.asKindOrThrow(SyntaxKind.CallExpression);
-					const expression = callExpr.getExpression();
+				const callExpr = initializer.asKindOrThrow(SyntaxKind.CallExpression);
 
-					// Получаем имя вызываемой функции
-					let functionName: string | undefined;
-					if (expression.getKind() === SyntaxKind.Identifier) {
-						functionName = expression.getText();
-					}
+				// Определяем StoreKind по реальным импортам nanostores
+				const kind = getStoreKindFromCall(callExpr, importsInfo);
+				if (!kind) continue;
 
-					// Проверяем, что это один из конструкторов nanostores
-					if (functionName && STORE_CREATORS.has(functionName)) {
-						const varName = declaration.getName();
-						const kind = normalizeStoreKind(functionName);
-						const line = declaration.getStartLineNumber();
+				const varName = declaration.getName();
+				const line = declaration.getStartLineNumber();
 
-						const id = `store:${relativeFile}#${varName}`;
+				const id = `store:${relativeFile}#${varName}`;
 
-						const store: StoreMatch = {
-							id,
-							file: relativeFile,
-							line,
-							kind,
-							name: varName,
-						};
-						stores.push(store);
+				const store: StoreMatch = {
+					id,
+					file: relativeFile,
+					line,
+					kind,
+					name: varName,
+				};
+				stores.push(store);
 
-						const byName = storesByName.get(varName) ?? [];
-						byName.push(store);
-						storesByName.set(varName, byName);
+				const byName = storesByName.get(varName) ?? [];
+				byName.push(store);
+				storesByName.set(varName, byName);
 
-						// file -> store relation
-						relations.push({
-							type: "declares",
-							from: `file:${relativeFile}`,
-							to: id,
-							file: relativeFile,
-							line,
-						});
+				let storeSymbolKey: string | undefined;
+				const nameNode = (declaration as any).getNameNode?.() as Node | undefined;
+				const symbol = nameNode?.getSymbol();
+				if (symbol) {
+					storeSymbolKey = getSymbolKey(symbol);
+					const bySymbol = storesBySymbol.get(storeSymbolKey) ?? [];
+					bySymbol.push(store);
+					storesBySymbol.set(storeSymbolKey, bySymbol);
+				}
 
-						// Для derived stores находим зависимости
-						if (isDerivedKind(kind)) {
-							// Анализируем аргументы вызова
-							const args = callExpr.getArguments();
-							for (const arg of args) {
-								// Находим все identifier-ы в аргументах
-								const identifiers = arg.getDescendantsOfKind(SyntaxKind.Identifier);
-								for (const identifier of identifiers) {
-									const depName = identifier.getText();
-									// Пропускаем сам derived store
-									if (depName === varName) continue;
+				// file -> store relation
+				addRelation(
+					{
+						type: "declares",
+						from: `file:${relativeFile}`,
+						to: id,
+						file: relativeFile,
+						line,
+					},
+					relations,
+					relationKeys,
+				);
 
-									// Проверяем, что это похоже на имя стора
-									if (storesByName.has(depName) || depName.startsWith("$")) {
-										derivedStubs.push({
-											derivedVar: varName,
-											dependsOnVar: depName,
-											file: relativeFile,
-											line,
-										});
-									}
+				// Для derived stores находим зависимости по первому аргументу
+				if (isDerivedKind(kind)) {
+					const [depsArg] = callExpr.getArguments();
+					if (!depsArg) {
+						// computed() без deps — странно, пропускаем
+					} else {
+						type DepCandidate = { name: string; symbolKey?: string };
+						const depCandidates: DepCandidate[] = [];
+
+						// computed(counter, ...)
+						if (depsArg.getKind() === SyntaxKind.Identifier) {
+							const ident = depsArg.asKindOrThrow(SyntaxKind.Identifier);
+							const name = ident.getText();
+							const sym = ident.getSymbol();
+							depCandidates.push({
+								name,
+								symbolKey: sym ? getSymbolKey(sym) : undefined,
+							});
+						}
+
+						// computed([a, b], ...)
+						if (depsArg.getKind() === SyntaxKind.ArrayLiteralExpression) {
+							const arr = depsArg.asKindOrThrow(SyntaxKind.ArrayLiteralExpression);
+							for (const el of arr.getElements()) {
+								if (el.getKind() === SyntaxKind.Identifier) {
+									const ident = el.asKindOrThrow(SyntaxKind.Identifier);
+									const name = ident.getText();
+									const sym = ident.getSymbol();
+									depCandidates.push({
+										name,
+										symbolKey: sym ? getSymbolKey(sym) : undefined,
+									});
 								}
 							}
+						}
+
+						// Убираем дубли по имени
+						const unique = new Map<string, string | undefined>();
+						for (const { name, symbolKey } of depCandidates) {
+							if (!unique.has(name)) unique.set(name, symbolKey);
+						}
+
+						for (const [depName, depSymbolKey] of unique) {
+							if (depName === varName) continue;
+
+							derivedStubs.push({
+								derivedVar: varName,
+								dependsOnVar: depName,
+								file: relativeFile,
+								line,
+								derivedSymbolKey: storeSymbolKey,
+								dependsOnSymbolKey: depSymbolKey,
+							});
 						}
 					}
 				}
 			}
 		}
 	}
+
+	onProgress?.(2, 4, `AST analysis complete: found ${stores.length} stores so far`);
 
 	// --- Второй проход: находим подписчиков (subscribers) через AST ---
 	for (const sourceFile of project.getSourceFiles()) {
 		const absPath = sourceFile.getFilePath();
 		const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
 
-		const storeIds = new Set<string>();
-		let firstUseLine: number | undefined;
+		// Собираем информацию о useStore из nanostores/react
+		const reactImports = collectNanostoresReactImports(sourceFile);
 
-		// Находим все вызовы useStore
+		const subscriberAccumulators = new Map<string, SubscriberAccumulator>();
+
 		const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
 		for (const callExpr of callExpressions) {
-			const expression = callExpr.getExpression();
+			// Проверяем, что это вызов именно useStore из nanostores/react
+			if (!isUseStoreCall(callExpr, reactImports)) continue;
 
-			// Проверяем, что вызывается useStore
-			if (expression.getKind() === SyntaxKind.Identifier) {
-				const functionName = expression.getText();
+			const args = callExpr.getArguments();
+			if (!args[0] || args[0].getKind() !== SyntaxKind.Identifier) continue;
 
-				if (functionName === "useStore") {
-					const args = callExpr.getArguments();
-					if (args.length > 0) {
-						const firstArg = args[0];
+			const firstArg = args[0].asKindOrThrow(SyntaxKind.Identifier);
 
-						// Получаем имя стора из первого аргумента
-						if (firstArg.getKind() === SyntaxKind.Identifier) {
-							const storeVarName = firstArg.getText();
-							const matches = storesByName.get(storeVarName) ?? [];
+			let matches: StoreMatch[] = [];
+			const sym = firstArg.getSymbol();
 
-							for (const store of matches) {
-								storeIds.add(store.id);
-							}
+			if (sym) {
+				const key = getSymbolKey(sym);
+				matches = storesBySymbol.get(key) ?? [];
+			}
 
-							if (matches.length > 0 && firstUseLine === undefined) {
-								firstUseLine = callExpr.getStartLineNumber();
-							}
-						}
+			// fallback по имени, если символов нет (JS, неполный типчек и т.п.)
+			// Делаем его максимально консервативным, чтобы не плодить ложные связи:
+			// 1) если есть ровно один store с таким именем — используем его;
+			// 2) если store-ов с таким именем несколько, но ровно один в текущем файле — берём его;
+			// 3) во всех остальных случаях связи не создаём (matches остаётся пустым).
+			if (matches.length === 0) {
+				const storeVarName = firstArg.getText();
+				const byName = storesByName.get(storeVarName) ?? [];
+
+				if (byName.length === 1) {
+					matches = byName;
+				} else if (byName.length > 1) {
+					const sameFile = byName.filter(s => s.file === relativeFile);
+					if (sameFile.length === 1) {
+						matches = sameFile;
 					}
 				}
 			}
+
+			if (matches.length === 0) {
+				// Не смогли однозначно сопоставить useStore(...) с конкретным store'ом — пропускаем
+				continue;
+			}
+
+			// Определяем, внутри какого компонента/хука/класса находится вызов
+			const { containerName, containerStartLine } = findSubscriberContainerInfo(callExpr);
+			const containerKeyName = containerName ?? `__anon_${containerStartLine}`;
+			const key = `${relativeFile}::${containerKeyName}`;
+
+			let acc = subscriberAccumulators.get(key);
+			if (!acc) {
+				const kind = inferSubscriberKind(relativeFile, containerName);
+				acc = {
+					storeIds: new Set<string>(),
+					firstUseLine: callExpr.getStartLineNumber(),
+					kind,
+					name: containerName,
+					containerStartLine,
+				};
+				subscriberAccumulators.set(key, acc);
+			}
+
+			for (const store of matches) {
+				acc.storeIds.add(store.id);
+			}
+
+			const callLine = callExpr.getStartLineNumber();
+			if (acc.firstUseLine === undefined || callLine < acc.firstUseLine) {
+				acc.firstUseLine = callLine;
+			}
 		}
 
-		// Создаем subscriber если найдены использования
-		if (storeIds.size > 0) {
-			const subscriberId = `subscriber:${relativeFile}`;
-			const kind = inferSubscriberKind(relativeFile);
-			const baseName = path.basename(relativeFile, path.extname(relativeFile));
+		// Создаём SubscriberMatch для каждого контейнера, где есть подписки
+		for (const acc of subscriberAccumulators.values()) {
+			const storeIds = Array.from(acc.storeIds);
+			if (storeIds.length === 0) continue;
+
+			const hasName = !!acc.name;
+			const subscriberId = hasName
+				? `subscriber:${relativeFile}#${acc.name}`
+				: `subscriber:${relativeFile}@${acc.containerStartLine}`;
+
+			const name = acc.name ?? path.basename(relativeFile, path.extname(relativeFile));
+			const line = acc.firstUseLine ?? acc.containerStartLine;
 
 			const subscriber: SubscriberMatch = {
 				id: subscriberId,
 				file: relativeFile,
-				line: firstUseLine ?? 1,
-				kind,
-				name: baseName,
-				storeIds: Array.from(storeIds),
+				line,
+				kind: acc.kind,
+				name,
+				storeIds,
 			};
 
 			subscribers.push(subscriber);
 
-			for (const storeId of storeIds) {
-				relations.push({
-					type: "subscribes_to",
-					from: subscriberId,
-					to: storeId,
+			// file -> subscriber relation (declares)
+			addRelation(
+				{
+					type: "declares",
+					from: `file:${relativeFile}`,
+					to: subscriberId,
 					file: relativeFile,
-					line: firstUseLine,
-				});
+					line,
+				},
+				relations,
+				relationKeys,
+			);
+
+			for (const storeId of storeIds) {
+				addRelation(
+					{
+						type: "subscribes_to",
+						from: subscriberId,
+						to: storeId,
+						file: relativeFile,
+						line,
+					},
+					relations,
+					relationKeys,
+				);
 			}
 		}
 	}
 
+	onProgress?.(
+		2,
+		4,
+		`AST analysis complete: found ${stores.length} stores and ${subscribers.length} subscribers`,
+	);
+
 	// --- Третий проход: резолвим derived -> base (derives_from) по stub-ам ---
 	for (const stub of derivedStubs) {
-		const derivedMatches = storesByName.get(stub.derivedVar) ?? [];
-		const baseMatches = storesByName.get(stub.dependsOnVar) ?? [];
+		let derivedMatches: StoreMatch[] = [];
+		let baseMatches: StoreMatch[] = [];
+
+		// Сначала пробуем по символам
+		if (stub.derivedSymbolKey) {
+			derivedMatches = storesBySymbol.get(stub.derivedSymbolKey) ?? [];
+		}
+		if (stub.dependsOnSymbolKey) {
+			baseMatches = storesBySymbol.get(stub.dependsOnSymbolKey) ?? [];
+		}
+
+		// Fallback по имени (на случай, если символы недоступны)
+		if (derivedMatches.length === 0) {
+			derivedMatches = storesByName.get(stub.derivedVar) ?? [];
+		}
+		if (baseMatches.length === 0) {
+			baseMatches = storesByName.get(stub.dependsOnVar) ?? [];
+		}
 
 		for (const derivedStore of derivedMatches) {
 			for (const baseStore of baseMatches) {
-				relations.push({
-					type: "derives_from",
-					from: derivedStore.id,
-					to: baseStore.id,
-					file: stub.file,
-					line: stub.line,
-				});
+				addRelation(
+					{
+						type: "derives_from",
+						from: derivedStore.id,
+						to: baseStore.id,
+						file: stub.file,
+						line: stub.line,
+					},
+					relations,
+					relationKeys,
+				);
 			}
 		}
 	}
@@ -372,7 +811,7 @@ export async function scanProject(
 
 	const result: ProjectIndex = {
 		rootDir: absRoot,
-		filesScanned: files.length,
+		filesScanned: loadedFiles,
 		stores,
 		subscribers,
 		relations,
@@ -384,7 +823,11 @@ export async function scanProject(
 		timestamp: Date.now(),
 	});
 
-	onProgress?.(4, 4, "Scan complete");
+	onProgress?.(
+		4,
+		4,
+		`Scan complete: files=${loadedFiles}/${files.length}, stores=${stores.length}, subscribers=${subscribers.length}, relations=${relations.length}`,
+	);
 
 	return result;
 }
@@ -405,21 +848,35 @@ function normalizeStoreKind(raw: string): StoreKind {
 	}
 }
 
+/**
+ * Какие StoreKind считаем "derived".
+ *
+ * Важно: сознательно НЕ включаем сюда atomFamily/mapTemplate,
+ * пока не будет 100% уверенности в их семантике зависимостей.
+ * Это уменьшает вероятность фальшивых derives_from связей.
+ */
 function isDerivedKind(kind: StoreKind): boolean {
-	return (
-		kind === "computed" ||
-		kind === "mapTemplate" ||
-		kind === "computedTemplate" ||
-		kind === "atomFamily"
-	);
+	return kind === "computed" || kind === "computedTemplate";
 }
 
-function inferSubscriberKind(relativeFile: string): SubscriberKind {
+function inferSubscriberKind(relativeFile: string, containerName?: string): SubscriberKind {
 	const ext = path.extname(relativeFile);
 	const base = path.basename(relativeFile, ext);
+	const nameToCheck = containerName ?? base;
 
-	if (base.startsWith("use")) {
+	if (nameToCheck.startsWith("use")) {
 		return "hook";
+	}
+
+	if (/effect/i.test(nameToCheck)) {
+		return "effect";
+	}
+
+	if (
+		/^[A-Z]/.test(nameToCheck) &&
+		(ext === ".tsx" || ext === ".jsx" || ext === ".js" || ext === ".ts")
+	) {
+		return "component";
 	}
 
 	if (ext === ".tsx" || ext === ".jsx") {
