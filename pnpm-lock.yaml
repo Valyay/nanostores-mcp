@@ -14,9 +14,6 @@ importers:
       '@nanostores/logger':
         specifier: ^1.0.0
         version: 1.0.0(nanostores@1.1.0)
-      express:
-        specifier: ^5.1.0
-        version: 5.1.0
       globby:
         specifier: ^16.0.0
         version: 16.0.0

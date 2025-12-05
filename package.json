@@ -32,7 +32,6 @@
   ],
   "scripts": {
     "dev": "tsx src/index.ts",
-    "dev:http": "tsx src/http.ts",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs,.mjs",
     "lint:fix": "pnpm run lint -- --fix",
@@ -55,7 +54,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
     "@nanostores/logger": "^1.0.0",
-    "express": "^5.1.0",
     "globby": "^16.0.0",
     "is-path-inside": "^4.0.0",
     "nanostores": "^1.1.0",
