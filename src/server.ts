@@ -7,10 +7,45 @@ import { registerGraphMermaidResource } from "./mcp/resources/graphMermaid.js";
 import { registerExplainProjectPrompt } from "./mcp/prompts/explainProject.js";
 import { registerStoreSummaryTool } from "./mcp/tools/storeSummary.js";
 import { registerExplainStorePrompt } from "./mcp/prompts/explainStore.js";
+
+// Logger integration
+import { createLoggerEventStore } from "./domain/loggerEventStore.js";
+import { createLoggerBridge } from "./logger/loggerBridge.js";
+import { envConfig } from "./config/envConfig.js";
+import {
+	registerRuntimeEventsResource,
+	registerRuntimeStatsResource,
+	registerRuntimeStoreResource,
+} from "./mcp/resources/runtime.js";
+import {
+	registerStoreActivityTool,
+	registerFindNoisyStoresTool,
+	registerRuntimeOverviewTool,
+} from "./mcp/tools/runtime.js";
+import {
+	registerDebugStorePrompt,
+	registerDebugProjectActivityPrompt,
+} from "./mcp/prompts/debugRuntime.js";
+
 import packageJson from "../package.json" with { type: "json" };
 
 const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = (packageJson as { version: string }).version;
+
+// Global logger infrastructure
+const loggerEventStore = createLoggerEventStore(5000);
+const loggerBridge = createLoggerBridge(loggerEventStore, {
+	host: envConfig.NANOSTORES_MCP_LOGGER_HOST,
+	port: envConfig.NANOSTORES_MCP_LOGGER_PORT,
+	enabled: envConfig.NANOSTORES_MCP_LOGGER_ENABLED,
+});
+
+// Start logger bridge if enabled
+if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
+	loggerBridge.start().catch(() => {
+		// Silent fail - bridge is optional
+	});
+}
 
 export function buildNanostoresServer(): McpServer {
 	const server = new McpServer(
@@ -28,18 +63,41 @@ export function buildNanostoresServer(): McpServer {
 	);
 
 	// tools
-	registerPingTool(server);
+	registerPingTool(server, loggerBridge);
 	registerScanProjectTool(server);
 	registerStoreSummaryTool(server);
+
+	// runtime tools
+	registerStoreActivityTool(server, loggerEventStore);
+	registerFindNoisyStoresTool(server, loggerEventStore);
+	registerRuntimeOverviewTool(server, loggerEventStore);
 
 	// resources
 	registerStoreResource(server);
 	registerGraphResource(server);
 	registerGraphMermaidResource(server);
 
+	// runtime resources
+	registerRuntimeEventsResource(server, loggerEventStore);
+	registerRuntimeStatsResource(server, loggerEventStore);
+	registerRuntimeStoreResource(server, loggerEventStore);
+
 	// prompts
 	registerExplainProjectPrompt(server);
 	registerExplainStorePrompt(server);
 
+	// runtime prompts
+	registerDebugStorePrompt(server);
+	registerDebugProjectActivityPrompt(server);
+
 	return server;
 }
+
+// Cleanup on exit
+process.on("SIGINT", () => {
+	void loggerBridge.stop().then(() => process.exit(0));
+});
+
+process.on("SIGTERM", () => {
+	void loggerBridge.stop().then(() => process.exit(0));
+});
