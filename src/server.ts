@@ -27,6 +27,17 @@ import {
 	registerDebugProjectActivityPrompt,
 } from "./mcp/prompts/debugRuntime.js";
 
+// Documentation integration
+import { createFsDocsSource } from "./domain/docsSourceFs.js";
+import { createDocsRepository } from "./domain/docsIndex.js";
+import {
+	registerDocsIndexResource,
+	registerDocsPageResource,
+	registerDocsSearchResource,
+} from "./mcp/resources/docs.js";
+import { registerDocsSearchTool, registerDocsForStoreTool } from "./mcp/tools/docs.js";
+import { registerDocsHowToPrompt } from "./mcp/prompts/docsHowTo.js";
+
 import packageJson from "../package.json" with { type: "json" };
 
 const SERVER_NAME = "nanostores-mcp";
@@ -46,6 +57,18 @@ if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
 		// Silent fail - bridge is optional
 	});
 }
+
+// Global documentation infrastructure
+const docsSource = envConfig.NANOSTORES_DOCS_ROOT
+	? createFsDocsSource({
+			rootDir: envConfig.NANOSTORES_DOCS_ROOT,
+			patterns: envConfig.NANOSTORES_DOCS_PATTERNS,
+		})
+	: undefined;
+
+const docsRepository = docsSource
+	? createDocsRepository(docsSource, { cacheTtlMs: 5 * 60 * 1000 })
+	: undefined;
 
 export function buildNanostoresServer(): McpServer {
 	const server = new McpServer(
@@ -82,6 +105,19 @@ export function buildNanostoresServer(): McpServer {
 	registerRuntimeStatsResource(server, loggerEventStore);
 	registerRuntimeStoreResource(server, loggerEventStore);
 
+	// documentation resources
+	if (docsRepository) {
+		registerDocsIndexResource(server, docsRepository);
+		registerDocsPageResource(server, docsRepository);
+		registerDocsSearchResource(server, docsRepository);
+	}
+
+	// documentation tools
+	if (docsRepository) {
+		registerDocsSearchTool(server, docsRepository);
+		registerDocsForStoreTool(server, docsRepository);
+	}
+
 	// prompts
 	registerExplainProjectPrompt(server);
 	registerExplainStorePrompt(server);
@@ -89,6 +125,11 @@ export function buildNanostoresServer(): McpServer {
 	// runtime prompts
 	registerDebugStorePrompt(server);
 	registerDebugProjectActivityPrompt(server);
+
+	// documentation prompts
+	if (docsRepository) {
+		registerDocsHowToPrompt(server);
+	}
 
 	return server;
 }
