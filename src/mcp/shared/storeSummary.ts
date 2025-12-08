@@ -1,4 +1,4 @@
-import type { StoreMatch, SubscriberMatch } from "../../domain/fsScanner.js";
+import type { StoreMatch, SubscriberMatch } from "../../domain/fsScanner/index.js";
 
 export interface StoreStructuredContent extends Record<string, unknown> {
 	store: {

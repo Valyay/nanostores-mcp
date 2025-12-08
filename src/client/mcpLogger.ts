@@ -30,7 +30,7 @@ interface McpLoggerClient {
 	forceFlush: () => Promise<void>;
 }
 
-// Чистая функция для форматирования значения в строку
+// Pure function for formatting value to string
 const formatValue = (value: unknown): string => {
 	try {
 		const str = JSON.stringify(value);
@@ -40,7 +40,7 @@ const formatValue = (value: unknown): string => {
 	}
 };
 
-// Фабрика для создания функции отправки событий
+// Factory for creating event sending function
 const createEventSender = (url: string) => {
 	return async (events: NanostoresLoggerEvent[]): Promise<void> => {
 		try {
@@ -50,12 +50,12 @@ const createEventSender = (url: string) => {
 				body: JSON.stringify({ events }),
 			});
 		} catch {
-			// Тихо игнорируем ошибки отправки, чтобы не ломать основное приложение
+			// Silently ignore sending errors to avoid breaking the main application
 		}
 	};
 };
 
-// Фабрика для создания буферизованного отправителя
+// Factory for creating buffered sender
 const createBufferedSender = (
 	send: (events: NanostoresLoggerEvent[]) => Promise<void>,
 	batchMs: number,
@@ -91,7 +91,7 @@ const createBufferedSender = (
 	return { push, flush };
 };
 
-// Фабрика для создания фильтра событий
+// Factory for creating event filter
 const createEventFilter = (
 	maskEvent?: (event: NanostoresLoggerEvent) => NanostoresLoggerEvent | null,
 ): ((event: NanostoresLoggerEvent) => NanostoresLoggerEvent | null) => {
@@ -100,26 +100,26 @@ const createEventFilter = (
 	};
 };
 
-// Главная фабричная функция клиента
+// Main factory function for client
 function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerClient {
 	const url = options.url ?? "http://127.0.0.1:3999/nanostores-logger";
 	const batchMs = options.batchMs ?? 1000;
 
-	// Композиция функций
+	// Function composition
 	const sendEvents = createEventSender(url);
 	const { push: pushToBuffer, flush } = createBufferedSender(sendEvents, batchMs);
 	const filterEvent = createEventFilter(options.maskEvent);
 
-	// Состояние для отслеживания активных экшенов
+	// State for tracking active actions
 	const activeActionIds = new Set<string>();
 
-	// Чистая функция для добавления события
+	// Pure function for adding event
 	const pushEvent = (event: NanostoresLoggerEvent): void => {
 		const filtered = filterEvent(event);
 		if (filtered) pushToBuffer(filtered);
 	};
 
-	// Фабрика хендлеров для конкретного store
+	// Factory for handlers for specific store
 	const handlersFor = (storeName: string): LoggerHandlers => ({
 		mount: (): void => {
 			pushEvent({
@@ -196,8 +196,8 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 let mcpLogger: McpLoggerClient | null = null;
 
 /**
- * Инициализирует глобальный клиент MCP Logger.
- * По умолчанию работает только в dev-режиме (NODE_ENV !== "production").
+ * Initializes global MCP Logger client.
+ * By default, works only in dev mode (NODE_ENV !== "production").
  *
  * @example
  * ```ts
@@ -207,7 +207,7 @@ let mcpLogger: McpLoggerClient | null = null;
  *   url: "http://localhost:3999/nanostores-logger",
  *   batchMs: 1000,
  *   maskEvent: (event) => {
- *     // Скрываем чувствительные данные
+ *     // Hide sensitive data
  *     if (event.storeName === "authStore") return null;
  *     return event;
  *   }
@@ -215,7 +215,7 @@ let mcpLogger: McpLoggerClient | null = null;
  * ```
  */
 export function initMcpLogger(options: McpLoggerClientOptions = {}): void {
-	// dev-only включение по умолчанию
+	// dev-only enablement by default
 	const enabled =
 		options.enabled ??
 		(typeof import.meta !== "undefined" && (import.meta as { env?: { DEV?: boolean } }).env?.DEV) ??
@@ -229,12 +229,12 @@ export function initMcpLogger(options: McpLoggerClientOptions = {}): void {
 }
 
 /**
- * Подключает MCP Logger к указанному Nanostores-хранилищу.
- * Должен быть вызван после `initMcpLogger()`.
+ * Attaches MCP Logger to specified Nanostores store.
+ * Must be called after `initMcpLogger()`.
  *
- * @param store - Nanostores-хранилище (atom, map, computed и т.д.)
- * @param storeName - Имя хранилища для идентификации в логах
- * @returns Функция отключения логгера (cleanup)
+ * @param store - Nanostores store (atom, map, computed, etc.)
+ * @param storeName - Store name for identification in logs
+ * @returns Logger detach function (cleanup)
  *
  * @example
  * ```ts
@@ -244,7 +244,7 @@ export function initMcpLogger(options: McpLoggerClientOptions = {}): void {
  * const $counter = atom(0);
  * const unbind = attachMcpLogger($counter, "counter");
  *
- * // Позже, при размонтировании:
+ * // Later, on unmount:
  * unbind();
  * ```
  */
@@ -254,8 +254,8 @@ export function attachMcpLogger(store: AnyStore, storeName: string): () => void 
 }
 
 /**
- * Получить доступ к глобальному экземпляру клиента для ручного управления.
- * Полезно для вызова `forceFlush()` перед закрытием приложения.
+ * Get access to global client instance for manual control.
+ * Useful for calling `forceFlush()` before application shutdown.
  *
  * @example
  * ```ts

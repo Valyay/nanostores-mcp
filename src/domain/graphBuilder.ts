@@ -4,7 +4,7 @@ import type {
 	SubscriberKind,
 	StoreRelation,
 	GraphEdgeType,
-} from "./fsScanner.js";
+} from "./fsScanner/index.js";
 
 export type GraphNodeType = "file" | "store" | "subscriber";
 
@@ -60,10 +60,10 @@ export interface StoreGraph {
 }
 
 /**
- * Преобразуем ProjectIndex в граф:
- * - file / store / subscriber узлы
- * - рёбра из relations
- * - базовая статистика и «горячие» stores
+ * Convert ProjectIndex to graph:
+ * - file / store / subscriber nodes
+ * - edges from relations
+ * - basic stats and "hot" stores
  */
 export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 	const nodes = new Map<string, GraphNode>();
@@ -129,7 +129,7 @@ export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 		edgeCounts[rel.type] = (edgeCounts[rel.type] ?? 0) + 1;
 	}
 
-	// вычисляем "горячие" stores по количеству подписчиков и derived-зависимостей
+	// calculate "hot" stores by subscriber count and derived dependencies
 	const storeIds = new Set(index.stores.map(s => s.id));
 	const subscribersCount = new Map<string, number>();
 	const derivedCount = new Map<string, number>();

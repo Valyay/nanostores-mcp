@@ -15,7 +15,7 @@ export function normalizeFsPath(fsPath: string): string {
 
 export function uriToFsPath(uriOrPath: string): string {
 	if (uriOrPath.startsWith("file://")) {
-		// URL → абсолютный fs путь
+		// URL → absolute fs path
 		return normalizeFsPath(fileURLToPath(uriOrPath));
 	}
 
@@ -23,10 +23,10 @@ export function uriToFsPath(uriOrPath: string): string {
 }
 
 /**
- * Безопасный realpath:
- * - нормализует путь;
- * - пытается зареалпазить;
- * - для несуществующих файлов realpath делается для директории.
+ * Safe realpath:
+ * - normalizes path;
+ * - attempts to resolve realpath;
+ * - for non-existent files, realpath is done for the directory.
  */
 export function realpathSafe(p: string): string {
 	const normalized = normalizeFsPath(p);
@@ -52,7 +52,7 @@ export function realpathSafe(p: string): string {
 }
 
 /**
- * Проверяем, что target лежит внутри root (с учётом symlink’ов).
+ * Check that target is inside root (considering symlinks).
  */
 export function isPathInsideRoot(targetPath: string, rootPath: string): boolean {
 	const targetReal = realpathSafe(targetPath);

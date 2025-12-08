@@ -29,7 +29,7 @@ function buildGraphSummary(graph: StoreGraph): string {
 		}
 	}
 
-	// небольшой предпросмотр узлов
+	// small node preview
 	const storeNodes = graph.nodes.filter(n => n.type === "store").slice(0, 5);
 	const subscriberNodes = graph.nodes.filter(n => n.type === "subscriber").slice(0, 5);
 

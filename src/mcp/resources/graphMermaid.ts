@@ -11,26 +11,26 @@ import {
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 function sanitizeId(id: string): string {
-	// Mermaid плохо переваривает двоеточия, слэши и т.п.
+	// Mermaid does not handle colons, slashes, etc. well
 	return id.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
 /**
- * Санитизирует label для использования внутри Mermaid node label.
- * Экранирует или удаляет спецсимволы, которые могут сломать парсинг Mermaid.
+ * Sanitizes label for use inside Mermaid node label.
+ * Escapes or removes special characters that could break Mermaid parsing.
  */
 function sanitizeLabel(label: string): string {
-	// Заменяем кавычки и скобки, которые могут сломать Mermaid
+	// Replace quotes and brackets that could break Mermaid
 	return label
-		.replace(/"/g, "'") // двойные кавычки → одинарные
-		.replace(/\[/g, "(") // квадратные скобки → круглые
+		.replace(/"/g, "'") // double quotes → single quotes
+		.replace(/\[/g, "(") // square brackets → parentheses
 		.replace(/\]/g, ")")
-		.replace(/</g, "‹") // угловые скобки → типографские
+		.replace(/</g, "‹") // angle brackets → typographic quotes
 		.replace(/>/g, "›")
-		.replace(/\{/g, "(") // фигурные скобки → круглые
+		.replace(/\{/g, "(") // curly brackets → parentheses
 		.replace(/\}/g, ")")
 		.replace(/\|/g, "¦") // pipe → broken bar
-		.replace(/\n/g, " ") // переводы строки → пробелы
+		.replace(/\n/g, " ") // line breaks → spaces
 		.trim();
 }
 
@@ -48,9 +48,9 @@ function kindLabelForSubscriber(kind: SubscriberNode["kind"]): string {
 }
 
 function displayNameForSubscriber(sub: SubscriberNode): string {
-	// Если name задано — используем его
+	// If name is specified — use it
 	if (sub.name && sub.name !== sub.id) return sub.name;
-	// Иначе берём базовое имя файла (App из src/App.tsx)
+	// Otherwise take base filename (App from src/App.tsx)
 	const base = path.basename(sub.file || "", path.extname(sub.file || ""));
 	return base || sub.label;
 }
@@ -61,9 +61,9 @@ function displayNameForStore(store: StoreNode): string {
 }
 
 /**
- * Собираем mermaid-диаграмму:
- * - группируем stores и subscribers по файлам через subgraph
- * - рёбра показываем в data-flow виде:
+ * Build mermaid diagram:
+ * - group stores and subscribers by files via subgraph
+ * - edges shown in data-flow style:
  *   - store -> subscriber (updates)
  *   - baseStore -> derivedStore (derives)
  */
@@ -72,7 +72,7 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 
 	lines.push("graph LR");
 
-	// Группируем узлы по файлам, игнорируя file-узлы (тип 'file')
+	// Group nodes by files, ignoring file-nodes (type 'file')
 	const byFile = new Map<
 		string,
 		{
@@ -103,10 +103,10 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 		}
 	}
 
-	// Сопоставляем id узла → mermaid-id, чтобы потом рисовать рёбра
+	// Map node id → mermaid-id to draw edges later
 	const nodeIdMap = new Map<string, string>();
 
-	// Рисуем subgraph по каждому файлу
+	// Draw subgraph for each file
 	const sortedFiles = Array.from(byFile.keys()).sort((a, b) => a.localeCompare(b));
 
 	for (const file of sortedFiles) {
@@ -142,18 +142,18 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 		lines.push("end");
 	}
 
-	// Рисуем рёбра.
-	// Внутренний граф:
-	//   - declares: file -> store (не рисуем в Mermaid, файл уже виден как subgraph)
+	// Draw edges.
+	// Internal graph:
+	//   - declares: file -> store (not drawn in Mermaid, file already visible as subgraph)
 	//   - subscribes_to: subscriber -> store
 	//   - derives_from: derived -> base
 	//
-	// Для Mermaid разворачиваем в data-flow:
+	// For Mermaid expand to data-flow:
 	//   - store --> subscriber (updates)
 	//   - baseStore --> derivedStore (derives)
 	for (const edge of graph.edges) {
 		if (edge.type === "declares") {
-			// пропускаем, достаточно того, что узлы сгруппированы по файлам
+			// skip, sufficient that nodes are grouped by files
 			continue;
 		}
 
@@ -162,24 +162,24 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 		let label = "";
 
 		if (edge.type === "subscribes_to") {
-			// в индексе: subscriber -> store (зависит от)
-			// в визуализации: store -> subscriber (куда течёт изменение)
+			// in index: subscriber -> store (depends on)
+			// in visualization: store -> subscriber (where change flows)
 			[fromId, toId] = [edge.to, edge.from];
 			label = "updates";
 		} else if (edge.type === "derives_from") {
-			// в индексе: derived -> base
-			// в визуализации: base -> derived
+			// in index: derived -> base
+			// in visualization: base -> derived
 			[fromId, toId] = [edge.to, edge.from];
 			label = "derives";
 		} else {
-			// на всякий случай, если появятся новые типы
+			// just in case new types appear
 			label = edge.type;
 		}
 
 		const fromMid = nodeIdMap.get(fromId);
 		const toMid = nodeIdMap.get(toId);
 
-		// Если один из концов — file-узел (мы его не рисовали), просто пропускаем
+		// If one endpoint is file-node (we didn't draw it), just skip
 		if (!fromMid || !toMid) continue;
 
 		if (label) {

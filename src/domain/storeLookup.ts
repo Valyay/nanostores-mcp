@@ -1,4 +1,9 @@
-import type { ProjectIndex, StoreMatch, SubscriberMatch, StoreRelation } from "./fsScanner.js";
+import type {
+	ProjectIndex,
+	StoreMatch,
+	SubscriberMatch,
+	StoreRelation,
+} from "./fsScanner/index.js";
 
 export type StoreResolutionBy = "id" | "name" | "id_tail";
 

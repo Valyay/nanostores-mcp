@@ -4,11 +4,11 @@ import { normalizeFsPath, resolveSafePath, realpathSafe } from "./security.js";
 import { envConfig } from "./envConfig.js";
 
 export interface WorkspaceRoot {
-	/** Оригинальный URI (если есть) или сгенерированный из fsPath. */
+	/** Original URI (if exists) or generated from fsPath. */
 	uri: string;
-	/** Человекочитаемое имя root (опционально). */
+	/** Human-readable root name (optional). */
 	name?: string;
-	/** Нормализованный путь в файловой системе. */
+	/** Normalized file system path. */
 	fsPath: string;
 }
 
@@ -16,12 +16,12 @@ let cachedEnvRoots: string[] | null = null;
 let cachedWorkspaceRoots: WorkspaceRoot[] | null = null;
 
 /**
- * Читаем roots из окружения.
+ * Read roots from environment.
  *
- * Поддерживаем:
- * - NANOSTORES_MCP_ROOTS — список через path.delimiter (/foo:/bar или /foo;/bar)
- * - NANOSTORES_MCP_ROOT  — одиночный путь
- * - WORKSPACE_FOLDER_PATHS / WORKSPACE_FOLDER — как у некоторых хостов (Cursor и т.п.)
+ * Supports:
+ * - NANOSTORES_MCP_ROOTS — list via path.delimiter (/foo:/bar or /foo;/bar)
+ * - NANOSTORES_MCP_ROOT  — single path
+ * - WORKSPACE_FOLDER_PATHS / WORKSPACE_FOLDER — as in some hosts (Cursor, etc.)
  */
 export function getEnvWorkspaceRoots(): string[] {
 	if (cachedEnvRoots) return cachedEnvRoots;
@@ -52,13 +52,13 @@ export function getEnvWorkspaceRoots(): string[] {
 }
 
 /**
- * Основной источник прав доступа к FS для nanostores-mcp.
+ * Main source of FS access rights for nanostores-mcp.
  *
- * Сейчас приоритет такой:
- * 1. Явные roots из env (NANOSTORES_MCP_ROOTS / NANOSTORES_MCP_ROOT / WORKSPACE_*).
- * 2. process.cwd() как единственный root.
+ * Current priority:
+ * 1. Explicit roots from env (NANOSTORES_MCP_ROOTS / NANOSTORES_MCP_ROOT / WORKSPACE_*).
+ * 2. process.cwd() as the only root.
  *
- * ⚠️ Реальный MCP roots/list от клиента можно будет добавить сюда позже.
+ * ⚠️ Real MCP roots/list from client can be added here later.
  */
 export function getWorkspaceRoots(): WorkspaceRoot[] {
 	if (cachedWorkspaceRoots) return cachedWorkspaceRoots;
@@ -79,17 +79,17 @@ export function getWorkspaceRoots(): WorkspaceRoot[] {
 }
 
 /**
- * Только FS-пути из корней.
+ * Only FS paths from roots.
  */
 export function getWorkspaceRootPaths(): string[] {
 	return getWorkspaceRoots().map(root => root.fsPath);
 }
 
 /**
- * Разрешаем любой uri/path так, чтобы он точно лежал
- * внутри текущих workspace roots.
+ * Resolve any uri/path to ensure it lies
+ * inside current workspace roots.
  *
- * Если путь вылазит за пределы — кидаем ошибку.
+ * If path goes outside bounds — throw error.
  */
 export function resolveWorkspacePath(uriOrPath: string): string {
 	const roots = getWorkspaceRootPaths();
@@ -97,10 +97,10 @@ export function resolveWorkspacePath(uriOrPath: string): string {
 }
 
 /**
- * Твой старый API, но теперь с учётом roots.
+ * Your old API, but now with roots consideration.
  *
- * 1) Если rootUri не передан — берём первый root.
- * 2) Если передан — пытаемся безопасно его резолвнуть внутри roots.
+ * 1) If rootUri not provided — take first root.
+ * 2) If provided — try to safely resolve it inside roots.
  */
 export function resolveWorkspaceRoot(rootUri?: string): string {
 	const roots = getWorkspaceRootPaths();
@@ -113,6 +113,6 @@ export function resolveWorkspaceRoot(rootUri?: string): string {
 		return roots[0];
 	}
 
-	// если rootUri file:// или относительный/абсолютный путь — проверяем, что он внутри roots
+	// if rootUri is file:// or relative/absolute path — check that it's inside roots
 	return resolveWorkspacePath(rootUri);
 }

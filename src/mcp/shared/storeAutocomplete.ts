@@ -1,4 +1,4 @@
-import { scanProject } from "../../domain/fsScanner.js";
+import { scanProject } from "../../domain/fsScanner/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 /**

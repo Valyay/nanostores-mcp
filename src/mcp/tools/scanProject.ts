@@ -6,7 +6,7 @@ import type { ProjectAnalysisService } from "../../domain/projectAnalysisService
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 const ScanProjectInputSchema = z.object({
-	// file:// URI или путь внутри workspace; если не указан — берётся первый root
+	// file:// URI or path inside workspace; if not specified - first root is taken
 	rootUri: z.string().optional(),
 });
 

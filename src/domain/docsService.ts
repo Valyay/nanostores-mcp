@@ -6,7 +6,7 @@ import type {
 	DocsSearchResult,
 	DocsSearchOptions,
 } from "./docsTypes.js";
-import type { StoreKind } from "./fsScanner.js";
+import type { StoreKind } from "./fsScanner/index.js";
 
 /**
  * Service interface for documentation operations

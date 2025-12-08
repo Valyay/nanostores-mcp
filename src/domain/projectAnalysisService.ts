@@ -1,4 +1,9 @@
-import { scanProject, type ProjectIndex, type StoreMatch } from "./fsScanner.js";
+import {
+	scanProject,
+	type ProjectIndex,
+	type StoreMatch,
+	type SubscriberMatch,
+} from "./fsScanner/index.js";
 import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./storeLookup.js";
 
 /**
@@ -37,7 +42,7 @@ export interface ProjectAnalysisService {
 	): Promise<{
 		derivesFrom: StoreMatch[];
 		dependents: StoreMatch[];
-		subscribers: import("./fsScanner.js").SubscriberMatch[];
+		subscribers: SubscriberMatch[];
 	}>;
 
 	/**
@@ -106,7 +111,7 @@ export function createProjectAnalysisService(cacheTtlMs: number = 30_000): Proje
 		): Promise<{
 			derivesFrom: StoreMatch[];
 			dependents: StoreMatch[];
-			subscribers: import("./fsScanner.js").SubscriberMatch[];
+			subscribers: SubscriberMatch[];
 		}> {
 			const index = await getIndexInternal(root);
 			const neighbors: StoreNeighbors = collectStoreNeighbors(index, store);

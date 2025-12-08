@@ -5,19 +5,19 @@ import { URIS } from "../uris.js";
 import { buildStoreSummaryText, buildStoreStructuredContent } from "../shared/storeSummary.js";
 
 /**
- * Ресурс одного стора:
+ * Resource for a single store:
  *
  *   nanostores://store/{key}
  *
- * Где key может быть:
- *   1) полным id стора:
+ * Where key can be:
+ *   1) full store id:
  *      "store:src/stores/cart.ts#$cartTotal"
- *   2) именем стора:
- *      "$cartTotal" или "cartTotal"
+ *   2) store name:
+ *      "$cartTotal" or "cartTotal"
  *
- * Это удобно:
- *   - для ссылок из графа: используем id;
- *   - для пользователя / промптов: используем имя.
+ * This is convenient:
+ *   - for graph links: use id;
+ *   - for user / prompts: use name.
  */
 export function registerStoreResource(
 	server: McpServer,
