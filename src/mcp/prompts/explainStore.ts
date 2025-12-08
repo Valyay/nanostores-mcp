@@ -2,48 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 
-import { scanProject } from "../../domain/fsScanner.js";
-import { resolveWorkspaceRoot } from "../../config/settings.js";
-
-/**
- * Простой кеш имён сторов, чтобы не гонять scanProject на каждое completion.
- */
-let cachedRoot: string | null = null;
-let cachedStoreNames: string[] = [];
-
-async function getStoreNamesForCurrentRoot(): Promise<string[]> {
-	const root = resolveWorkspaceRoot();
-
-	if (cachedRoot === root && cachedStoreNames.length > 0) {
-		return cachedStoreNames;
-	}
-
-	try {
-		const index = await scanProject(root);
-		const names = index.stores.map(s => s.name ?? "").filter(n => n.trim().length > 0);
-
-		const unique = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
-
-		cachedRoot = root;
-		cachedStoreNames = unique;
-
-		return unique;
-	} catch {
-		return cachedStoreNames;
-	}
-}
-
-async function suggestStoreNames(value: string): Promise<string[]> {
-	const allNames = await getStoreNamesForCurrentRoot();
-
-	if (!value.trim()) {
-		return allNames.slice(0, 20);
-	}
-
-	const q = value.toLowerCase();
-
-	return allNames.filter(name => name.toLowerCase().includes(q)).slice(0, 20);
-}
+import { suggestStoreNames } from "../shared/storeAutocomplete.js";
 
 export function registerExplainStorePrompt(server: McpServer): void {
 	server.registerPrompt(
