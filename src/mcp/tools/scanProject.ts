@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { scanProject } from "../../domain/fsScanner.js";
+import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 const ScanProjectInputSchema = z.object({
@@ -44,7 +44,10 @@ const ScanProjectOutputSchema = z.object({
 	errors: z.array(z.string()).optional(),
 });
 
-export function registerScanProjectTool(server: McpServer): void {
+export function registerScanProjectTool(
+	server: McpServer,
+	projectService: ProjectAnalysisService,
+): void {
 	server.registerTool(
 		"scan_project",
 		{
@@ -59,28 +62,8 @@ export function registerScanProjectTool(server: McpServer): void {
 				openWorldHint: false,
 			},
 		},
-		async ({ rootUri }, extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => {
+		async ({ rootUri }, _extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => {
 			const errors: string[] = [];
-			const progressToken = extra._meta?.progressToken;
-
-			// Helper to send progress notifications if client requested them
-			const reportProgress = async (
-				progress: number,
-				total: number,
-				message: string,
-			): Promise<void> => {
-				if (progressToken !== undefined) {
-					await extra.sendNotification({
-						method: "notifications/progress",
-						params: {
-							progressToken,
-							progress,
-							total,
-							message,
-						},
-					});
-				}
-			};
 
 			let rootToReport = "";
 			let filesScanned = 0;
@@ -111,12 +94,8 @@ export function registerScanProjectTool(server: McpServer): void {
 				const rootPath = resolveWorkspaceRoot(rootUri);
 				rootToReport = rootPath;
 
-				const result = await scanProject(rootPath, {
-					onProgress: (progress, total, message) => {
-						// Fire-and-forget: we don't await to avoid blocking scan
-						void reportProgress(progress, total, message);
-					},
-				});
+				// Use project service instead of direct scanProject call
+				const result = await projectService.getIndex(rootPath);
 
 				rootToReport = result.rootDir;
 				filesScanned = result.filesScanned;

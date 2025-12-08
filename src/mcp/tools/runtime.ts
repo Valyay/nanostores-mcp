@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { LoggerEventStore } from "../../domain/loggerEventStore.js";
+import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
 
 const StoreActivityInputSchema = z.object({
 	storeName: z.string().optional().describe("Store name to query (optional)"),
@@ -19,7 +19,10 @@ const StoreActivityOutputSchema = z.object({
  * Tool: nanostores_store_activity
  * Get runtime activity for a specific store or all stores
  */
-export function registerStoreActivityTool(server: McpServer, eventStore: LoggerEventStore): void {
+export function registerStoreActivityTool(
+	server: McpServer,
+	runtimeService: RuntimeAnalysisService,
+): void {
 	server.registerTool(
 		"nanostores_store_activity",
 		{
@@ -37,7 +40,7 @@ export function registerStoreActivityTool(server: McpServer, eventStore: LoggerE
 		async ({ storeName, limit, windowMs }) => {
 			const sinceTs = windowMs ? Date.now() - windowMs : undefined;
 
-			const events = eventStore.getEvents({
+			const events = runtimeService.getEvents({
 				storeName,
 				limit,
 				sinceTs,
@@ -45,9 +48,10 @@ export function registerStoreActivityTool(server: McpServer, eventStore: LoggerE
 
 			let stats = null;
 			if (storeName) {
-				stats = eventStore.getStoreStats(storeName);
+				const profile = await runtimeService.getStoreProfile(storeName);
+				stats = profile?.stats ?? null;
 			} else {
-				stats = eventStore.getStats();
+				stats = runtimeService.getStats();
 			}
 
 			// Build summary
@@ -106,12 +110,14 @@ const FindNoisyStoresOutputSchema = z.object({
 	stores: z.array(z.any()),
 	summary: z.string(),
 });
-
 /**
  * Tool: nanostores_find_noisy_stores
  * Find stores with highest activity (changes + actions)
  */
-export function registerFindNoisyStoresTool(server: McpServer, eventStore: LoggerEventStore): void {
+export function registerFindNoisyStoresTool(
+	server: McpServer,
+	runtimeService: RuntimeAnalysisService,
+): void {
 	server.registerTool(
 		"nanostores_find_noisy_stores",
 		{
@@ -127,7 +133,7 @@ export function registerFindNoisyStoresTool(server: McpServer, eventStore: Logge
 			},
 		},
 		async ({ limit, windowMs }) => {
-			const noisyStores = eventStore.getNoisyStores(limit);
+			const noisyStores = runtimeService.getNoisyStores(limit);
 
 			// Filter by time window if specified
 			let filteredStores = noisyStores;
@@ -184,7 +190,10 @@ const RuntimeOverviewOutputSchema = z.object({
  * Tool: nanostores_runtime_overview
  * Get overall runtime health report
  */
-export function registerRuntimeOverviewTool(server: McpServer, eventStore: LoggerEventStore): void {
+export function registerRuntimeOverviewTool(
+	server: McpServer,
+	runtimeService: RuntimeAnalysisService,
+): void {
 	server.registerTool(
 		"nanostores_runtime_overview",
 		{
@@ -200,10 +209,10 @@ export function registerRuntimeOverviewTool(server: McpServer, eventStore: Logge
 			},
 		},
 		async ({ windowMs }) => {
-			const stats = eventStore.getStats();
-			const noisyStores = eventStore.getNoisyStores(5);
-			const errorProneStores = eventStore.getErrorProneStores(1);
-			const unmountedStores = eventStore.getUnmountedStores();
+			const stats = runtimeService.getStats();
+			const noisyStores = runtimeService.getNoisyStores(5);
+			const errorProneStores = runtimeService.getErrorProneStores(1);
+			const unmountedStores = runtimeService.getUnmountedStores();
 
 			// Filter by time window if specified
 			let activeStores = stats.stores;

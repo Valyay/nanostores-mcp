@@ -1,9 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createLoggerEventStore } from "./domain/loggerEventStore.js";
 import { createLoggerBridge } from "./logger/loggerBridge.js";
+import { createProjectAnalysisService } from "./domain/projectAnalysisService.js";
+import { createRuntimeAnalysisService } from "./domain/runtimeAnalysisService.js";
 import { envConfig } from "./config/envConfig.js";
 import { createFsDocsSource } from "./domain/docsSourceFs.js";
 import { createDocsRepository } from "./domain/docsIndex.js";
+import { createDocsService } from "./domain/docsService.js";
 import { registerStaticFeatures } from "./features/static/index.js";
 import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
@@ -13,6 +16,9 @@ import packageJson from "../package.json" with { type: "json" };
 const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = (packageJson as { version: string }).version;
 
+// Domain services
+const projectAnalysisService = createProjectAnalysisService(30_000); // 30s cache
+
 // Global logger infrastructure
 const loggerEventStore = createLoggerEventStore(5000);
 const loggerBridge = createLoggerBridge(loggerEventStore, {
@@ -20,6 +26,15 @@ const loggerBridge = createLoggerBridge(loggerEventStore, {
 	port: envConfig.NANOSTORES_MCP_LOGGER_PORT,
 	enabled: envConfig.NANOSTORES_MCP_LOGGER_ENABLED,
 });
+
+const runtimeAnalysisService = createRuntimeAnalysisService(
+	loggerEventStore,
+	projectAnalysisService,
+	{
+		activeThresholdMs: 5000,
+		recentEventsLimit: 20,
+	},
+);
 
 // Start logger bridge if enabled
 if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
@@ -40,6 +55,8 @@ const docsRepository = docsSource
 	? createDocsRepository(docsSource, { cacheTtlMs: 5 * 60 * 1000 })
 	: undefined;
 
+const docsService = docsRepository ? createDocsService(docsRepository) : null;
+
 export function buildNanostoresServer(): McpServer {
 	const server = new McpServer(
 		{
@@ -55,10 +72,10 @@ export function buildNanostoresServer(): McpServer {
 		},
 	);
 
-	// Register feature modules
-	registerStaticFeatures(server);
-	registerRuntimeFeatures(server, loggerEventStore, loggerBridge);
-	registerDocsFeatures(server, docsRepository ?? null);
+	// Register feature modules with domain services
+	registerStaticFeatures(server, projectAnalysisService);
+	registerRuntimeFeatures(server, runtimeAnalysisService, loggerBridge);
+	registerDocsFeatures(server, docsService);
 
 	return server;
 }

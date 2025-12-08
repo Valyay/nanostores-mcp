@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { DocsRepository } from "../../domain/docsIndex.js";
+import type { DocsService } from "../../domain/docsService.js";
 import type { DocPage } from "../../domain/docsTypes.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
 import { URIS } from "../uris.js";
@@ -29,10 +29,7 @@ const DocsSearchOutputSchema = z.object({
  * Tool: nanostores_docs_search
  * Search Nanostores documentation
  */
-export function registerDocsSearchTool(
-	server: McpServer,
-	docsRepository: DocsRepository | null,
-): void {
+export function registerDocsSearchTool(server: McpServer, docsService: DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_search",
 		{
@@ -48,7 +45,7 @@ export function registerDocsSearchTool(
 			},
 		},
 		async ({ query, limit, tags }) => {
-			if (!docsRepository) {
+			if (!docsService) {
 				return {
 					content: [
 						{
@@ -63,7 +60,7 @@ export function registerDocsSearchTool(
 				};
 			}
 
-			const result = await docsRepository.search(query, { limit, tags });
+			const result = await docsService.search(query, { limit, tags });
 
 			const results = result.hits.map(hit => ({
 				pageId: hit.page.id,
@@ -130,10 +127,7 @@ const DocsForStoreOutputSchema = z.object({
  * Tool: nanostores_docs_for_store
  * Find relevant documentation for a specific store
  */
-export function registerDocsForStoreTool(
-	server: McpServer,
-	docsRepository: DocsRepository | null,
-): void {
+export function registerDocsForStoreTool(server: McpServer, docsService: DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_for_store",
 		{
@@ -149,7 +143,7 @@ export function registerDocsForStoreTool(
 			},
 		},
 		async ({ storeName, kindHint }) => {
-			if (!docsRepository) {
+			if (!docsService) {
 				return {
 					content: [
 						{
@@ -185,7 +179,7 @@ export function registerDocsForStoreTool(
 			const allResults = new Map<string, { page: DocPage; score: number; reason: string }>();
 
 			for (const query of queries) {
-				const result = await docsRepository.search(query, { limit: 3 });
+				const result = await docsService.search(query, { limit: 3 });
 
 				for (const hit of result.hits) {
 					const existing = allResults.get(hit.page.id);

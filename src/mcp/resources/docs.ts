@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { DocsRepository } from "../../domain/docsIndex.js";
+import type { DocsService } from "../../domain/docsService.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
 import { URIS } from "../uris.js";
 
@@ -8,7 +8,7 @@ import { URIS } from "../uris.js";
  */
 export function registerDocsIndexResource(
 	server: McpServer,
-	docsRepository: DocsRepository | null,
+	docsService: DocsService | null,
 ): void {
 	server.registerResource(
 		"docs-index",
@@ -21,7 +21,7 @@ export function registerDocsIndexResource(
 				"Index of Nanostores documentation pages and chunks. Lists all available topics and tags.",
 		},
 		async uri => {
-			if (!docsRepository) {
+			if (!docsService) {
 				return {
 					contents: [
 						{
@@ -33,7 +33,7 @@ export function registerDocsIndexResource(
 				};
 			}
 
-			const index = await docsRepository.getIndex();
+			const index = await docsService.getIndex();
 
 			// Group pages by tags
 			const tagCounts = new Map<string, number>();
@@ -85,10 +85,7 @@ ${index.pages
 /**
  * Register nanostores://docs/page/{id} - specific documentation page
  */
-export function registerDocsPageResource(
-	server: McpServer,
-	docsRepository: DocsRepository | null,
-): void {
+export function registerDocsPageResource(server: McpServer, docsService: DocsService | null): void {
 	server.registerResource(
 		"docs-page",
 		new ResourceTemplate(URIS.docsPageTemplate, {
@@ -99,7 +96,7 @@ export function registerDocsPageResource(
 			description: "Full content of a specific documentation page with metadata and chunks.",
 		},
 		async (uri, { id }) => {
-			if (!docsRepository) {
+			if (!docsService) {
 				return {
 					contents: [
 						{
@@ -112,7 +109,7 @@ export function registerDocsPageResource(
 			}
 
 			const pageId = id as string;
-			const page = await docsRepository.getPageById(pageId);
+			const page = await docsService.getPage(pageId);
 
 			if (!page) {
 				return {
@@ -126,7 +123,7 @@ export function registerDocsPageResource(
 				};
 			}
 
-			const chunks = await docsRepository.getChunksByPageId(pageId);
+			const chunks = await docsService.getPageChunks(pageId);
 
 			// Read full file content
 			const fullText = chunks.map(c => c.text).join("\n\n");
@@ -167,7 +164,7 @@ ${fullText}
  */
 export function registerDocsSearchResource(
 	server: McpServer,
-	docsRepository: DocsRepository | null,
+	docsService: DocsService | null,
 ): void {
 	server.registerResource(
 		"docs-search",
@@ -179,7 +176,7 @@ export function registerDocsSearchResource(
 			description: "Search documentation by query. Query params: ?q=query&tag=tag&limit=10",
 		},
 		async uri => {
-			if (!docsRepository) {
+			if (!docsService) {
 				return {
 					contents: [
 						{
@@ -208,7 +205,7 @@ export function registerDocsSearchResource(
 				};
 			}
 
-			const result = await docsRepository.search(query, {
+			const result = await docsService.search(query, {
 				limit,
 				tags: tag ? [tag] : undefined,
 			});

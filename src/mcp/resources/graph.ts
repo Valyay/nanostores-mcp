@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { scanProject } from "../../domain/fsScanner.js";
+import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
 import { buildStoreGraph } from "../../domain/graphBuilder.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import type { StoreGraph, StoreNode, SubscriberNode } from "../../domain/graphBuilder.js";
@@ -54,7 +54,10 @@ function buildGraphSummary(graph: StoreGraph): string {
 	return lines.join("\n");
 }
 
-export function registerGraphResource(server: McpServer): void {
+export function registerGraphResource(
+	server: McpServer,
+	projectService: ProjectAnalysisService,
+): void {
 	server.registerResource(
 		"graph",
 		URIS.graph,
@@ -66,7 +69,7 @@ export function registerGraphResource(server: McpServer): void {
 		async uri => {
 			try {
 				const rootPath = resolveWorkspaceRoot();
-				const index = await scanProject(rootPath);
+				const index = await projectService.getIndex(rootPath);
 				const graph = buildStoreGraph(index);
 
 				const summary = buildGraphSummary(graph);

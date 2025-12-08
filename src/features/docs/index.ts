@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { DocsRepository } from "../../domain/docsIndex.js";
+import type { DocsService } from "../../domain/docsService.js";
 import {
 	registerDocsIndexResource,
 	registerDocsPageResource,
@@ -10,24 +10,21 @@ import { registerDocsHowToPrompt } from "../../mcp/prompts/docsHowTo.js";
 
 /**
  * Registers all documentation features (docs index, search, tools, prompts).
- * If docsRepo is null, no features are registered.
+ * If docsService is null, no features are registered.
  */
-export function registerDocsFeatures(
-	server: McpServer,
-	docsRepo: DocsRepository | null,
-): void {
-	if (!docsRepo) {
+export function registerDocsFeatures(server: McpServer, docsService: DocsService | null): void {
+	if (!docsService) {
 		return;
 	}
 
 	// Resources
-	registerDocsIndexResource(server, docsRepo);
-	registerDocsPageResource(server, docsRepo);
-	registerDocsSearchResource(server, docsRepo);
+	registerDocsIndexResource(server, docsService);
+	registerDocsPageResource(server, docsService);
+	registerDocsSearchResource(server, docsService);
 
 	// Tools
-	registerDocsSearchTool(server, docsRepo);
-	registerDocsForStoreTool(server, docsRepo);
+	registerDocsSearchTool(server, docsService);
+	registerDocsForStoreTool(server, docsService);
 
 	// Prompts
 	registerDocsHowToPrompt(server);

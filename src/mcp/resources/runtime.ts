@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { LoggerEventStore } from "../../domain/loggerEventStore.js";
+import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
 import type { LoggerEventFilter, NanostoresLoggerEvent } from "../../domain/loggerTypes.js";
 import { URIS } from "../uris.js";
 
@@ -16,7 +16,7 @@ import { URIS } from "../uris.js";
  */
 export function registerRuntimeEventsResource(
 	server: McpServer,
-	eventStore: LoggerEventStore,
+	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerResource(
 		"runtime-events",
@@ -40,8 +40,8 @@ export function registerRuntimeEventsResource(
 				actionName: params.get("actionName") || undefined,
 			};
 
-			const events = eventStore.getEvents(filter);
-			const stats = eventStore.getStats();
+			const events = runtimeService.getEvents(filter);
+			const stats = runtimeService.getStats();
 
 			return {
 				contents: [
@@ -74,7 +74,7 @@ export function registerRuntimeEventsResource(
  */
 export function registerRuntimeStatsResource(
 	server: McpServer,
-	eventStore: LoggerEventStore,
+	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerResource(
 		"runtime-stats",
@@ -87,9 +87,9 @@ export function registerRuntimeStatsResource(
 				"Aggregated statistics for all stores: mount/unmount counts, change frequency, action metrics, error rates.",
 		},
 		async uri => {
-			const stats = eventStore.getStats();
-			const noisyStores = eventStore.getNoisyStores(10);
-			const errorProneStores = eventStore.getErrorProneStores(1);
+			const stats = runtimeService.getStats();
+			const noisyStores = runtimeService.getNoisyStores(10);
+			const errorProneStores = runtimeService.getErrorProneStores(1);
 
 			return {
 				contents: [
@@ -127,7 +127,7 @@ export function registerRuntimeStatsResource(
  */
 export function registerRuntimeStoreResource(
 	server: McpServer,
-	eventStore: LoggerEventStore,
+	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerResource(
 		"runtime-store",
@@ -156,12 +156,12 @@ export function registerRuntimeStoreResource(
 			const cleanStoreName = storeName.startsWith("$") ? storeName.slice(1) : storeName;
 
 			// Try both with and without $ prefix
-			let stats = eventStore.getStoreStats(`$${cleanStoreName}`);
-			if (!stats) {
-				stats = eventStore.getStoreStats(cleanStoreName);
+			let profile = await runtimeService.getStoreProfile(`$${cleanStoreName}`);
+			if (!profile) {
+				profile = await runtimeService.getStoreProfile(cleanStoreName);
 			}
 
-			if (!stats) {
+			if (!profile) {
 				return {
 					contents: [
 						{
@@ -172,24 +172,6 @@ export function registerRuntimeStoreResource(
 					],
 				};
 			}
-
-			// Get recent events for this store
-			const recentEvents = eventStore.getEvents({
-				storeName: stats.storeName,
-				limit: 50,
-			});
-
-			const profile = {
-				storeName: stats.storeName,
-				storeId: stats.storeId,
-				stats,
-				recentEvents,
-				analysis: {
-					isActive: stats.mounts > 0 && stats.unmounts < stats.mounts,
-					changeRate: stats.changes / ((stats.lastSeen - stats.firstSeen) / 1000 || 1),
-					errorRate: stats.actionsStarted > 0 ? stats.actionsErrored / stats.actionsStarted : 0,
-				},
-			};
 
 			return {
 				contents: [

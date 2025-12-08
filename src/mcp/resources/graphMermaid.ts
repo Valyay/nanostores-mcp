@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { scanProject } from "../../domain/fsScanner.js";
+import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
 import { URIS } from "../uris.js";
 import {
 	buildStoreGraph,
@@ -192,7 +192,10 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 	return lines.join("\n");
 }
 
-export function registerGraphMermaidResource(server: McpServer): void {
+export function registerGraphMermaidResource(
+	server: McpServer,
+	projectService: ProjectAnalysisService,
+): void {
 	server.registerResource(
 		"graph-mermaid",
 		URIS.graphMermaid,
@@ -204,7 +207,7 @@ export function registerGraphMermaidResource(server: McpServer): void {
 		async uri => {
 			try {
 				const rootPath = resolveWorkspaceRoot();
-				const index = await scanProject(rootPath);
+				const index = await projectService.getIndex(rootPath);
 				const graph = buildStoreGraph(index);
 
 				const mermaid = buildMermaidFromGraph(graph);

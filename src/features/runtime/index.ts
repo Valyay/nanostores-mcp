@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { LoggerEventStore } from "../../domain/loggerEventStore.js";
+import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
 import type { LoggerBridgeServer } from "../../logger/loggerBridge.js";
 import { registerPingTool } from "../../mcp/tools/ping.js";
 import {
@@ -22,19 +22,19 @@ import {
  */
 export function registerRuntimeFeatures(
 	server: McpServer,
-	eventStore: LoggerEventStore,
+	runtimeService: RuntimeAnalysisService,
 	bridge: LoggerBridgeServer,
 ): void {
 	// Tools
 	registerPingTool(server, bridge);
-	registerStoreActivityTool(server, eventStore);
-	registerFindNoisyStoresTool(server, eventStore);
-	registerRuntimeOverviewTool(server, eventStore);
+	registerStoreActivityTool(server, runtimeService);
+	registerFindNoisyStoresTool(server, runtimeService);
+	registerRuntimeOverviewTool(server, runtimeService);
 
 	// Resources
-	registerRuntimeEventsResource(server, eventStore);
-	registerRuntimeStatsResource(server, eventStore);
-	registerRuntimeStoreResource(server, eventStore);
+	registerRuntimeEventsResource(server, runtimeService);
+	registerRuntimeStatsResource(server, runtimeService);
+	registerRuntimeStoreResource(server, runtimeService);
 
 	// Prompts
 	registerDebugStorePrompt(server);
