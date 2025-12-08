@@ -1,8 +1,8 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
-import type { StoreMatch, SubscriberMatch, StoreRelation } from "../../domain/fsScanner.js";
 import { URIS } from "../uris.js";
+import { resolveStore, collectStoreNeighbors } from "../../domain/storeLookup.js";
 
 /**
  * Ресурс одного стора:
@@ -56,71 +56,10 @@ export function registerStoreResource(server: McpServer): void {
 			const keyValue = Array.isArray(key) ? key[0] : key;
 			const rawKey = decodeURIComponent(keyValue);
 
-			// --- находим store по id или по имени ---
+			// Resolve store using domain logic
+			const resolution = resolveStore(index, rawKey);
 
-			let store: StoreMatch | undefined;
-			let resolutionNote = "";
-
-			// 1) если key похож на полный id (store:...#...), ищем по id
-			if (rawKey.startsWith("store:")) {
-				store = index.stores.find(s => s.id === rawKey);
-				resolutionNote = `Resolved by id: ${rawKey}`;
-			} else {
-				// 2) иначе считаем, что это имя сторы
-				// поддерживаем:
-				//   "$counter" и "counter" (добавим/уберём $)
-				const nameCandidates = new Set<string>();
-
-				if (rawKey.startsWith("$")) {
-					nameCandidates.add(rawKey); // "$counter"
-					nameCandidates.add(rawKey.slice(1)); // "counter"
-				} else {
-					nameCandidates.add(rawKey); // "counter"
-					nameCandidates.add(`$${rawKey}`); // "$counter"
-				}
-
-				const nameMatches = index.stores.filter(s => s.name && nameCandidates.has(s.name));
-
-				if (nameMatches.length === 1) {
-					store = nameMatches[0];
-					resolutionNote = `Resolved by name: ${rawKey}`;
-				} else if (nameMatches.length > 1) {
-					// если несколько — берём первый по сортировке, но даём знать пользователю
-					nameMatches.sort((a, b) => a.file.localeCompare(b.file));
-					store = nameMatches[0];
-
-					const others = nameMatches
-						.slice(1)
-						.map(s => s.file)
-						.join(", ");
-
-					resolutionNote =
-						`Resolved by name: ${rawKey} (multiple matches, using first).\n` +
-						`Other matches in files: ${others}`;
-				} else {
-					// 3) fallback: вдруг передали кусок id без 'store:'?
-					const idMatches = index.stores.filter(
-						s => s.id === rawKey || s.id.endsWith(`#${rawKey}`) || s.id.endsWith(`#$${rawKey}`),
-					);
-
-					if (idMatches.length === 1) {
-						store = idMatches[0];
-						resolutionNote = `Resolved by id tail: ${rawKey}`;
-					} else if (idMatches.length > 1) {
-						idMatches.sort((a, b) => a.file.localeCompare(b.file));
-						store = idMatches[0];
-						const others = idMatches
-							.slice(1)
-							.map(s => s.file)
-							.join(", ");
-						resolutionNote =
-							`Resolved by id tail: ${rawKey} (multiple matches, using first).\n` +
-							`Other matches in files: ${others}`;
-					}
-				}
-			}
-
-			if (!store) {
+			if (!resolution) {
 				return {
 					contents: [
 						{
@@ -136,28 +75,16 @@ export function registerStoreResource(server: McpServer): void {
 				};
 			}
 
-			// --- соседи стора ---
+			const { store, note: resolutionNote } = resolution;
 
-			const allRelations: StoreRelation[] = index.relations;
-
-			// подписчики (components/hooks/effects), которые завязаны на этот стор
-			const subscribers: SubscriberMatch[] = index.subscribers.filter(sub =>
-				sub.storeIds.includes(store.id),
-			);
-
-			// store, от которых этот стор зависит (он derived от них)
-			const derivesFromEdges = allRelations.filter(
-				r => r.type === "derives_from" && r.from === store.id,
-			);
-			const derivesFromIds = new Set(derivesFromEdges.map(r => r.to));
-			const derivesFromStores: StoreMatch[] = index.stores.filter(s => derivesFromIds.has(s.id));
-
-			// store, которые зависят от этого стора (они derived-наследники)
-			const dependentsEdges = allRelations.filter(
-				r => r.type === "derives_from" && r.to === store.id,
-			);
-			const dependentsIds = new Set(dependentsEdges.map(r => r.from));
-			const dependentsStores: StoreMatch[] = index.stores.filter(s => dependentsIds.has(s.id));
+			// Collect neighbors using domain logic
+			const {
+				subscribers,
+				derivesFromStores,
+				derivesFromEdges,
+				dependentsStores,
+				dependentsEdges,
+			} = collectStoreNeighbors(index, store);
 
 			// --- краткое текстовое описание ---
 

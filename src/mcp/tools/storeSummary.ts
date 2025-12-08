@@ -3,11 +3,8 @@ import { z } from "zod";
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { URIS } from "../uris.js";
-
-type ScanResult = Awaited<ReturnType<typeof scanProject>>;
-type StoreMatch = ScanResult["stores"][number];
-type SubscriberMatch = ScanResult["subscribers"][number];
-type StoreRelation = ScanResult["relations"][number];
+import { resolveStore, collectStoreNeighbors } from "../../domain/storeLookup.js";
+import type { StoreMatch, SubscriberMatch, ProjectIndex } from "../../domain/fsScanner.js";
 
 const StoreSummaryInputSchema = z.object({
 	storeId: z.string().describe("Exact store id. If provided, takes priority.").optional(),
@@ -80,118 +77,9 @@ const StoreSummaryOutputSchema = z.object({
 	}),
 });
 
-function resolveStoreById(result: ScanResult, id: string): StoreMatch | undefined {
-	return result.stores.find(s => s.id === id);
-}
-
-function resolveStoreByName(
-	result: ScanResult,
-	rawName: string,
-	file?: string,
-): { store?: StoreMatch; note?: string } {
-	// поддерживаем "$counter" и "counter"
-	const nameCandidates = new Set<string>();
-
-	if (rawName.startsWith("$")) {
-		nameCandidates.add(rawName); // "$counter"
-		nameCandidates.add(rawName.slice(1)); // "counter"
-	} else {
-		nameCandidates.add(rawName); // "counter"
-		nameCandidates.add(`$${rawName}`); // "$counter"
-	}
-
-	let matches = result.stores.filter(s => s.name && nameCandidates.has(s.name));
-
-	// если указали file — фильтруем по нему
-	if (file) {
-		matches = matches.filter(s => s.file === file);
-	}
-
-	if (matches.length === 0) {
-		// fallback: пробуем по хвосту id (#name / #$name)
-		const tailMatches = result.stores.filter(s => {
-			const tail = s.id.split("#").slice(-1)[0];
-			return nameCandidates.has(tail);
-		});
-
-		if (tailMatches.length === 1) {
-			return {
-				store: tailMatches[0],
-				note: `Resolved by id tail: ${rawName}`,
-			};
-		}
-		if (tailMatches.length > 1) {
-			tailMatches.sort((a, b) => a.file.localeCompare(b.file));
-			const others = tailMatches
-				.slice(1)
-				.map(s => s.file)
-				.join(", ");
-			return {
-				store: tailMatches[0],
-				note: `Resolved by id tail: ${rawName} (multiple matches, using first from ${tailMatches[0].file}). Other matches in: ${others}`,
-			};
-		}
-
-		return { store: undefined, note: undefined };
-	}
-
-	if (matches.length === 1) {
-		return {
-			store: matches[0],
-			note: `Resolved by name: ${rawName}`,
-		};
-	}
-
-	// несколько матчей — берём первый по сортировке
-	matches.sort((a, b) => a.file.localeCompare(b.file));
-	const others = matches
-		.slice(1)
-		.map(s => s.file)
-		.join(", ");
-	return {
-		store: matches[0],
-		note: `Resolved by name: ${rawName} (multiple matches, using first from ${matches[0].file}). Other matches in: ${others}`,
-	};
-}
-
-function collectNeighbors(
-	result: ScanResult,
-	store: StoreMatch,
-): {
-	subscribers: SubscriberMatch[];
-	derivesFromStores: StoreMatch[];
-	derivesFromEdges: StoreRelation[];
-	dependentsStores: StoreMatch[];
-	dependentsEdges: StoreRelation[];
-} {
-	const allRelations: StoreRelation[] = result.relations;
-
-	const subscribers: SubscriberMatch[] = result.subscribers.filter(sub =>
-		sub.storeIds.includes(store.id),
-	);
-
-	const derivesFromEdges = allRelations.filter(
-		r => r.type === "derives_from" && r.from === store.id,
-	);
-	const derivesFromIds = new Set(derivesFromEdges.map(r => r.to));
-	const derivesFromStores: StoreMatch[] = result.stores.filter(s => derivesFromIds.has(s.id));
-
-	const dependentsEdges = allRelations.filter(r => r.type === "derives_from" && r.to === store.id);
-	const dependentsIds = new Set(dependentsEdges.map(r => r.from));
-	const dependentsStores: StoreMatch[] = result.stores.filter(s => dependentsIds.has(s.id));
-
-	return {
-		subscribers,
-		derivesFromStores,
-		derivesFromEdges,
-		dependentsStores,
-		dependentsEdges,
-	};
-}
-
 function buildStoreSummaryText(args: {
 	store: StoreMatch;
-	resolutionBy: "id" | "name" | "id_tail";
+	resolutionBy: string;
 	resolutionRequested: string;
 	resolutionNote?: string;
 	subscribers: SubscriberMatch[];
@@ -276,10 +164,10 @@ export function registerStoreSummaryTool(server: McpServer): void {
 			}
 
 			const rootPath = resolveWorkspaceRoot();
-			let result: ScanResult;
+			let index: ProjectIndex;
 
 			try {
-				result = await scanProject(rootPath);
+				index = await scanProject(rootPath);
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
 				return {
@@ -295,51 +183,26 @@ export function registerStoreSummaryTool(server: McpServer): void {
 				};
 			}
 
-			let store: StoreMatch | undefined;
-			let resolutionBy: "id" | "name" | "id_tail";
-			let resolutionNote: string | undefined;
-			let requestedKey: string;
+			// Decode and resolve the key
+			const key = storeId ? decodeURIComponent(storeId) : name!;
+			const resolution = resolveStore(index, key, { file });
 
-			if (storeId) {
-				const decoded = decodeURIComponent(storeId);
-				requestedKey = decoded;
-				store = resolveStoreById(result, decoded);
-				resolutionBy = "id";
-				resolutionNote = `Resolved by id: ${decoded}`;
-				if (!store) {
-					// попробуем ещё по хвосту (последняя часть после '#')
-					const tail = decoded.split("#").slice(-1)[0];
-					const byTail = resolveStoreByName(result, tail);
-					if (byTail.store) {
-						store = byTail.store;
-						resolutionBy = "id_tail";
-						resolutionNote = byTail.note ?? `Resolved by id tail: ${tail}`;
-					}
-				}
-			} else {
-				// name обязателен здесь
-				const rawName = name!;
-				requestedKey = rawName;
-				const { store: byName, note } = resolveStoreByName(result, rawName, file);
-				store = byName;
-				resolutionBy = "name";
-				resolutionNote = note;
-			}
-
-			if (!store) {
+			if (!resolution) {
 				return {
 					content: [
 						{
 							type: "text",
 							text:
 								"Store not found.\n\n" +
-								`Root: ${result.rootDir}\n` +
-								`Requested: ${storeId ?? name}\n` +
-								`Known stores: ${result.stores.length}`,
+								`Root: ${index.rootDir}\n` +
+								`Requested: ${key}\n` +
+								`Known stores: ${index.stores.length}`,
 						},
 					],
 				};
 			}
+
+			const { store, by: resolutionBy, note: resolutionNote } = resolution;
 
 			const {
 				subscribers,
@@ -347,7 +210,7 @@ export function registerStoreSummaryTool(server: McpServer): void {
 				derivesFromEdges,
 				dependentsStores,
 				dependentsEdges,
-			} = collectNeighbors(result, store);
+			} = collectStoreNeighbors(index, store);
 
 			const structuredContent = {
 				store: {
@@ -359,7 +222,7 @@ export function registerStoreSummaryTool(server: McpServer): void {
 				},
 				resolution: {
 					by: resolutionBy,
-					requested: requestedKey,
+					requested: key,
 					note: resolutionNote,
 				},
 				subscribers: subscribers.map(sub => ({
@@ -407,7 +270,7 @@ export function registerStoreSummaryTool(server: McpServer): void {
 			const summaryText = buildStoreSummaryText({
 				store,
 				resolutionBy,
-				resolutionRequested: requestedKey,
+				resolutionRequested: key,
 				resolutionNote,
 				subscribers,
 				derivesFromStores,
