@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { DocsRepository } from "../../domain/docsIndex.js";
 import type { DocPage } from "../../domain/docsTypes.js";
+import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
 
 const DocsSearchInputSchema = z.object({
 	query: z.string().describe("Search query for documentation"),
@@ -51,7 +52,7 @@ export function registerDocsSearchTool(
 					content: [
 						{
 							type: "text",
-							text: "Documentation is not configured. Set NANOSTORES_DOCS_ROOT environment variable.",
+							text: DOCS_DISABLED_MESSAGE,
 						},
 					],
 					structuredContent: {
@@ -152,7 +153,7 @@ export function registerDocsForStoreTool(
 					content: [
 						{
 							type: "text",
-							text: "Documentation is not configured. Set NANOSTORES_DOCS_ROOT environment variable.",
+							text: DOCS_DISABLED_MESSAGE,
 						},
 					],
 					structuredContent: {
