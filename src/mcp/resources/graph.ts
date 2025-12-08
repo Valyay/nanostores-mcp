@@ -3,6 +3,7 @@ import { scanProject } from "../../domain/fsScanner.js";
 import { buildStoreGraph } from "../../domain/graphBuilder.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import type { StoreGraph, StoreNode, SubscriberNode } from "../../domain/graphBuilder.js";
+import { URIS } from "../uris.js";
 
 function buildGraphSummary(graph: StoreGraph): string {
 	const lines: string[] = [];
@@ -56,7 +57,7 @@ function buildGraphSummary(graph: StoreGraph): string {
 export function registerGraphResource(server: McpServer): void {
 	server.registerResource(
 		"graph",
-		"nanostores://graph",
+		URIS.graph,
 		{
 			title: "Nanostores project graph",
 			description:

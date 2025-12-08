@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 import { suggestStoreNames } from "../shared/storeAutocomplete.js";
+import { URIS } from "../uris.js";
 
 /**
  * Prompt: nanostores/debug-store
@@ -42,12 +43,12 @@ export function registerDebugStorePrompt(server: McpServer): void {
 								"Use these MCP resources to gather comprehensive data:",
 								"",
 								"### Static Analysis (AST/Code Structure)",
-								`- nanostores://store/${store_name} - Store definition, file location, type (atom/map/computed), subscribers, relations`,
-								"- nanostores://graph - Full project dependency graph",
+								`- ${URIS.storeById(store_name)} - Store definition, file location, type (atom/map/computed), subscribers, relations`,
+								`- ${URIS.graph} - Full project dependency graph`,
 								"",
 								"### Runtime Behavior (Logger Events)",
-								`- nanostores://runtime/store/${store_name} - Runtime statistics, recent events, change frequency`,
-								"- nanostores://runtime/stats - Overall runtime statistics across all stores",
+								`- ${URIS.runtimeStoreTemplate.replace("{key}", store_name)} - Runtime statistics, recent events, change frequency`,
+								`- ${URIS.runtimeStats} - Overall runtime statistics across all stores`,
 								"",
 								"### Tools",
 								`- nanostores_store_activity - Get detailed activity timeline`,
@@ -86,7 +87,7 @@ export function registerDebugStorePrompt(server: McpServer): void {
 								"Use documentation tools to back up recommendations:",
 								"- nanostores_docs_for_store - get official patterns for this store type",
 								"- nanostores_docs_search - find best practices for detected issues",
-								"- Reference specific doc pages (nanostores://docs/page/{id})",
+								`- Reference specific doc pages (${URIS.docsPageTemplate})`,
 								"",
 								"## Output Format",
 								"",
@@ -139,12 +140,12 @@ export function registerDebugProjectActivityPrompt(server: McpServer): void {
 								"## Available Resources",
 								"",
 								"### Runtime Data",
-								"- nanostores://runtime/stats - Aggregated statistics for all stores",
-								"- nanostores://runtime/events - Recent events across all stores",
+								`- ${URIS.runtimeStats} - Aggregated statistics for all stores`,
+								`- ${URIS.runtimeEvents} - Recent events across all stores`,
 								"",
 								"### Static Structure",
-								"- nanostores://graph - Full dependency graph",
-								"- nanostores://graph#json - Machine-readable graph data",
+								`- ${URIS.graph} - Full dependency graph`,
+								`- ${URIS.graph}#json - Machine-readable graph data`,
 								"",
 								"### Tools",
 								"- nanostores_runtime_overview - Overall health report",

@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { URIS } from "../uris.js";
 
 /**
  * Prompt: nanostores/docs-how-to
@@ -37,11 +38,11 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 								"   - Look for guides, API references, and best practices",
 								"",
 								"2. **Read relevant pages**:",
-								"   - Use nanostores://docs/page/{id} resources to get full content",
+								`   - Use ${URIS.docsPageTemplate} resources to get full content`,
 								"   - Focus on examples and code snippets",
 								"",
 								"3. **Check project context** (if relevant):",
-								"   - Use nanostores://graph to see existing stores",
+								`   - Use ${URIS.graph} to see existing stores`,
 								"   - Use store_summary to understand current patterns",
 								"",
 								"## Output Format",
@@ -66,7 +67,7 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 								"- Common pitfalls to avoid",
 								"",
 								"### References",
-								"- Link to relevant doc pages (nanostores://docs/page/...)",
+								`- Link to relevant doc pages (${URIS.docsPageTemplate.replace("{id}", "...")})`,
 								"- Official URLs if available",
 								"",
 								"## Important",

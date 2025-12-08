@@ -3,6 +3,7 @@ import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 
 import { suggestStoreNames } from "../shared/storeAutocomplete.js";
+import { URIS } from "../uris.js";
 
 export function registerExplainStorePrompt(server: McpServer): void {
 	server.registerPrompt(
@@ -40,19 +41,19 @@ export function registerExplainStorePrompt(server: McpServer): void {
 								"## Available Resources",
 								"",
 								"### Project Structure",
-								`- nanostores://store/${store_name} - store details, subscribers, relations`,
-								"- nanostores://graph - project-wide Nanostores graph",
+								`- ${URIS.storeById(store_name)} - store details, subscribers, relations`,
+								`- ${URIS.graph} - project-wide Nanostores graph`,
 								"- store_summary tool for file-level analysis",
 								"",
 								"### Official Documentation",
 								"- nanostores_docs_search - search for relevant patterns and best practices",
 								"- nanostores_docs_for_store - get docs specific to this store type",
-								"- nanostores://docs/page/{id} - read full documentation pages",
+								`- ${URIS.docsPageTemplate} - read full documentation pages`,
 								"",
 								"## Analysis Steps",
 								"",
 								"1. **Identify store type and structure**",
-								"   - Check nanostores://store/{name} for kind (atom/map/computed)",
+								`   - Check ${URIS.storeTemplate} for kind (atom/map/computed)`,
 								"   - Use nanostores_docs_for_store to get relevant documentation",
 								"",
 								"2. **Explain core concept**",

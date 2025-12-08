@@ -1,6 +1,7 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DocsRepository } from "../../domain/docsIndex.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
+import { URIS } from "../uris.js";
 
 /**
  * Register nanostores://docs - documentation index
@@ -11,7 +12,7 @@ export function registerDocsIndexResource(
 ): void {
 	server.registerResource(
 		"docs-index",
-		new ResourceTemplate("nanostores://docs", {
+		new ResourceTemplate(URIS.docsIndex, {
 			list: undefined,
 		}),
 		{
@@ -90,7 +91,7 @@ export function registerDocsPageResource(
 ): void {
 	server.registerResource(
 		"docs-page",
-		new ResourceTemplate("nanostores://docs/page/{id}", {
+		new ResourceTemplate(URIS.docsPageTemplate, {
 			list: undefined,
 		}),
 		{
@@ -170,7 +171,7 @@ export function registerDocsSearchResource(
 ): void {
 	server.registerResource(
 		"docs-search",
-		new ResourceTemplate("nanostores://docs/search", {
+		new ResourceTemplate(URIS.docsSearch, {
 			list: undefined,
 		}),
 		{

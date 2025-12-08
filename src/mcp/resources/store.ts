@@ -2,6 +2,7 @@ import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/serv
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import type { StoreMatch, SubscriberMatch, StoreRelation } from "../../domain/fsScanner.js";
+import { URIS } from "../uris.js";
 
 /**
  * Ресурс одного стора:
@@ -21,7 +22,7 @@ import type { StoreMatch, SubscriberMatch, StoreRelation } from "../../domain/fs
 export function registerStoreResource(server: McpServer): void {
 	server.registerResource(
 		"store",
-		new ResourceTemplate("nanostores://store/{key}", {
+		new ResourceTemplate(URIS.storeTemplate, {
 			list: undefined,
 		}),
 		{

@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { URIS } from "../uris.js";
 
 const ExplainProjectArgsSchema = {
 	focus: z
@@ -13,8 +14,7 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 		"explain-project",
 		{
 			title: "Explain Nanostores usage in this project",
-			description:
-				"High-level explanation of how Nanostores is used in the current project, based on nanostores://graph.",
+			description: `High-level explanation of how Nanostores is used in the current project, based on ${URIS.graph}.`,
 			argsSchema: ExplainProjectArgsSchema,
 		},
 		({ focus }) => {
@@ -26,7 +26,7 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 				`You are a senior frontend engineer and Nanostores maintainer.`,
 				`Your task is to explain how the Nanostores state management library is used in this project.`,
 				``,
-				`You are running inside an MCP client that can access the resource "nanostores://graph".`,
+				`You are running inside an MCP client that can access the resource "${URIS.graph}".`,
 				`That resource returns a JSON graph of Nanostores usage in the current workspace with the following structure:`,
 				`- rootDir: absolute path of the project root`,
 				`- nodes: array of nodes, where each node is either:`,
@@ -36,7 +36,7 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 				`  where type "declares" means "file declares store".`,
 				``,
 				`Before you answer, you MUST:`,
-				`1. Call the MCP resource with URI "nanostores://graph".`,
+				`1. Call the MCP resource with URI "${URIS.graph}".`,
 				`2. Read its JSON representation (the entry with mimeType "application/json").`,
 				`3. Use that JSON graph as the single source of truth about which Nanostores stores exist and where they live.`,
 				``,

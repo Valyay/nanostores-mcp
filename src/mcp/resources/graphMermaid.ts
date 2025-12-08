@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { scanProject } from "../../domain/fsScanner.js";
+import { URIS } from "../uris.js";
 import {
 	buildStoreGraph,
 	type StoreGraph,
@@ -194,7 +195,7 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 export function registerGraphMermaidResource(server: McpServer): void {
 	server.registerResource(
 		"graph-mermaid",
-		"nanostores://graph/mermaid",
+		URIS.graphMermaid,
 		{
 			title: "Nanostores project graph (Mermaid)",
 			description:

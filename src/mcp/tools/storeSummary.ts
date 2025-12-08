@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { scanProject } from "../../domain/fsScanner.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
+import { URIS } from "../uris.js";
 
 type ScanResult = Awaited<ReturnType<typeof scanProject>>;
 type StoreMatch = ScanResult["stores"][number];
@@ -412,8 +413,7 @@ export function registerStoreSummaryTool(server: McpServer): void {
 				derivesFromStores,
 				dependentsStores,
 			});
-
-			const storeResourceUri = `nanostores://store/${encodeURIComponent(store.id)}`;
+			const storeResourceUri = URIS.storeById(store.id);
 
 			return {
 				content: [

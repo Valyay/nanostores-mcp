@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { DocsRepository } from "../../domain/docsIndex.js";
 import type { DocPage } from "../../domain/docsTypes.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
+import { URIS } from "../uris.js";
 
 const DocsSearchInputSchema = z.object({
 	query: z.string().describe("Search query for documentation"),
@@ -215,7 +216,7 @@ export function registerDocsForStoreTool(
 			for (const [i, doc] of relevantDocs.entries()) {
 				summary += `${i + 1}. ${doc.title}\n`;
 				summary += `   ${doc.reason}\n`;
-				summary += `   [Read: nanostores://docs/page/${doc.pageId}]\n\n`;
+				summary += `   [Read: ${URIS.docsPage(doc.pageId)}]\n\n`;
 			}
 
 			const output = {

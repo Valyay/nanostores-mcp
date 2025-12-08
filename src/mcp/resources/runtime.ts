@@ -1,6 +1,7 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LoggerEventStore } from "../../domain/loggerEventStore.js";
 import type { LoggerEventFilter, NanostoresLoggerEvent } from "../../domain/loggerTypes.js";
+import { URIS } from "../uris.js";
 
 /**
  * Runtime events resource:
@@ -19,7 +20,7 @@ export function registerRuntimeEventsResource(
 ): void {
 	server.registerResource(
 		"runtime-events",
-		new ResourceTemplate("nanostores://runtime/events", {
+		new ResourceTemplate(URIS.runtimeEvents, {
 			list: undefined,
 		}),
 		{
@@ -77,7 +78,7 @@ export function registerRuntimeStatsResource(
 ): void {
 	server.registerResource(
 		"runtime-stats",
-		new ResourceTemplate("nanostores://runtime/stats", {
+		new ResourceTemplate(URIS.runtimeStats, {
 			list: undefined,
 		}),
 		{
@@ -130,7 +131,7 @@ export function registerRuntimeStoreResource(
 ): void {
 	server.registerResource(
 		"runtime-store",
-		new ResourceTemplate("nanostores://runtime/store/{key}", {
+		new ResourceTemplate(URIS.runtimeStoreTemplate, {
 			list: undefined,
 		}),
 		{
