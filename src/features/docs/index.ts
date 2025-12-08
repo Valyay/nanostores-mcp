@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { DocsService } from "../../domain/docsService.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { DocsService } from "../../domain/index.js";
 import {
 	registerDocsIndexResource,
 	registerDocsPageResource,

@@ -1,98 +1,21 @@
-import type { LoggerEventStore } from "./loggerEventStore.js";
-import type { ProjectAnalysisService } from "./projectAnalysisService.js";
+import type { LoggerEventStore } from "./types.js";
+import type { ProjectAnalysisService } from "../index.js";
 import type {
 	NanostoresLoggerEvent,
 	LoggerEventFilter,
 	LoggerStatsSnapshot,
 	StoreRuntimeStats,
 	StoreRuntimeProfile,
-} from "./loggerTypes.js";
+	EnhancedStoreProfile,
+	RuntimeAnalysisService,
+	RuntimeAnalysisServiceOptions,
+} from "./types.js";
 
-/**
- * Extended runtime profile with activity metrics
- */
-export interface EnhancedStoreProfile extends StoreRuntimeProfile {
-	/**
-	 * Changes per second (based on session duration)
-	 */
-	changeRate: number;
-
-	/**
-	 * Error rate as percentage of total actions
-	 */
-	errorRate: number;
-
-	/**
-	 * Whether the store is currently active (recent events within threshold)
-	 */
-	isActive: boolean;
-
-	/**
-	 * Number of seconds since last activity
-	 */
-	secondsSinceLastActivity: number;
-}
-
-/**
- * Service interface for runtime analysis operations
- */
-export interface RuntimeAnalysisService {
-	/**
-	 * Get filtered runtime events
-	 */
-	getEvents(filter?: LoggerEventFilter): NanostoresLoggerEvent[];
-
-	/**
-	 * Get overall runtime statistics snapshot
-	 */
-	getStats(): LoggerStatsSnapshot;
-
-	/**
-	 * Get enhanced runtime profile for a specific store
-	 * Returns null if store not found in runtime data
-	 */
-	getStoreProfile(storeName: string): Promise<EnhancedStoreProfile | null>;
-
-	/**
-	 * Get profiles for multiple stores
-	 */
-	getStoreProfiles(storeNames: string[]): Promise<EnhancedStoreProfile[]>;
-
-	/**
-	 * Find stores with highest activity
-	 */
-	getNoisyStores(limit?: number): StoreRuntimeStats[];
-
-	/**
-	 * Find stores with errors
-	 */
-	getErrorProneStores(minErrors?: number): StoreRuntimeStats[];
-
-	/**
-	 * Find unmounted stores
-	 */
-	getUnmountedStores(): StoreRuntimeStats[];
-}
-
-/**
- * Options for creating the runtime analysis service
- */
-export interface RuntimeAnalysisServiceOptions {
-	/**
-	 * Threshold in milliseconds to consider a store "active"
-	 * Default: 5000 (5 seconds)
-	 */
-	activeThresholdMs?: number;
-
-	/**
-	 * Number of recent events to include in profile
-	 * Default: 20
-	 */
-	recentEventsLimit?: number;
-}
+export type { RuntimeAnalysisService, RuntimeAnalysisServiceOptions, EnhancedStoreProfile };
 
 /**
  * Create a new runtime analysis service
+ * This service layer operates on top of the runtime repository (LoggerEventStore)
  */
 export function createRuntimeAnalysisService(
 	eventStore: LoggerEventStore,

@@ -1,13 +1,13 @@
 import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
+import type { ProjectAnalysisService } from "../../domain/index.js";
 import { URIS } from "../uris.js";
 import {
 	buildStoreGraph,
 	type StoreGraph,
 	type StoreNode,
 	type SubscriberNode,
-} from "../../domain/graphBuilder.js";
+} from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 function sanitizeId(id: string): string {

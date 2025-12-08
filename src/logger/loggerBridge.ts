@@ -1,6 +1,5 @@
 import http from "node:http";
-import type { LoggerEventStore } from "../domain/loggerEventStore.js";
-import type { NanostoresLoggerEvent } from "../domain/loggerTypes.js";
+import type { LoggerEventStore, NanostoresLoggerEvent } from "../domain/index.js";
 
 interface LoggerBridgeConfig {
 	host: string;

@@ -7,8 +7,8 @@ import type {
 	DocsSearchHit,
 	DocsSearchOptions,
 	DocsSearchResult,
-} from "./docsTypes.js";
-import type { DocsSource } from "./docsSourceFs.js";
+} from "./types.js";
+import type { DocsSource } from "./sourceFs.js";
 
 /**
  * Options for docs indexing

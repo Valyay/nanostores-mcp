@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
-import { buildStoreGraph } from "../../domain/graphBuilder.js";
+import type { ProjectAnalysisService } from "../../domain/index.js";
+import { buildStoreGraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
-import type { StoreGraph, StoreNode, SubscriberNode } from "../../domain/graphBuilder.js";
+import type { StoreGraph, StoreNode, SubscriberNode } from "../../domain/project/types.js";
 import { URIS } from "../uris.js";
 
 function buildGraphSummary(graph: StoreGraph): string {

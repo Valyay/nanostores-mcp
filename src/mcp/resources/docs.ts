@@ -1,5 +1,5 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { DocsService } from "../../domain/docsService.js";
+import type { DocsService } from "../../domain/index.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
 import { URIS } from "../uris.js";
 

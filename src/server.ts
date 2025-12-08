@@ -1,12 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createLoggerEventStore } from "./domain/loggerEventStore.js";
+import {
+	createProjectAnalysisService,
+	createProjectIndexRepository,
+	createRuntimeAnalysisService,
+	createLoggerEventStore,
+	createFsDocsSource,
+	createDocsRepository,
+	createDocsService,
+} from "./domain/index.js";
 import { createLoggerBridge } from "./logger/loggerBridge.js";
-import { createProjectAnalysisService } from "./domain/projectAnalysisService.js";
-import { createRuntimeAnalysisService } from "./domain/runtimeAnalysisService.js";
 import { envConfig } from "./config/envConfig.js";
-import { createFsDocsSource } from "./domain/docsSourceFs.js";
-import { createDocsRepository } from "./domain/docsIndex.js";
-import { createDocsService } from "./domain/docsService.js";
 import { registerStaticFeatures } from "./features/static/index.js";
 import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
@@ -16,10 +19,12 @@ import packageJson from "../package.json" with { type: "json" };
 const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = (packageJson as { version: string }).version;
 
-// Domain services
-const projectAnalysisService = createProjectAnalysisService(30_000); // 30s cache
+// Domain services - project analysis
+const projectIndexRepository = createProjectIndexRepository(30_000); // 30s cache
+const projectAnalysisService = createProjectAnalysisService(projectIndexRepository);
 
-// Global logger infrastructure
+// Domain services - runtime analysis
+// Runtime repository (LoggerEventStore) - stores events from @nanostores/logger
 const loggerEventStore = createLoggerEventStore(5000);
 const loggerBridge = createLoggerBridge(loggerEventStore, {
 	host: envConfig.NANOSTORES_MCP_LOGGER_HOST,

@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RuntimeAnalysisService } from "../../domain/index.js";
 import type { LoggerBridgeServer } from "../../logger/loggerBridge.js";
 import { registerPingTool } from "../../mcp/tools/ping.js";
 import {

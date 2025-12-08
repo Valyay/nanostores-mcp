@@ -1,6 +1,9 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
-import type { LoggerEventFilter, NanostoresLoggerEvent } from "../../domain/loggerTypes.js";
+import type {
+	RuntimeAnalysisService,
+	LoggerEventFilter,
+	NanostoresLoggerEvent,
+} from "../../domain/index.js";
 import { URIS } from "../uris.js";
 
 /**

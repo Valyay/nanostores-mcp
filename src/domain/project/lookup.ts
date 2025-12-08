@@ -3,24 +3,12 @@ import type {
 	StoreMatch,
 	SubscriberMatch,
 	StoreRelation,
-} from "./fsScanner/index.js";
+	StoreResolution,
+	StoreResolutionBy,
+	StoreNeighbors,
+} from "./types.js";
 
-export type StoreResolutionBy = "id" | "name" | "id_tail";
-
-export interface StoreResolution {
-	store: StoreMatch;
-	by: StoreResolutionBy;
-	requested: string;
-	note?: string;
-}
-
-export interface StoreNeighbors {
-	subscribers: SubscriberMatch[];
-	derivesFromStores: StoreMatch[];
-	derivesFromEdges: StoreRelation[];
-	dependentsStores: StoreMatch[];
-	dependentsEdges: StoreRelation[];
-}
+export type { StoreResolution, StoreResolutionBy, StoreNeighbors };
 
 /**
  * Resolves a store by key (id, name, or id tail) with optional file disambiguation.

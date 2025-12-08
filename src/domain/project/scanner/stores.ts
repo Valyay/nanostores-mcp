@@ -1,13 +1,7 @@
-import {
-	CallExpression,
-	SyntaxKind,
-	SourceFile,
-	Symbol as TsSymbol,
-	Node,
-} from "ts-morph";
+import { CallExpression, SyntaxKind, SourceFile, Symbol as TsSymbol, Node } from "ts-morph";
 import path from "node:path";
-import type { StoreMatch, StoreKind, StoreRelation } from "./types.js";
-import { isDerivedKind, normalizeStoreKind } from "./types.js";
+import type { StoreMatch, StoreKind, StoreRelation } from "../types.js";
+import { isDerivedKind, normalizeStoreKind } from "../types.js";
 import type { NanostoresStoreImports } from "./imports.js";
 import { addRelation } from "./relations.js";
 
@@ -137,19 +131,19 @@ export function analyzeStoresInFile(
 				},
 				context.relations,
 				context.relationKeys,
-		);
+			);
 
-		// For derived stores, find dependencies from the first argument
-		if (isDerivedKind(kind)) {
-			const [depsArg] = callExpr.getArguments();
-			if (!depsArg) {
-				// computed() without deps — odd, skip
-			} else {
-				type DepCandidate = { name: string; symbolKey?: string };
-				const depCandidates: DepCandidate[] = [];
+			// For derived stores, find dependencies from the first argument
+			if (isDerivedKind(kind)) {
+				const [depsArg] = callExpr.getArguments();
+				if (!depsArg) {
+					// computed() without deps — odd, skip
+				} else {
+					type DepCandidate = { name: string; symbolKey?: string };
+					const depCandidates: DepCandidate[] = [];
 
-				// computed(counter, ...)
-				if (depsArg.getKind() === SyntaxKind.Identifier) {
+					// computed(counter, ...)
+					if (depsArg.getKind() === SyntaxKind.Identifier) {
 						const ident = depsArg.asKindOrThrow(SyntaxKind.Identifier);
 						const name = ident.getText();
 						const sym = ident.getSymbol();

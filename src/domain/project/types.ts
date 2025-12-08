@@ -1,3 +1,12 @@
+/**
+ * Consolidated types for the project domain
+ * This file contains all types related to project analysis
+ */
+
+// ============================================================================
+// Scanner types (base types from scanner)
+// ============================================================================
+
 export type StoreKind =
 	| "atom"
 	| "map"
@@ -88,4 +97,82 @@ export function normalizeStoreKind(raw: string): StoreKind {
  */
 export function isDerivedKind(kind: StoreKind): boolean {
 	return kind === "computed" || kind === "computedTemplate";
+}
+
+// ============================================================================
+// Lookup types
+// ============================================================================
+
+export type StoreResolutionBy = "id" | "name" | "id_tail";
+
+export interface StoreResolution {
+	store: StoreMatch;
+	by: StoreResolutionBy;
+	requested: string;
+	note?: string;
+}
+
+export interface StoreNeighbors {
+	subscribers: SubscriberMatch[];
+	derivesFromStores: StoreMatch[];
+	derivesFromEdges: StoreRelation[];
+	dependentsStores: StoreMatch[];
+	dependentsEdges: StoreRelation[];
+}
+
+// ============================================================================
+// Graph types
+// ============================================================================
+
+export type GraphNodeType = "file" | "store" | "subscriber";
+
+interface BaseNode {
+	id: string;
+	type: GraphNodeType;
+	label: string;
+}
+
+export interface FileNode extends BaseNode {
+	type: "file";
+	path: string;
+}
+
+export interface StoreNode extends BaseNode {
+	type: "store";
+	file: string;
+	kind: StoreKind;
+	name?: string;
+}
+
+export interface SubscriberNode extends BaseNode {
+	type: "subscriber";
+	file: string;
+	kind: SubscriberKind;
+	name?: string;
+}
+
+export type GraphNode = FileNode | StoreNode | SubscriberNode;
+
+export type GraphEdge = StoreRelation;
+
+export interface HotStore {
+	storeId: string;
+	name: string;
+	file: string;
+	subscribers: number;
+	derivedDependents: number;
+	totalDegree: number;
+}
+
+export interface StoreGraph {
+	rootDir: string;
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+	stats: {
+		filesWithStores: number;
+		totalStores: number;
+		subscribers: number;
+		edgesByType: Record<GraphEdgeType, number>;
+	};
+	hotStores: HotStore[];
 }

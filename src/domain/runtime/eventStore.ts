@@ -4,10 +4,13 @@ import type {
 	LoggerStatsSnapshot,
 	NanostoresLoggerEvent,
 	StoreRuntimeStats,
-} from "./loggerTypes.js";
+	LoggerEventStore,
+} from "./types.js";
+
+export type { LoggerEventStore };
 
 /**
- * Internal state for logger event store
+ * Internal state for runtime repository (LoggerEventStore)
  */
 interface LoggerEventStoreState {
 	allEvents: NanostoresLoggerEvent[];
@@ -16,21 +19,6 @@ interface LoggerEventStoreState {
 	maxEvents: number;
 	sessionStartedAt: number;
 	lastEventAt: number;
-}
-
-/**
- * Logger event store interface
- */
-export interface LoggerEventStore {
-	add(event: NanostoresLoggerEvent): void;
-	addMany(events: NanostoresLoggerEvent[]): void;
-	getEvents(filter?: LoggerEventFilter): NanostoresLoggerEvent[];
-	getStats(): LoggerStatsSnapshot;
-	getStoreStats(storeName: string): StoreRuntimeStats | undefined;
-	clear(): void;
-	getNoisyStores(limit?: number): StoreRuntimeStats[];
-	getUnmountedStores(): StoreRuntimeStats[];
-	getErrorProneStores(minErrors?: number): StoreRuntimeStats[];
 }
 
 /**
@@ -82,8 +70,9 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 }
 
 /**
- * Create a new logger event store
+ * Create runtime repository (LoggerEventStore)
  * In-memory ring buffer for logger events with statistics aggregation
+ * This is the runtime domain's repository layer, analogous to DocsRepository and ProjectIndexRepository
  */
 export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventStore {
 	const state: LoggerEventStoreState = {

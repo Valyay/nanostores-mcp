@@ -1,6 +1,6 @@
 import { CallExpression, SyntaxKind, SourceFile, Node } from "ts-morph";
 import path from "node:path";
-import type { SubscriberMatch, SubscriberKind, StoreMatch } from "./types.js";
+import type { SubscriberMatch, SubscriberKind, StoreMatch } from "../types.js";
 import type { NanostoresReactImports } from "./imports.js";
 import { getSymbolKey } from "./stores.js";
 import { addRelation } from "./relations.js";
@@ -23,10 +23,7 @@ export interface SubscriberAccumulator {
  * - useStore(...) or useNanoStore(...)
  * - nsReact.useStore(...)
  */
-export function isUseStoreCall(
-	callExpr: CallExpression,
-	imports: NanostoresReactImports,
-): boolean {
+export function isUseStoreCall(callExpr: CallExpression, imports: NanostoresReactImports): boolean {
 	const expr = callExpr.getExpression();
 
 	// useStore(...)
@@ -148,7 +145,7 @@ export interface SubscriberAnalysisContext {
 	subscribers: SubscriberMatch[];
 	storesByName: Map<string, StoreMatch[]>;
 	storesBySymbol: Map<string, StoreMatch[]>;
-	relations: import("./types.js").StoreRelation[];
+	relations: import("../types.js").StoreRelation[];
 	relationKeys: Set<string>;
 }
 

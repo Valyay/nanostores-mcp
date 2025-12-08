@@ -1,12 +1,6 @@
-import type { DocsRepository } from "./docsIndex.js";
-import type {
-	DocsIndex,
-	DocPage,
-	DocChunk,
-	DocsSearchResult,
-	DocsSearchOptions,
-} from "./docsTypes.js";
-import type { StoreKind } from "./fsScanner/index.js";
+import type { DocsRepository } from "./repository.js";
+import type { DocsIndex, DocPage, DocChunk, DocsSearchResult, DocsSearchOptions } from "./types.js";
+import type { StoreKind } from "../project/types.js";
 
 /**
  * Service interface for documentation operations

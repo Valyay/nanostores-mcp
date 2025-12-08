@@ -1,4 +1,4 @@
-import type { StoreRelation, StoreMatch } from "./types.js";
+import type { StoreRelation, StoreMatch } from "../types.js";
 import type { DerivedStub } from "./stores.js";
 
 export function makeRelationKey(rel: StoreRelation): string {

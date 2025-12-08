@@ -1,5 +1,5 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ProjectAnalysisService } from "../../domain/index.js";
 import { registerScanProjectTool } from "../../mcp/tools/scanProject.js";
 import { registerStoreSummaryTool } from "../../mcp/tools/storeSummary.js";
 import { registerStoreResource } from "../../mcp/resources/store.js";

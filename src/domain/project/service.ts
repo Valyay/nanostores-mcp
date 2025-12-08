@@ -1,21 +1,11 @@
-import {
-	scanProject,
-	type ProjectIndex,
-	type StoreMatch,
-	type SubscriberMatch,
-} from "./fsScanner/index.js";
-import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./storeLookup.js";
-
-/**
- * Cache entry for project index
- */
-interface CacheEntry {
-	index: ProjectIndex;
-	timestamp: number;
-}
+import type { ProjectIndexRepository } from "./repository.js";
+import type { ProjectIndex, StoreMatch, SubscriberMatch } from "./types.js";
+import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./lookup.js";
 
 /**
  * Service interface for project analysis operations
+ * This is a domain service layer that provides higher-level operations
+ * on top of the ProjectIndexRepository
  */
 export interface ProjectAnalysisService {
 	/**
@@ -58,49 +48,20 @@ export interface ProjectAnalysisService {
 }
 
 /**
- * Internal state for the service
- */
-interface ProjectAnalysisServiceState {
-	cache: Map<string, CacheEntry>;
-	cacheTtlMs: number;
-}
-
-/**
  * Create a new project analysis service
  *
- * @param cacheTtlMs - Time-to-live for cache entries in milliseconds (default: 30 seconds)
+ * @param repository - ProjectIndexRepository instance for fetching project indices
  */
-export function createProjectAnalysisService(cacheTtlMs: number = 30_000): ProjectAnalysisService {
-	const state: ProjectAnalysisServiceState = {
-		cache: new Map(),
-		cacheTtlMs,
-	};
-
-	/**
-	 * Get index from cache or scan project
-	 */
-	async function getIndexInternal(root: string): Promise<ProjectIndex> {
-		const now = Date.now();
-		const cached = state.cache.get(root);
-
-		if (cached && now - cached.timestamp < state.cacheTtlMs) {
-			return cached.index;
-		}
-
-		// Scan project and update cache
-		const index = await scanProject(root);
-		state.cache.set(root, { index, timestamp: now });
-
-		return index;
-	}
-
+export function createProjectAnalysisService(
+	repository: ProjectIndexRepository,
+): ProjectAnalysisService {
 	return {
 		async getIndex(root: string): Promise<ProjectIndex> {
-			return getIndexInternal(root);
+			return repository.getIndex(root);
 		},
 
 		async getStoreByKey(root: string, key: string, file?: string): Promise<StoreMatch | null> {
-			const index = await getIndexInternal(root);
+			const index = await repository.getIndex(root);
 			const resolution = resolveStore(index, key, { file });
 			return resolution?.store ?? null;
 		},
@@ -113,7 +74,7 @@ export function createProjectAnalysisService(cacheTtlMs: number = 30_000): Proje
 			dependents: StoreMatch[];
 			subscribers: SubscriberMatch[];
 		}> {
-			const index = await getIndexInternal(root);
+			const index = await repository.getIndex(root);
 			const neighbors: StoreNeighbors = collectStoreNeighbors(index, store);
 
 			return {
@@ -122,8 +83,9 @@ export function createProjectAnalysisService(cacheTtlMs: number = 30_000): Proje
 				subscribers: neighbors.subscribers,
 			};
 		},
+
 		async getStoreNames(root: string): Promise<string[]> {
-			const index = await getIndexInternal(root);
+			const index = await repository.getIndex(root);
 			const names: string[] = [];
 
 			for (const store of index.stores) {
@@ -136,11 +98,7 @@ export function createProjectAnalysisService(cacheTtlMs: number = 30_000): Proje
 		},
 
 		clearCache(root?: string): void {
-			if (root) {
-				state.cache.delete(root);
-			} else {
-				state.cache.clear();
-			}
+			repository.clearCache(root);
 		},
 	};
 }

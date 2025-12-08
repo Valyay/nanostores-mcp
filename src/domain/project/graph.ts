@@ -1,63 +1,26 @@
 import type {
 	ProjectIndex,
-	StoreKind,
-	SubscriberKind,
-	StoreRelation,
 	GraphEdgeType,
-} from "./fsScanner/index.js";
+	GraphNode,
+	GraphNodeType,
+	FileNode,
+	StoreNode,
+	SubscriberNode,
+	GraphEdge,
+	HotStore,
+	StoreGraph,
+} from "./types.js";
 
-export type GraphNodeType = "file" | "store" | "subscriber";
-
-interface BaseNode {
-	id: string;
-	type: GraphNodeType;
-	label: string;
-}
-
-export interface FileNode extends BaseNode {
-	type: "file";
-	path: string;
-}
-
-export interface StoreNode extends BaseNode {
-	type: "store";
-	file: string;
-	kind: StoreKind;
-	name?: string;
-}
-
-export interface SubscriberNode extends BaseNode {
-	type: "subscriber";
-	file: string;
-	kind: SubscriberKind;
-	name?: string;
-}
-
-export type GraphNode = FileNode | StoreNode | SubscriberNode;
-
-export type GraphEdge = StoreRelation;
-
-export interface HotStore {
-	storeId: string;
-	name: string;
-	file: string;
-	subscribers: number;
-	derivedDependents: number;
-	totalDegree: number;
-}
-
-export interface StoreGraph {
-	rootDir: string;
-	nodes: GraphNode[];
-	edges: GraphEdge[];
-	stats: {
-		filesWithStores: number;
-		totalStores: number;
-		subscribers: number;
-		edgesByType: Record<GraphEdgeType, number>;
-	};
-	hotStores: HotStore[];
-}
+export type {
+	GraphNode,
+	GraphNodeType,
+	FileNode,
+	StoreNode,
+	SubscriberNode,
+	GraphEdge,
+	HotStore,
+	StoreGraph,
+};
 
 /**
  * Convert ProjectIndex to graph:

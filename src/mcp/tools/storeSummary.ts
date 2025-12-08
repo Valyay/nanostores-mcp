@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { ProjectAnalysisService } from "../../domain/projectAnalysisService.js";
+import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { URIS } from "../uris.js";
 import { buildStoreSummaryText, buildStoreStructuredContent } from "../shared/storeSummary.js";

@@ -3,9 +3,9 @@ import fs from "node:fs/promises";
 import { Project } from "ts-morph";
 import { JsxEmit } from "typescript";
 import { globby } from "globby";
-import { isErrnoException, realpathSafe } from "../../config/security.js";
-import type { ProjectIndex, ScanOptions } from "./types.js";
-import type { StoreMatch, SubscriberMatch, StoreRelation } from "./types.js";
+import { isErrnoException, realpathSafe } from "../../../config/security.js";
+import type { ProjectIndex, ScanOptions } from "../types.js";
+import type { StoreMatch, SubscriberMatch, StoreRelation } from "../types.js";
 import { collectNanostoresStoreImports, collectNanostoresReactImports } from "./imports.js";
 import { analyzeStoresInFile } from "./stores.js";
 import type { StoreAnalysisContext, DerivedStub } from "./stores.js";
@@ -13,34 +13,7 @@ import { analyzeSubscribersInFile } from "./subscribers.js";
 import type { SubscriberAnalysisContext } from "./subscribers.js";
 import { resolveDerivedRelations } from "./relations.js";
 
-// --- Project index caching ---
-
-interface CacheEntry {
-	index: ProjectIndex;
-	timestamp: number;
-}
-
-const projectIndexCache = new Map<string, CacheEntry>();
-
-/** Cache TTL in milliseconds (default 30 seconds) */
-const CACHE_TTL_MS = 30_000;
-
 /**
- * Clear index cache for a specific root or the entire cache.
- */
-export function clearProjectIndexCache(rootDir?: string): void {
-	if (rootDir) {
-		const absRoot = realpathSafe(
-			path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
-		);
-		projectIndexCache.delete(absRoot);
-	} else {
-		projectIndexCache.clear();
-	}
-}
-
-/**
- * Public domain API:
  * Scan a project and build a nanostores index:
  * - stores
  * - subscribers (components/hooks/effects that read stores)
@@ -48,25 +21,17 @@ export function clearProjectIndexCache(rootDir?: string): void {
  *
  * Uses ts-morph for precise AST analysis instead of regular expressions.
  *
- * Result is cached for CACHE_TTL_MS (30 sec by default).
- * Use options.force = true to force rescan.
+ * NOTE: This function is now pure and does not cache results.
+ * Caching is handled by the ProjectIndexRepository layer.
  */
 export async function scanProject(
 	rootDir: string,
 	options: ScanOptions = {},
 ): Promise<ProjectIndex> {
-	const { force = false, cacheTtlMs = CACHE_TTL_MS, onProgress } = options;
+	const { onProgress } = options;
 	const absRoot = realpathSafe(
 		path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
 	);
-
-	if (!force) {
-		const cached = projectIndexCache.get(absRoot);
-		if (cached && Date.now() - cached.timestamp < cacheTtlMs) {
-			onProgress?.(1, 1, "Using cached index");
-			return cached.index;
-		}
-	}
 
 	onProgress?.(0, 4, `Validating workspace root: ${absRoot}`);
 
@@ -206,12 +171,6 @@ export async function scanProject(
 		subscribers,
 		relations,
 	};
-
-	// Save to cache
-	projectIndexCache.set(absRoot, {
-		index: result,
-		timestamp: Date.now(),
-	});
 
 	onProgress?.(
 		4,

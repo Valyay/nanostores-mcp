@@ -1,6 +1,6 @@
 import type { SourceFile } from "ts-morph";
-import type { StoreKind } from "./types.js";
-import { normalizeStoreKind } from "./types.js";
+import type { StoreKind } from "../types.js";
+import { normalizeStoreKind } from "../types.js";
 
 /**
  * Set of modules from which we consider nanostores store imports.

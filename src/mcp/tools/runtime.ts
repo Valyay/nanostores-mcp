@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { RuntimeAnalysisService } from "../../domain/runtimeAnalysisService.js";
+import type { RuntimeAnalysisService } from "../../domain/index.js";
 
 const StoreActivityInputSchema = z.object({
 	storeName: z.string().optional().describe("Store name to query (optional)"),
