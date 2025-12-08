@@ -23,7 +23,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./cli": "./dist/cli.js"
+    "./cli": "./dist/cli.js",
+    "./mcpLogger": {
+      "types": "./dist/client/mcpLogger.d.ts",
+      "import": "./dist/client/mcpLogger.js"
+    }
   },
   "files": [
     "dist/",
@@ -56,13 +60,13 @@
     "@nanostores/logger": "^1.0.0",
     "globby": "^16.0.0",
     "is-path-inside": "^4.0.0",
+    "nanoid": "^5.1.6",
     "nanostores": "^1.1.0",
     "ts-morph": "^27.0.2",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/express": "^5.0.5",
     "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",

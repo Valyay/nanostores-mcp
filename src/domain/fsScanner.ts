@@ -469,7 +469,7 @@ export async function scanProject(
 		try {
 			project.addSourceFileAtPath(filePath);
 			loadedFiles += 1;
-		} catch (err) {
+		} catch {
 			// Пропускаем файлы с синтаксическими ошибками, но считаем их и даём пример имён
 			skippedFiles += 1;
 			if (parseErrorFiles.length < 5) {
@@ -545,7 +545,9 @@ export async function scanProject(
 				storesByName.set(varName, byName);
 
 				let storeSymbolKey: string | undefined;
-				const nameNode = (declaration as any).getNameNode?.() as Node | undefined;
+				const nameNode = (declaration as { getNameNode?: () => Node }).getNameNode?.() as
+					| Node
+					| undefined;
 				const symbol = nameNode?.getSymbol();
 				if (symbol) {
 					storeSymbolKey = getSymbolKey(symbol);

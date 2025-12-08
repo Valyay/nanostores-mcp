@@ -1,4 +1,4 @@
-import { basename, dirname, relative } from "node:path";
+import { basename } from "node:path";
 import type {
 	DocChunk,
 	DocHeading,
@@ -227,7 +227,7 @@ async function buildIndex(state: DocsRepositoryState): Promise<DocsIndex> {
 			// Create chunks
 			const pageChunks = createChunks(page, text, state.options.maxChunkLength);
 			chunks.push(...pageChunks);
-		} catch (error) {
+		} catch {
 			// Skip files that can't be read
 			continue;
 		}

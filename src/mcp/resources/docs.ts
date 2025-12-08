@@ -138,7 +138,6 @@ export function registerDocsPageResource(
 			const chunks = await docsRepository.getChunksByPageId(pageId);
 
 			// Read full file content
-			const index = await docsRepository.getIndex();
 			const fullText = chunks.map(c => c.text).join("\n\n");
 
 			const summary = `# ${page.title}

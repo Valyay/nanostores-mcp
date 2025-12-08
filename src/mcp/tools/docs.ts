@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { DocsRepository } from "../../domain/docsIndex.js";
+import type { DocPage } from "../../domain/docsTypes.js";
 
 const DocsSearchInputSchema = z.object({
 	query: z.string().describe("Search query for documentation"),
@@ -179,7 +180,7 @@ export function registerDocsForStoreTool(
 			// Always add general best practices
 			queries.push("best practices patterns");
 
-			const allResults = new Map<string, { page: any; score: number; reason: string }>();
+			const allResults = new Map<string, { page: DocPage; score: number; reason: string }>();
 
 			for (const query of queries) {
 				const result = await docsRepository.search(query, { limit: 3 });
