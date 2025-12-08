@@ -1,42 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerPingTool } from "./mcp/tools/ping.js";
-import { registerScanProjectTool } from "./mcp/tools/scanProject.js";
-import { registerStoreResource } from "./mcp/resources/store.js";
-import { registerGraphResource } from "./mcp/resources/graph.js";
-import { registerGraphMermaidResource } from "./mcp/resources/graphMermaid.js";
-import { registerExplainProjectPrompt } from "./mcp/prompts/explainProject.js";
-import { registerStoreSummaryTool } from "./mcp/tools/storeSummary.js";
-import { registerExplainStorePrompt } from "./mcp/prompts/explainStore.js";
-
-// Logger integration
 import { createLoggerEventStore } from "./domain/loggerEventStore.js";
 import { createLoggerBridge } from "./logger/loggerBridge.js";
 import { envConfig } from "./config/envConfig.js";
-import {
-	registerRuntimeEventsResource,
-	registerRuntimeStatsResource,
-	registerRuntimeStoreResource,
-} from "./mcp/resources/runtime.js";
-import {
-	registerStoreActivityTool,
-	registerFindNoisyStoresTool,
-	registerRuntimeOverviewTool,
-} from "./mcp/tools/runtime.js";
-import {
-	registerDebugStorePrompt,
-	registerDebugProjectActivityPrompt,
-} from "./mcp/prompts/debugRuntime.js";
-
-// Documentation integration
 import { createFsDocsSource } from "./domain/docsSourceFs.js";
 import { createDocsRepository } from "./domain/docsIndex.js";
-import {
-	registerDocsIndexResource,
-	registerDocsPageResource,
-	registerDocsSearchResource,
-} from "./mcp/resources/docs.js";
-import { registerDocsSearchTool, registerDocsForStoreTool } from "./mcp/tools/docs.js";
-import { registerDocsHowToPrompt } from "./mcp/prompts/docsHowTo.js";
+import { registerStaticFeatures } from "./features/static/index.js";
+import { registerRuntimeFeatures } from "./features/runtime/index.js";
+import { registerDocsFeatures } from "./features/docs/index.js";
 
 import packageJson from "../package.json" with { type: "json" };
 
@@ -85,51 +55,10 @@ export function buildNanostoresServer(): McpServer {
 		},
 	);
 
-	// tools
-	registerPingTool(server, loggerBridge);
-	registerScanProjectTool(server);
-	registerStoreSummaryTool(server);
-
-	// runtime tools
-	registerStoreActivityTool(server, loggerEventStore);
-	registerFindNoisyStoresTool(server, loggerEventStore);
-	registerRuntimeOverviewTool(server, loggerEventStore);
-
-	// resources
-	registerStoreResource(server);
-	registerGraphResource(server);
-	registerGraphMermaidResource(server);
-
-	// runtime resources
-	registerRuntimeEventsResource(server, loggerEventStore);
-	registerRuntimeStatsResource(server, loggerEventStore);
-	registerRuntimeStoreResource(server, loggerEventStore);
-
-	// documentation resources
-	if (docsRepository) {
-		registerDocsIndexResource(server, docsRepository);
-		registerDocsPageResource(server, docsRepository);
-		registerDocsSearchResource(server, docsRepository);
-	}
-
-	// documentation tools
-	if (docsRepository) {
-		registerDocsSearchTool(server, docsRepository);
-		registerDocsForStoreTool(server, docsRepository);
-	}
-
-	// prompts
-	registerExplainProjectPrompt(server);
-	registerExplainStorePrompt(server);
-
-	// runtime prompts
-	registerDebugStorePrompt(server);
-	registerDebugProjectActivityPrompt(server);
-
-	// documentation prompts
-	if (docsRepository) {
-		registerDocsHowToPrompt(server);
-	}
+	// Register feature modules
+	registerStaticFeatures(server);
+	registerRuntimeFeatures(server, loggerEventStore, loggerBridge);
+	registerDocsFeatures(server, docsRepository ?? null);
 
 	return server;
 }
