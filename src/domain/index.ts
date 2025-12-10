@@ -61,6 +61,13 @@ export { createLoggerEventStore } from "./runtime/eventStore.js";
 // Re-export commonly used runtime types
 export type {
 	NanostoresLoggerEvent,
+	BaseEvent,
+	MountEvent,
+	UnmountEvent,
+	ChangeEvent,
+	ActionStartEvent,
+	ActionEndEvent,
+	ActionErrorEvent,
 	LoggerEventFilter,
 	StoreRuntimeStats,
 	EnhancedStoreProfile,

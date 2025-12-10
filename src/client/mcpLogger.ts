@@ -1,13 +1,7 @@
 import { buildLogger } from "@nanostores/logger";
 import type { AnyStore } from "nanostores";
 import { nanoid } from "nanoid";
-
-export interface NanostoresLoggerEvent {
-	kind: "mount" | "unmount" | "change" | "action-start" | "action-end" | "action-error";
-	storeName: string;
-	timestamp: number;
-	[key: string]: unknown;
-}
+import type { NanostoresLoggerEvent } from "../domain/index.js";
 
 export interface McpLoggerClientOptions {
 	url?: string;

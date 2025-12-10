@@ -54,14 +54,15 @@ export interface ActionStartEvent extends BaseEvent {
 export interface ActionEndEvent extends BaseEvent {
 	kind: "action-end";
 	actionId: string;
-	actionName: string;
+	actionName?: string; // optional: may not be available in all contexts
 }
 
 export interface ActionErrorEvent extends BaseEvent {
 	kind: "action-error";
 	actionId: string;
-	actionName: string;
+	actionName?: string; // optional: may not be available in all contexts
 	error?: unknown;
+	errorMessage?: string; // formatted error message for display
 }
 
 // ============================================================================
