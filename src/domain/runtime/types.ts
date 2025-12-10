@@ -36,7 +36,7 @@ export interface UnmountEvent extends BaseEvent {
 
 export interface ChangeEvent extends BaseEvent {
 	kind: "change";
-	actionId?: number;
+	actionId?: string;
 	actionName?: string;
 	changed?: string | string[]; // key(s) that changed in map stores
 	newValue?: unknown;
@@ -46,20 +46,20 @@ export interface ChangeEvent extends BaseEvent {
 
 export interface ActionStartEvent extends BaseEvent {
 	kind: "action-start";
-	actionId: number;
+	actionId: string;
 	actionName: string;
 	args?: unknown[];
 }
 
 export interface ActionEndEvent extends BaseEvent {
 	kind: "action-end";
-	actionId: number;
+	actionId: string;
 	actionName: string;
 }
 
 export interface ActionErrorEvent extends BaseEvent {
 	kind: "action-error";
-	actionId: number;
+	actionId: string;
 	actionName: string;
 	error?: unknown;
 }

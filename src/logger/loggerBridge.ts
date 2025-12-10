@@ -48,7 +48,7 @@ function isValidEvent(event: unknown): event is NanostoresLoggerEvent {
 	if (!validKinds.includes(e.kind as string)) return false;
 
 	if (e.kind === "action-start" || e.kind === "action-end" || e.kind === "action-error") {
-		if (typeof e.actionId !== "number") return false;
+		if (typeof e.actionId !== "string") return false;
 		if (typeof e.actionName !== "string") return false;
 	}
 
