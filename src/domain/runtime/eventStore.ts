@@ -28,6 +28,7 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 	const stats = state.stats.get(event.storeName) || {
 		storeName: event.storeName,
 		storeId: event.storeId,
+		projectRoot: event.projectRoot,
 		firstSeen: event.timestamp,
 		lastSeen: event.timestamp,
 		mounts: 0,
@@ -41,6 +42,9 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 	stats.lastSeen = event.timestamp;
 	if (event.storeId && !stats.storeId) {
 		stats.storeId = event.storeId;
+	}
+	if (event.projectRoot && !stats.projectRoot) {
+		stats.projectRoot = event.projectRoot;
 	}
 
 	switch (event.kind) {

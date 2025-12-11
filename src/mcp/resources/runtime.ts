@@ -127,6 +127,8 @@ export function registerRuntimeStatsResource(
  *   nanostores://runtime/store/{key}
  *
  * Key can be store name or store id
+ * Query parameters:
+ *   - projectRoot: optional project root to link with static analysis
  */
 export function registerRuntimeStoreResource(
 	server: McpServer,
@@ -140,9 +142,13 @@ export function registerRuntimeStoreResource(
 		{
 			title: "Nanostores runtime store profile",
 			description:
-				"Runtime profile for a specific store: statistics + recent events. Can be addressed by store name or id.",
+				"Runtime profile combining static analysis with runtime data: statistics, recent events, and store metadata (file, type, relations). If projectRoot is provided, static data is automatically merged.",
 		},
 		async (uri, { key }) => {
+			// Extract projectRoot from query params
+			const url = new URL(uri.href);
+			const projectRoot = url.searchParams.get("projectRoot") || undefined;
+
 			// Try to extract store name from key
 			// key can be either "$storeName", "storeName", or "store:path#$storeName"
 			let storeName = key as string;
@@ -158,10 +164,10 @@ export function registerRuntimeStoreResource(
 			// Remove $ prefix if present for matching
 			const cleanStoreName = storeName.startsWith("$") ? storeName.slice(1) : storeName;
 
-			// Try both with and without $ prefix
-			let profile = await runtimeService.getStoreProfile(`$${cleanStoreName}`);
+			// Try both with and without $ prefix, pass projectRoot for static data linking
+			let profile = await runtimeService.getStoreProfile(`$${cleanStoreName}`, projectRoot);
 			if (!profile) {
-				profile = await runtimeService.getStoreProfile(cleanStoreName);
+				profile = await runtimeService.getStoreProfile(cleanStoreName, projectRoot);
 			}
 
 			if (!profile) {
@@ -176,12 +182,27 @@ export function registerRuntimeStoreResource(
 				};
 			}
 
+			// Add metadata about data sources
+			const hasStaticData = !!(profile.id || profile.kind || profile.file);
+			const metadata = {
+				_meta: {
+					dataSources: {
+						runtime: true,
+						static: hasStaticData,
+						projectRoot: profile.projectRoot || projectRoot || null,
+					},
+					note: hasStaticData
+						? "This profile combines static AST analysis with runtime logger data"
+						: "This profile contains only runtime data. Static analysis is unavailable (missing projectRoot or store not found in project scan)",
+				},
+			};
+
 			return {
 				contents: [
 					{
 						uri: uri.href,
 						mimeType: "application/json",
-						text: JSON.stringify(profile, null, 2),
+						text: JSON.stringify({ ...metadata, ...profile }, null, 2),
 					},
 				],
 			};

@@ -5,7 +5,6 @@ import type {
 	LoggerEventFilter,
 	LoggerStatsSnapshot,
 	StoreRuntimeStats,
-	StoreRuntimeProfile,
 	EnhancedStoreProfile,
 	RuntimeAnalysisService,
 	RuntimeAnalysisServiceOptions,
@@ -60,6 +59,7 @@ export function createRuntimeAnalysisService(
 	async function buildEnhancedProfile(
 		storeName: string,
 		stats: StoreRuntimeStats,
+		projectRootOverride?: string,
 	): Promise<EnhancedStoreProfile> {
 		const now = Date.now();
 		const metrics = calculateMetrics(stats, now);
@@ -70,15 +70,34 @@ export function createRuntimeAnalysisService(
 			limit: recentEventsLimit,
 		});
 
-		// Try to enrich with static analysis data
-		// Note: We need a root directory - in practice this should be provided by context
-		// For now, we'll leave static fields as optional
+		// Base profile with runtime data
 		const profile: EnhancedStoreProfile = {
 			storeName,
 			stats,
 			recentEvents,
 			...metrics,
 		};
+
+		// Try to enrich with static analysis data if projectRoot is available
+		const effectiveRoot = projectRootOverride || stats.projectRoot;
+		if (effectiveRoot && projectService) {
+			try {
+				const staticStore = await projectService.findStoreByRuntimeKey(
+					effectiveRoot,
+					storeName,
+				);
+				
+				if (staticStore) {
+					profile.id = staticStore.id;
+					profile.kind = staticStore.kind;
+					profile.file = staticStore.file;
+					profile.projectRoot = effectiveRoot;
+				}
+			} catch {
+				// Silently ignore errors - static data is optional
+				// This allows runtime analysis to work without project scanning
+			}
+		}
 
 		return profile;
 	}
@@ -92,20 +111,20 @@ export function createRuntimeAnalysisService(
 			return eventStore.getStats();
 		},
 
-		async getStoreProfile(storeName: string): Promise<EnhancedStoreProfile | null> {
+		async getStoreProfile(storeName: string, projectRoot?: string): Promise<EnhancedStoreProfile | null> {
 			const stats = eventStore.getStoreStats(storeName);
 			if (!stats) {
 				return null;
 			}
 
-			return buildEnhancedProfile(storeName, stats);
+			return buildEnhancedProfile(storeName, stats, projectRoot);
 		},
 
-		async getStoreProfiles(storeNames: string[]): Promise<EnhancedStoreProfile[]> {
+		async getStoreProfiles(storeNames: string[], projectRoot?: string): Promise<EnhancedStoreProfile[]> {
 			const profiles: EnhancedStoreProfile[] = [];
 
 			for (const storeName of storeNames) {
-				const profile = await this.getStoreProfile(storeName);
+				const profile = await this.getStoreProfile(storeName, projectRoot);
 				if (profile) {
 					profiles.push(profile);
 				}

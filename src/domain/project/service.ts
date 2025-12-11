@@ -42,6 +42,13 @@ export interface ProjectAnalysisService {
 	getStoreNames(root: string): Promise<string[]>;
 
 	/**
+	 * Find a store by runtime key (storeName from logger events)
+	 * This tries to match the runtime storeName with static store definitions
+	 * Returns null if not found
+	 */
+	findStoreByRuntimeKey(root: string, storeName: string): Promise<StoreMatch | null>;
+
+	/**
 	 * Clear the cache for a specific root or all roots
 	 */
 	clearCache(root?: string): void;
@@ -95,6 +102,30 @@ export function createProjectAnalysisService(
 			}
 
 			return Array.from(new Set(names)).sort();
+		},
+
+		async findStoreByRuntimeKey(root: string, storeName: string): Promise<StoreMatch | null> {
+			const index = await repository.getIndex(root);
+			
+			// Try to match by store.name field
+			// Runtime storeName might be with or without $ prefix
+			const normalizedName = storeName.startsWith("$") ? storeName : `$${storeName}`;
+			const withoutDollar = storeName.startsWith("$") ? storeName.slice(1) : storeName;
+			
+			// First attempt: exact match with store.name
+			for (const store of index.stores) {
+				if (store.name === storeName || store.name === normalizedName || store.name === withoutDollar) {
+					return store;
+				}
+			}
+			
+			// Second attempt: use resolveStore with the name
+			const resolution = resolveStore(index, storeName);
+			if (resolution?.store) {
+				return resolution.store;
+			}
+			
+			return null;
 		},
 
 		clearCache(root?: string): void {

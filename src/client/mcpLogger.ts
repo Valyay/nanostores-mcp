@@ -7,6 +7,8 @@ export interface McpLoggerClientOptions {
 	url?: string;
 	batchMs?: number;
 	enabled?: boolean;
+	/** workspace root to link runtime events with static analysis */
+	projectRoot?: string; 
 	maskEvent?: (event: NanostoresLoggerEvent) => NanostoresLoggerEvent | null;
 }
 
@@ -98,6 +100,7 @@ const createEventFilter = (
 function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerClient {
 	const url = options.url ?? "http://127.0.0.1:3999/nanostores-logger";
 	const batchMs = options.batchMs ?? 1000;
+	const projectRoot = options.projectRoot;
 
 	// Function composition
 	const sendEvents = createEventSender(url);
@@ -120,6 +123,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				kind: "mount",
 				storeName,
 				timestamp: Date.now(),
+				projectRoot,
 			});
 		},
 
@@ -128,6 +132,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				kind: "unmount",
 				storeName,
 				timestamp: Date.now(),
+				projectRoot,
 			});
 		},
 
@@ -137,6 +142,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				storeName,
 				timestamp: Date.now(),
 				valueMessage: formatValue(value),
+				projectRoot,
 			});
 		},
 
@@ -150,6 +156,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				timestamp: Date.now(),
 				actionId,
 				actionName,
+				projectRoot,
 			});
 
 			return actionId;
@@ -164,6 +171,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				storeName,
 				timestamp: Date.now(),
 				actionId,
+				projectRoot,
 			});
 		},
 
@@ -177,6 +185,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 				timestamp: Date.now(),
 				actionId,
 				errorMessage: error instanceof Error ? error.message : String(error),
+				projectRoot,
 			});
 		},
 	});

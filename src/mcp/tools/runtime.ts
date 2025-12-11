@@ -6,6 +6,10 @@ const StoreActivityInputSchema = z.object({
 	storeName: z.string().optional().describe("Store name to query (optional)"),
 	limit: z.number().optional().default(50).describe("Max events to return"),
 	windowMs: z.number().optional().describe("Time window in milliseconds (from now back)"),
+	projectRoot: z
+		.string()
+		.optional()
+		.describe("Project root path to link runtime data with static analysis"),
 });
 
 const StoreActivityOutputSchema = z.object({
@@ -37,7 +41,7 @@ export function registerStoreActivityTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ storeName, limit, windowMs }) => {
+		async ({ storeName, limit, windowMs, projectRoot }) => {
 			const sinceTs = windowMs ? Date.now() - windowMs : undefined;
 
 			const events = runtimeService.getEvents({
@@ -47,9 +51,11 @@ export function registerStoreActivityTool(
 			});
 
 			let stats = null;
+			let hasStaticData = false;
 			if (storeName) {
-				const profile = await runtimeService.getStoreProfile(storeName);
+				const profile = await runtimeService.getStoreProfile(storeName, projectRoot);
 				stats = profile?.stats ?? null;
+				hasStaticData = !!(profile?.id || profile?.kind || profile?.file);
 			} else {
 				stats = runtimeService.getStats();
 			}
@@ -61,7 +67,11 @@ export function registerStoreActivityTool(
 					summary = `No runtime data found for store "${storeName}". The store may not be instrumented or no events have been received yet.`;
 				} else if ("mounts" in stats) {
 					// StoreRuntimeStats
-					summary = `Store "${storeName}":\n`;
+					summary = `Store "${storeName}"`;
+					if (hasStaticData) {
+						summary += " (combined with static analysis data)";
+					}
+					summary += ":\n";
 					summary += `- Mounted: ${stats.mounts} times\n`;
 					summary += `- Changes: ${stats.changes}\n`;
 					summary += `- Actions started: ${stats.actionsStarted}\n`;

@@ -3,6 +3,8 @@
  * This file aggregates all types related to runtime analysis and logger events
  */
 
+import { StoreKind } from "../index.js";
+
 // ============================================================================
 // Logger Event Types
 // ============================================================================
@@ -24,6 +26,7 @@ export interface BaseEvent {
 	storeId?: string; // optional: if we can match to AST store id
 	timestamp: number;
 	sessionId?: string; // to distinguish different tabs/processes
+	projectRoot?: string; // workspace root to match with ProjectAnalysisService
 }
 
 export interface MountEvent extends BaseEvent {
@@ -75,6 +78,7 @@ export interface ActionErrorEvent extends BaseEvent {
 export interface StoreRuntimeStats {
 	storeName: string;
 	storeId?: string;
+	projectRoot?: string; // workspace root for this store
 	firstSeen: number;
 	lastSeen: number;
 	mounts: number;
@@ -94,7 +98,8 @@ export interface StoreRuntimeProfile {
 	id?: string; // from static AST graph
 	storeName: string;
 	file?: string;
-	kind?: "atom" | "map" | "computed" | "unknown";
+	kind?: StoreKind; // from static AST graph
+	projectRoot?: string; // workspace root
 	stats: StoreRuntimeStats;
 	recentEvents: NanostoresLoggerEvent[];
 }
@@ -189,13 +194,15 @@ export interface RuntimeAnalysisService {
 	/**
 	 * Get enhanced runtime profile for a specific store
 	 * Returns null if store not found in runtime data
+	 * @param projectRoot - Optional project root override (if not present in events)
 	 */
-	getStoreProfile(storeName: string): Promise<EnhancedStoreProfile | null>;
+	getStoreProfile(storeName: string, projectRoot?: string): Promise<EnhancedStoreProfile | null>;
 
 	/**
 	 * Get profiles for multiple stores
+	 * @param projectRoot - Optional project root override (if not present in events)
 	 */
-	getStoreProfiles(storeNames: string[]): Promise<EnhancedStoreProfile[]>;
+	getStoreProfiles(storeNames: string[], projectRoot?: string): Promise<EnhancedStoreProfile[]>;
 
 	/**
 	 * Find stores with highest activity
