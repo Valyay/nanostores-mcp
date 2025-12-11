@@ -26,7 +26,21 @@ export function registerStoreResource(
 	server.registerResource(
 		"store",
 		new ResourceTemplate(URIS.storeTemplate, {
-			list: undefined,
+			list: async (): Promise<{
+				resources: Array<{ name: string; uri: string; description: string; mimeType: string }>;
+			}> => {
+				const root = resolveWorkspaceRoot();
+				const index = await projectService.getIndex(root);
+
+				return {
+					resources: index.stores.map(store => ({
+						name: store.name ?? store.id,
+						uri: URIS.storeById(store.id),
+						description: `${store.kind} in ${store.file}`,
+						mimeType: "application/json",
+					})),
+				};
+			},
 		}),
 		{
 			title: "Nanostores store details",

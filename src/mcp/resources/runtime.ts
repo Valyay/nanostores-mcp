@@ -24,7 +24,24 @@ export function registerRuntimeEventsResource(
 	server.registerResource(
 		"runtime-events",
 		new ResourceTemplate(URIS.runtimeEvents, {
-			list: undefined,
+			list: async (): Promise<{
+				resources: {
+					name: string;
+					uri: string;
+					description: string;
+					mimeType: string;
+				}[];
+			}> => {
+				const summary = runtimeService.getStats();
+				return {
+					resources: summary.stores.map(store => ({
+						name: store.storeName,
+						uri: URIS.storeById(store.storeId ?? store.storeName),
+						description: `changes: ${store.changes}, errors: ${store.actionsErrored}`,
+						mimeType: "application/json",
+					})),
+				};
+			},
 		}),
 		{
 			title: "Nanostores runtime events",
