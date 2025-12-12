@@ -54,189 +54,173 @@ NANOSTORES_MCP_LOGGER_HOST=127.0.0.1
 
 ## Client Integration
 
-To send events from your application to the MCP server, you need to:
+The `nanostores-mcp` package includes a ready-to-use client for runtime monitoring. No manual implementation needed!
 
-1. **Install dependencies:**
+### Installation
 
-   ```bash
-   npm install -D @nanostores/logger
-   ```
+```bash
+npm install nanostores-mcp
+# or
+pnpm add nanostores-mcp
+# or
+yarn add nanostores-mcp
+```
 
-2. **Create a transport helper:**
+### Basic Usage
 
-   Create `src/lib/mcpLogger.ts` (or similar):
+In your app entry point (e.g., `main.tsx`, `App.tsx`):
 
-   ```typescript
-   import { buildLogger } from "@nanostores/logger";
-   import type { AnyStore } from "nanostores";
+```typescript
+import { atom, map } from "nanostores";
+import { initMcpLogger, attachMcpLogger } from "nanostores-mcp/mcpLogger";
 
-   interface NanostoresLoggerEvent {
-   	kind: "mount" | "unmount" | "change" | "action-start" | "action-end" | "action-error";
-   	storeName: string;
-   	timestamp: number;
-   	[key: string]: unknown;
-   }
+// Your stores
+export const $counter = atom(0);
+export const $user = map({ name: "Alice", role: "admin" });
 
-   class McpLoggerClient {
-   	private url: string;
-   	private buffer: NanostoresLoggerEvent[] = [];
-   	private flushTimer: ReturnType<typeof setTimeout> | null = null;
+// Initialize MCP Logger (automatically disabled in production)
+initMcpLogger();
 
-   	constructor(url?: string) {
-   		this.url = url || "http://127.0.0.1:3999/nanostores-logger";
-   	}
+// Attach logger to stores you want to monitor
+attachMcpLogger($counter, "counter");
+attachMcpLogger($user, "user");
+```
 
-   	send(event: NanostoresLoggerEvent) {
-   		this.buffer.push(event);
+**That's it!** The logger is now active and sending events to the MCP server.
 
-   		// Batch events to reduce HTTP calls
-   		if (!this.flushTimer) {
-   			this.flushTimer = setTimeout(() => this.flush(), 100);
-   		}
-   	}
+### Configuration Options
 
-   	private async flush() {
-   		if (this.buffer.length === 0) return;
+```typescript
+import { initMcpLogger } from "nanostores-mcp/mcpLogger";
 
-   		const events = [...this.buffer];
-   		this.buffer = [];
-   		this.flushTimer = null;
+initMcpLogger({
+	// Custom server URL (default: http://127.0.0.1:3999/nanostores-logger)
+	url: "http://localhost:4000/nanostores-logger",
 
-   		try {
-   			await fetch(this.url, {
-   				method: "POST",
-   				headers: { "Content-Type": "application/json" },
-   				body: JSON.stringify({ events }),
-   			});
-   		} catch (err) {
-   			// Silent fail - logger should not break the app
-   			console.warn("[MCP Logger] Failed to send events:", err);
-   		}
-   	}
+	// Batch interval in milliseconds (default: 1000)
+	batchMs: 500,
 
-   	handlersFor(storeName: string) {
-   		return {
-   			mount: () => {
-   				this.send({ kind: "mount", storeName, timestamp: Date.now() });
-   			},
-   			unmount: () => {
-   				this.send({ kind: "unmount", storeName, timestamp: Date.now() });
-   			},
-   			change: (payload: any) => {
-   				this.send({
-   					kind: "change",
-   					storeName,
-   					timestamp: Date.now(),
-   					actionId: payload.actionId,
-   					actionName: payload.actionName,
-   					changed: payload.changed,
-   					valueMessage: payload.valueMessage,
-   				});
-   			},
-   			action: {
-   				start: (payload: any) => {
-   					this.send({
-   						kind: "action-start",
-   						storeName,
-   						timestamp: Date.now(),
-   						actionId: payload.actionId,
-   						actionName: payload.actionName,
-   						args: payload.args,
-   					});
-   				},
-   				end: (payload: any) => {
-   					this.send({
-   						kind: "action-end",
-   						storeName,
-   						timestamp: Date.now(),
-   						actionId: payload.actionId,
-   						actionName: payload.actionName,
-   					});
-   				},
-   				error: (payload: any) => {
-   					this.send({
-   						kind: "action-error",
-   						storeName,
-   						timestamp: Date.now(),
-   						actionId: payload.actionId,
-   						actionName: payload.actionName,
-   						error: String(payload.error),
-   					});
-   				},
-   			},
-   		};
-   	}
-   }
+	// Project root path - links runtime events with static analysis
+	projectRoot: "/absolute/path/to/your/project",
 
-   // Global instance
-   let mcpLogger: McpLoggerClient | null = null;
+	// Explicitly enable/disable (default: auto-detect dev mode)
+	enabled: import.meta.env.DEV,
 
-   export function initMcpLogger(url?: string) {
-   	if (import.meta.env.DEV && !mcpLogger) {
-   		mcpLogger = new McpLoggerClient(url);
-   	}
-   }
+	// Mask or filter events before sending
+	maskEvent: event => {
+		// Hide sensitive stores
+		if (event.storeName === "authToken") return null;
 
-   export function attachMcpLogger(store: AnyStore, storeName: string) {
-   	if (!mcpLogger) return () => {};
-   	return buildLogger(store, storeName, mcpLogger.handlersFor(storeName));
-   }
-   ```
+		// Truncate large values
+		if (event.kind === "change" && event.valueMessage?.length > 100) {
+			return { ...event, valueMessage: event.valueMessage.slice(0, 100) + "..." };
+		}
 
-3. **Initialize in your app:**
+		return event;
+	},
+});
+```
 
-   ```typescript
-   // In your app entry point (main.tsx, App.tsx, etc.)
-   import { initMcpLogger, attachMcpLogger } from "./lib/mcpLogger";
-   import { $counter, $cart, $user } from "./stores";
+### Manual Flush (Optional)
 
-   if (import.meta.env.DEV) {
-   	initMcpLogger(); // uses default localhost:3999
+For critical scenarios like app shutdown:
 
-   	// Attach logger to stores you want to monitor
-   	attachMcpLogger($counter, "counter");
-   	attachMcpLogger($cart, "cart");
-   	attachMcpLogger($user, "user");
-   }
-   ```
+```typescript
+import { getMcpLogger } from "nanostores-mcp/mcpLogger";
 
-4. **Auto-attach for all stores (optional):**
+window.addEventListener("beforeunload", async () => {
+	const logger = getMcpLogger();
+	await logger?.forceFlush();
+});
+```
 
-   If you want to automatically instrument all stores, create a registry:
+### Auto-attach Pattern (Optional)
 
-   ```typescript
-   // stores/index.ts
-   import { atom, map } from "nanostores";
-   import { attachMcpLogger } from "../lib/mcpLogger";
+Create store factory functions to automatically attach the logger:
 
-   const stores = new Map();
+```typescript
+// stores/factories.ts
+import { atom, map, computed } from "nanostores";
+import { attachMcpLogger } from "nanostores-mcp/mcpLogger";
+import type { MapStore, WritableAtom } from "nanostores";
 
-   export function createAtom<T>(name: string, initial: T) {
-   	const store = atom(initial);
-   	stores.set(name, store);
+export function createMonitoredAtom<T>(name: string, initial: T): WritableAtom<T> {
+	const store = atom(initial);
+	attachMcpLogger(store, name);
+	return store;
+}
 
-   	if (import.meta.env.DEV) {
-   		attachMcpLogger(store, name);
-   	}
+export function createMonitoredMap<T extends Record<string, any>>(name: string): MapStore<T> {
+	const store = map<T>();
+	attachMcpLogger(store, name);
+	return store;
+}
 
-   	return store;
-   }
+// Usage in your stores:
+export const $counter = createMonitoredAtom("counter", 0);
+export const $user = createMonitoredMap("user");
+```
 
-   export function createMap<T>(name: string) {
-   	const store = map<T>();
-   	stores.set(name, store);
+### Framework-Specific Examples
 
-   	if (import.meta.env.DEV) {
-   		attachMcpLogger(store, name);
-   	}
+**React/Preact:**
 
-   	return store;
-   }
+```typescript
+// src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { initMcpLogger, attachMcpLogger } from "nanostores-mcp/mcpLogger";
+import { $counter, $user } from "./stores";
+import App from "./App";
 
-   // Usage:
-   export const $counter = createAtom("counter", 0);
-   export const $cart = createMap<CartItem>("cart");
-   ```
+if (import.meta.env.DEV) {
+	initMcpLogger();
+	attachMcpLogger($counter, "counter");
+	attachMcpLogger($user, "user");
+}
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+	<React.StrictMode>
+		<App />
+	</React.StrictMode>,
+);
+```
+
+**Vue:**
+
+```typescript
+// src/main.ts
+import { createApp } from "vue";
+import { initMcpLogger, attachMcpLogger } from "nanostores-mcp/mcpLogger";
+import { $counter, $user } from "./stores";
+import App from "./App.vue";
+
+if (import.meta.env.DEV) {
+	initMcpLogger();
+	attachMcpLogger($counter, "counter");
+	attachMcpLogger($user, "user");
+}
+
+createApp(App).mount("#app");
+```
+
+**Svelte:**
+
+```typescript
+// src/main.ts
+import { initMcpLogger, attachMcpLogger } from "nanostores-mcp/mcpLogger";
+import { counter, user } from "./stores";
+import App from "./App.svelte";
+
+if (import.meta.env.DEV) {
+	initMcpLogger();
+	attachMcpLogger(counter, "counter");
+	attachMcpLogger(user, "user");
+}
+
+const app = new App({ target: document.getElementById("app")! });
+export default app;
+```
 
 ## MCP Resources
 
@@ -362,31 +346,52 @@ Project-wide runtime analysis:
 
    ```bash
    Call tool: ping
-   # Should show "Logger Bridge: enabled"
+   # Should show "Logger Bridge: enabled" or "running"
    ```
 
-2. Check URL in client matches server:
+2. Verify client is initialized:
 
    ```typescript
-   initMcpLogger("http://127.0.0.1:3999/nanostores-logger");
+   import { initMcpLogger } from "nanostores-mcp/mcpLogger";
+
+   initMcpLogger({
+   	url: "http://127.0.0.1:3999/nanostores-logger",
+   	enabled: true, // Force enable for testing
+   });
    ```
 
-3. Check browser console for fetch errors
+3. Check browser/Node console for:
+   - Network errors (CORS, connection refused)
+   - MCP Logger client initialization
 
-4. Verify stores are being mounted (interact with your app)
+4. Verify stores are being mounted (interact with your app to trigger events)
+
+5. Check if stores are actually attached:
+
+   ```typescript
+   import { attachMcpLogger } from "nanostores-mcp/mcpLogger";
+   import { $counter } from "./stores";
+
+   const unbind = attachMcpLogger($counter, "counter");
+   console.log("Logger attached:", typeof unbind === "function");
+   ```
 
 ### Port already in use
 
-Change the port:
+Change the server port:
 
 ```bash
-NANOSTORES_MCP_LOGGER_PORT=4000 npm run dev
+NANOSTORES_MCP_LOGGER_PORT=4000 npx nanostores-mcp
 ```
 
 And update client:
 
 ```typescript
-initMcpLogger("http://127.0.0.1:4000/nanostores-logger");
+import { initMcpLogger } from "nanostores-mcp/mcpLogger";
+
+initMcpLogger({
+	url: "http://127.0.0.1:4000/nanostores-logger",
+});
 ```
 
 ### Events truncated
@@ -400,11 +405,13 @@ const loggerEventStore = new LoggerEventStore(10000); // default: 5000
 
 ## Performance Considerations
 
-- **Dev only**: Never enable in production (check `import.meta.env.DEV` or `NODE_ENV`)
-- **Batching**: Client batches events (100ms) to reduce HTTP overhead
-- **Buffer size**: Server uses ring buffer (default 5000 events) - oldest are dropped
-- **Async**: Event sending is async and won't block renders
-- **Error handling**: Failed sends are silently logged, won't crash app
+- **Dev only**: Automatically disabled in production (checks `import.meta.env.DEV` and `NODE_ENV`)
+- **Batching**: Client batches events every 1000ms (configurable) to reduce HTTP overhead
+- **Buffer size**: Server uses ring buffer (default 5000 events) - oldest events are dropped when full
+- **Async**: Event sending is non-blocking and won't impact app performance
+- **Error handling**: Failed sends are silent - won't crash your app or show errors to users
+- **Value truncation**: Large values are automatically truncated to 200 characters
+- **Memory efficient**: Minimal overhead, suitable for development with many stores
 
 ## Security
 
@@ -413,13 +420,67 @@ const loggerEventStore = new LoggerEventStore(10000); // default: 5000
 - **Payload limits**: 1MB max request size
 - **Data masking**: Consider truncating large values in client before sending
 
+## TypeScript Support
+
+The package includes full TypeScript definitions:
+
+```typescript
+import type { McpLoggerClientOptions } from "nanostores-mcp/mcpLogger";
+
+const options: McpLoggerClientOptions = {
+	url: "http://127.0.0.1:3999/nanostores-logger",
+	batchMs: 1000,
+	enabled: true,
+	projectRoot: "/path/to/project",
+	maskEvent: event => {
+		// Full type inference for events
+		return event;
+	},
+};
+```
+
+## API Reference
+
+### `initMcpLogger(options?)`
+
+Initializes the global MCP Logger client. Must be called before `attachMcpLogger()`.
+
+**Options:**
+
+- `url?: string` - Server endpoint (default: `http://127.0.0.1:3999/nanostores-logger`)
+- `batchMs?: number` - Batching interval in milliseconds (default: 1000)
+- `enabled?: boolean` - Force enable/disable (default: auto-detect dev mode)
+- `projectRoot?: string` - Absolute path to project root for linking with static analysis
+- `maskEvent?: (event) => event | null` - Filter or transform events before sending
+
+### `attachMcpLogger(store, storeName)`
+
+Attaches the logger to a specific store.
+
+**Parameters:**
+
+- `store: AnyStore` - Any nanostores store (atom, map, computed, etc.)
+- `storeName: string` - Unique identifier for the store
+
+**Returns:** `() => void` - Cleanup function to detach the logger
+
+### `getMcpLogger()`
+
+Returns the global logger client instance for manual control.
+
+**Returns:** `McpLoggerClient | null`
+
+**Methods:**
+
+- `forceFlush(): Promise<void>` - Immediately send all buffered events
+
 ## Future Enhancements
 
-Potential additions (not yet implemented):
+Potential additions:
 
-- WebSocket transport for lower latency
-- IPC transport for Node.js apps
-- Client package: `@nanostores/mcp-logger` with ready-made transport
-- Value masking helpers for sensitive data
+- WebSocket transport for real-time streaming
+- IPC transport for Node.js/Electron apps
+- Built-in value masking helpers for common sensitive data patterns
 - Event replay functionality
-- Export events to JSON/CSV for analysis
+- Export events to JSON/CSV for offline analysis
+- Integration with browser DevTools
