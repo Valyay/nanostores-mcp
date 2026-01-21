@@ -58,6 +58,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
     "@nanostores/logger": "^1.0.0",
+    "@toon-format/toon": "^0.6.0",
     "globby": "^16.0.0",
     "is-path-inside": "^4.0.0",
     "nanoid": "^5.1.6",

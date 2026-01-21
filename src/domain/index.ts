@@ -20,6 +20,7 @@ export { scanProject } from "./project/scanner/index.js";
 // Re-export utilities
 export { buildStoreGraph } from "./project/graph.js";
 export { resolveStore, collectStoreNeighbors } from "./project/lookup.js";
+export { buildGraphOutline, buildIdDictionary, buildStoreSubgraph } from "./project/summary.js";
 
 // Re-export commonly used project types
 export type {
@@ -34,6 +35,7 @@ export type {
 	SubscriberNode,
 	GraphNode,
 } from "./project/types.js";
+export type { GraphOutlineResponse, IdDictionaryResponse, StoreSubgraphResponse } from "./project/summary.js";
 
 // ============================================================================
 // Docs Domain

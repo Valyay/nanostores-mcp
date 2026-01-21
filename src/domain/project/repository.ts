@@ -32,6 +32,7 @@ export interface ProjectIndexRepository {
 interface ProjectIndexRepositoryState {
 	cache: Map<string, CacheEntry>;
 	cacheTtlMs: number;
+	inFlight: Map<string, Promise<ProjectIndex>>;
 }
 
 /**
@@ -43,6 +44,7 @@ export function createProjectIndexRepository(cacheTtlMs: number = 30_000): Proje
 	const state: ProjectIndexRepositoryState = {
 		cache: new Map(),
 		cacheTtlMs,
+		inFlight: new Map(),
 	};
 
 	return {
@@ -59,13 +61,28 @@ export function createProjectIndexRepository(cacheTtlMs: number = 30_000): Proje
 				}
 			}
 
-			// Scan project (without internal caching - scanner is now pure)
-			const index = await scanProject(root, opts);
+			const inFlight = state.inFlight.get(root);
+			if (inFlight) {
+				return inFlight;
+			}
 
-			// Update cache
-			state.cache.set(root, { index, timestamp: now });
+			const scanPromise = (async () => {
+				// Scan project (without internal caching - scanner is now pure)
+				const index = await scanProject(root, opts);
 
-			return index;
+				// Update cache
+				state.cache.set(root, { index, timestamp: Date.now() });
+
+				return index;
+			})();
+
+			state.inFlight.set(root, scanPromise);
+
+			try {
+				return await scanPromise;
+			} finally {
+				state.inFlight.delete(root);
+			}
 		},
 
 		clearCache(root?: string): void {

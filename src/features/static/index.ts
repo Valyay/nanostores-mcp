@@ -4,6 +4,11 @@ import { registerScanProjectTool } from "../../mcp/tools/scanProject.js";
 import { registerStoreSummaryTool } from "../../mcp/tools/storeSummary.js";
 import { registerStoreResource } from "../../mcp/resources/store.js";
 import { registerGraphResource } from "../../mcp/resources/graph.js";
+import {
+	registerGraphOutlineResource,
+	registerIdDictionaryResource,
+	registerStoreSubgraphResource,
+} from "../../mcp/resources/graphExtras.js";
 import { registerGraphMermaidResource } from "../../mcp/resources/graphMermaid.js";
 import { registerExplainProjectPrompt } from "../../mcp/prompts/explainProject.js";
 import { registerExplainStorePrompt } from "../../mcp/prompts/explainStore.js";
@@ -22,6 +27,9 @@ export function registerStaticFeatures(
 	// Resources
 	registerStoreResource(server, projectService);
 	registerGraphResource(server, projectService);
+	registerGraphOutlineResource(server, projectService);
+	registerIdDictionaryResource(server, projectService);
+	registerStoreSubgraphResource(server, projectService);
 	registerGraphMermaidResource(server, projectService);
 
 	// Prompts

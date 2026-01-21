@@ -11,6 +11,9 @@ import {
 	registerRuntimeEventsResource,
 	registerRuntimeStatsResource,
 	registerRuntimeStoreResource,
+	registerRuntimeOverviewResource,
+	registerRuntimeStatsToonResource,
+	registerRuntimeEventsAggToonResource,
 } from "../../mcp/resources/runtime.js";
 import {
 	registerDebugStorePrompt,
@@ -34,6 +37,9 @@ export function registerRuntimeFeatures(
 	// Resources
 	registerRuntimeEventsResource(server, runtimeService);
 	registerRuntimeStatsResource(server, runtimeService);
+	registerRuntimeOverviewResource(server, runtimeService);
+	registerRuntimeStatsToonResource(server, runtimeService);
+	registerRuntimeEventsAggToonResource(server, runtimeService);
 	registerRuntimeStoreResource(server, runtimeService);
 
 	// Prompts
