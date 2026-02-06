@@ -58,7 +58,7 @@ describe("scanner domain: scanProject", () => {
 	it("detects adapter subscribers and extra file formats", async () => {
 		const index = await scanProject(projectRoot);
 
-		expect(index.filesScanned).toBe(11);
+		expect(index.filesScanned).toBe(13);
 
 		const storeNames = index.stores.map(store => store.name);
 		expect(storeNames).toContain("$mjsCount");
@@ -94,6 +94,19 @@ describe("scanner domain: scanProject", () => {
 		expect(toPosix(cjsStore?.file ?? "")).toBe("stores/extra.cjs");
 	});
 
+	it("detects subscribers in .vue and .svelte files", async () => {
+		const index = await scanProject(projectRoot);
+
+		const countStore = findStore(index, "$count", "stores.ts");
+		expect(countStore).toBeTruthy();
+
+		const vueSubscriber = findSubscriber(index, "VueWidget", "components/VueWidget.vue");
+		const svelteSubscriber = findSubscriber(index, "SvelteWidget", "components/SvelteWidget.svelte");
+
+		expect(vueSubscriber?.storeIds).toContain(countStore!.id);
+		expect(svelteSubscriber?.storeIds).toContain(countStore!.id);
+	});
+
 	it("covers all supported source file extensions", async () => {
 		const index = await scanProject(projectRoot);
 
@@ -104,7 +117,7 @@ describe("scanner domain: scanProject", () => {
 		}
 
 		expect(Array.from(extensions)).toEqual(
-			expect.arrayContaining([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]),
+			expect.arrayContaining([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte"]),
 		);
 	});
 });

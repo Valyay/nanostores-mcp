@@ -65,6 +65,8 @@ describe("scanner/subscribers", () => {
 		expect(inferSubscriberKind("src/cartEffect.ts", "cartEffect")).toBe("effect");
 		expect(inferSubscriberKind("src/Counter.tsx", "Counter")).toBe("component");
 		expect(inferSubscriberKind("src/Counter.ts", "Counter")).toBe("component");
+		expect(inferSubscriberKind("src/Widget.vue", "Widget")).toBe("component");
+		expect(inferSubscriberKind("src/Widget.svelte", "Widget")).toBe("component");
 		expect(inferSubscriberKind("src/anon.ts")).toBe("unknown");
 		expect(inferSubscriberKind("src/Anon.tsx")).toBe("component");
 	});

@@ -128,12 +128,17 @@ export function inferSubscriberKind(relativeFile: string, containerName?: string
 
 	if (
 		/^[A-Z]/.test(nameToCheck) &&
-		(ext === ".tsx" || ext === ".jsx" || ext === ".js" || ext === ".ts")
+		(ext === ".tsx" ||
+			ext === ".jsx" ||
+			ext === ".js" ||
+			ext === ".ts" ||
+			ext === ".vue" ||
+			ext === ".svelte")
 	) {
 		return "component";
 	}
 
-	if (ext === ".tsx" || ext === ".jsx") {
+	if (ext === ".tsx" || ext === ".jsx" || ext === ".vue" || ext === ".svelte") {
 		return "component";
 	}
 

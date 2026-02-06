@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { Project } from "ts-morph";
-import { JsxEmit } from "typescript";
+import { JsxEmit, ScriptKind } from "typescript";
 import { globby } from "globby";
 import { isErrnoException, realpathSafe } from "../../../config/security.js";
 import type { ProjectIndex, ScanOptions } from "../types.js";
@@ -12,6 +12,7 @@ import type { StoreAnalysisContext, DerivedStub } from "./stores.js";
 import { analyzeSubscribersInFile } from "./subscribers.js";
 import type { SubscriberAnalysisContext } from "./subscribers.js";
 import { resolveDerivedRelations } from "./relations.js";
+import { extractScriptsFromSvelteSfc, extractScriptsFromVueSfc } from "./sfc.js";
 
 /**
  * Scan a project and build a nanostores index:
@@ -58,7 +59,7 @@ export async function scanProject(
 		throw err;
 	}
 
-	const files = await globby("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
+	const files = await globby("**/*.{ts,tsx,js,jsx,mjs,cjs,vue,svelte}", {
 		cwd: absRoot,
 		absolute: true,
 		gitignore: true,
@@ -81,6 +82,25 @@ export async function scanProject(
 
 	for (const filePath of files) {
 		try {
+			const ext = path.extname(filePath).toLowerCase();
+
+			if (ext === ".vue" || ext === ".svelte") {
+				const contents = await fs.readFile(filePath, "utf8");
+				const { code, scriptKind, hasScript } =
+					ext === ".vue"
+						? extractScriptsFromVueSfc(contents, filePath)
+						: extractScriptsFromSvelteSfc(contents, filePath);
+
+				if (!hasScript) {
+					project.createSourceFile(filePath, "", { overwrite: true, scriptKind: ScriptKind.JS });
+				} else {
+					project.createSourceFile(filePath, code, { overwrite: true, scriptKind });
+				}
+
+				loadedFiles += 1;
+				continue;
+			}
+
 			project.addSourceFileAtPath(filePath);
 			loadedFiles += 1;
 		} catch {

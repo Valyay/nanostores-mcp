@@ -158,6 +158,40 @@ export async function createProjectFixture(): Promise<string> {
 
 	await writeFile(
 		rootDir,
+		"components/VueWidget.vue",
+		[
+			"<template>",
+			"\t<div>{{ count }}</div>",
+			"</template>",
+			"",
+			"<script setup>",
+			"import { useStore } from '@nanostores/vue'",
+			"import { $count } from '../stores'",
+			"",
+			"const count = useStore($count)",
+			"</script>",
+			"",
+		].join("\n"),
+	);
+
+	await writeFile(
+		rootDir,
+		"components/SvelteWidget.svelte",
+		[
+			"<script>",
+			"  import { useStore } from '@nanostores/svelte'",
+			"  import { $count } from '../stores'",
+			"",
+			"  const count = useStore($count)",
+			"</script>",
+			"",
+			"<p>{count}</p>",
+			"",
+		].join("\n"),
+	);
+
+	await writeFile(
+		rootDir,
 		"stores/extra.mjs",
 		['import { atom } from "nanostores";', "", "export const $mjsCount = atom(5);", ""].join(
 			"\n",
