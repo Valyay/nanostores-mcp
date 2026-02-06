@@ -15,13 +15,14 @@ export interface DerivedStub {
 }
 
 export function getSymbolKey(symbol: TsSymbol): string {
-	const decl = (symbol.getDeclarations()[0] ?? undefined) as Node | undefined;
+	const resolvedSymbol = symbol.getAliasedSymbol() ?? symbol;
+	const decl = (resolvedSymbol.getDeclarations()[0] ?? undefined) as Node | undefined;
 	if (decl) {
 		const filePath = decl.getSourceFile().getFilePath();
 		const line = decl.getStartLineNumber();
-		return `${symbol.getName()}@${filePath}:${line}`;
+		return `${resolvedSymbol.getName()}@${filePath}:${line}`;
 	}
-	return symbol.getName();
+	return resolvedSymbol.getName();
 }
 
 /**

@@ -151,15 +151,15 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 						return false;
 					}
 					if (filter.actionName) {
-						if (event.kind === "change" && event.actionName !== filter.actionName) {
+						if (
+							event.kind !== "change" &&
+							event.kind !== "action-start" &&
+							event.kind !== "action-end" &&
+							event.kind !== "action-error"
+						) {
 							return false;
 						}
-						if (
-							(event.kind === "action-start" ||
-								event.kind === "action-end" ||
-								event.kind === "action-error") &&
-							event.actionName !== filter.actionName
-						) {
+						if (event.actionName !== filter.actionName) {
 							return false;
 						}
 					}

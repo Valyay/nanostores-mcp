@@ -14,10 +14,18 @@ export const NANOSTORES_PERSISTENT_MODULES = new Set<string>([
 ]);
 
 /**
- * Modules from which we consider useStore() from nanostores/react.
+ * Framework modules from which we consider useStore() subscriptions.
  * Can be extended when needed (e.g., for custom wrappers).
  */
-export const NANOSTORES_REACT_MODULES = new Set<string>(["nanostores/react", "@nanostores/react"]);
+export const NANOSTORES_FRAMEWORKS_MODULES = new Set<string>([
+	"nanostores/react",
+	"@nanostores/react",
+	"@nanostores/svelte",
+	"@nanostores/vue",
+	"@nanostores/lit",
+	"@nanostores/preact",
+	"@nanostores/solid",
+]);
 
 export interface NanostoresStoreImports {
 	storeFactories: Map<string, StoreKind>;
@@ -73,7 +81,7 @@ export interface NanostoresReactImports {
 }
 
 /**
- * Collects information about imported useStore from nanostores/react:
+ * Collects information about imported useStore from supported modules:
  * - useStoreFns: local function names (useStore, useNanoStore, ...)
  * - reactNamespaces: namespace imports (import * as nsReact from "nanostores/react")
  */
@@ -84,7 +92,7 @@ export function collectNanostoresReactImports(sourceFile: SourceFile): Nanostore
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
 
-		if (!NANOSTORES_REACT_MODULES.has(module)) {
+	if (!NANOSTORES_FRAMEWORKS_MODULES.has(module)) {
 			continue;
 		}
 
