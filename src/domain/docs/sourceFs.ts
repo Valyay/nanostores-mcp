@@ -28,11 +28,10 @@ export function createFsDocsSource(config: DocsSourceConfig): DocsSource {
 		async listFiles(): Promise<string[]> {
 			const files = await globby(patterns, {
 				cwd: config.rootDir,
-				absolute: true,
 				onlyFiles: true,
 			});
 
-			return files;
+			return files.sort();
 		},
 
 		async readFile(path: string): Promise<string> {

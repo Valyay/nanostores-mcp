@@ -35,7 +35,11 @@ export type {
 	SubscriberNode,
 	GraphNode,
 } from "./project/types.js";
-export type { GraphOutlineResponse, IdDictionaryResponse, StoreSubgraphResponse } from "./project/summary.js";
+export type {
+	GraphOutlineResponse,
+	IdDictionaryResponse,
+	StoreSubgraphResponse,
+} from "./project/summary.js";
 
 // ============================================================================
 // Docs Domain
@@ -48,6 +52,8 @@ export type { DocsRepository } from "./docs/repository.js";
 export { createDocsRepository } from "./docs/repository.js";
 
 export { createFsDocsSource } from "./docs/sourceFs.js";
+export type { DocsSourceInfo } from "./docs/autodetect.js";
+export { detectNanostoresDocsSource } from "./docs/autodetect.js";
 
 // Re-export commonly used docs types
 export type { DocPage, DocsSearchResult } from "./docs/types.js";

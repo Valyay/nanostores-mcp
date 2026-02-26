@@ -28,6 +28,12 @@ describe("docs domain: repository and service", () => {
 		expect(index.pages.length).toBeGreaterThanOrEqual(3);
 		expect(index.chunks.length).toBeGreaterThanOrEqual(index.pages.length);
 		expect(index.builtAt).toBeGreaterThan(0);
+
+		// Page IDs and filePaths must be relative (not absolute)
+		for (const page of index.pages) {
+			expect(page.id).not.toMatch(/^\//);
+			expect(page.filePath).not.toMatch(/^\//);
+		}
 	});
 
 	it("supports search, page lookup, and tag-based discovery", async () => {

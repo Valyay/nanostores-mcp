@@ -13,10 +13,6 @@ import { registerDocsHowToPrompt } from "../../mcp/prompts/docsHowTo.js";
  * If docsService is null, no features are registered.
  */
 export function registerDocsFeatures(server: McpServer, docsService: DocsService | null): void {
-	if (!docsService) {
-		return;
-	}
-
 	// Resources
 	registerDocsIndexResource(server, docsService);
 	registerDocsPageResource(server, docsService);

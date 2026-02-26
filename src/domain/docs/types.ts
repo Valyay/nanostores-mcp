@@ -6,7 +6,7 @@ export interface DocPage {
 	id: string; // stable id (e.g., "guide/atom")
 	title: string;
 	url?: string; // official URL (nanostores.org/...)
-	filePath: string; // absolute path in FS
+	filePath: string; // relative path from docs root
 	headings: DocHeading[];
 	tags: string[]; // ["core", "react", "logger", "persistent"]
 	summary?: string; // extract from intro

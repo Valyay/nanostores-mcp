@@ -4,12 +4,13 @@ import {
 	createProjectIndexRepository,
 	createRuntimeAnalysisService,
 	createLoggerEventStore,
-	createFsDocsSource,
 	createDocsRepository,
 	createDocsService,
+	detectNanostoresDocsSource,
 } from "./domain/index.js";
 import { createLoggerBridge } from "./logger/loggerBridge.js";
 import { envConfig } from "./config/envConfig.js";
+import { getWorkspaceRootPaths } from "./config/settings.js";
 import { registerStaticFeatures } from "./features/static/index.js";
 import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
@@ -48,13 +49,12 @@ if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
 	});
 }
 
-// Global documentation infrastructure
-const docsSource = envConfig.NANOSTORES_DOCS_ROOT
-	? createFsDocsSource({
-			rootDir: envConfig.NANOSTORES_DOCS_ROOT,
-			patterns: envConfig.NANOSTORES_DOCS_PATTERNS,
-		})
-	: undefined;
+// Global documentation infrastructure (auto-detect or env override)
+const { source: docsSource } = detectNanostoresDocsSource({
+	workspaceRoots: getWorkspaceRootPaths(),
+	envDocsRoot: envConfig.NANOSTORES_DOCS_ROOT,
+	envPatterns: envConfig.NANOSTORES_DOCS_PATTERNS,
+});
 
 const docsRepository = docsSource
 	? createDocsRepository(docsSource, { cacheTtlMs: 5 * 60 * 1000 })

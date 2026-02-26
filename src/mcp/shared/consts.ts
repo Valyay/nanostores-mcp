@@ -1,10 +1,11 @@
-export const DOCS_DISABLED_MESSAGE = `Documentation source is not configured.
-Set NANOSTORES_DOCS_ROOT environment variable to enable Nanostores docs integration.
+export const DOCS_DISABLED_MESSAGE = `Nanostores documentation was not found automatically.
 
-Example:
+The server looks for the \`nanostores\` package in your project's node_modules.
+Make sure nanostores is installed:
+
+  npm install nanostores
+
+Or set the docs root explicitly:
+
   NANOSTORES_DOCS_ROOT=/path/to/nanostores/docs
-
-You can clone the official docs:
-  git clone https://github.com/nanostores/nanostores.git
-  export NANOSTORES_DOCS_ROOT=/path/to/nanostores/docs
 `;

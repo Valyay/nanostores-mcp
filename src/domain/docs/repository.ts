@@ -204,6 +204,7 @@ async function buildIndex(state: DocsRepositoryState): Promise<DocsIndex> {
 
 			// Create page ID from relative path
 			const pageId = filePath
+				.replace(/^\.\//, "")
 				.replace(/\.(md|mdx)$/, "")
 				.replace(/[/\\]/g, "/")
 				.toLowerCase();
