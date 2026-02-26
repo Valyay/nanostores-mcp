@@ -10,7 +10,8 @@ import { registerDocsHowToPrompt } from "../../mcp/prompts/docsHowTo.js";
 
 /**
  * Registers all documentation features (docs index, search, tools, prompts).
- * If docsService is null, no features are registered.
+ * Features are always registered; when docsService is null, each handler
+ * returns a "docs disabled" message instead.
  */
 export function registerDocsFeatures(server: McpServer, docsService: DocsService | null): void {
 	// Resources

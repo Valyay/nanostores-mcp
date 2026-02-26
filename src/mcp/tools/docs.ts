@@ -80,7 +80,7 @@ export function registerDocsSearchTool(server: McpServer, docsService: DocsServi
 					summary += ` > ${res.headingPath.join(" > ")}`;
 				}
 				summary += `\n   ${res.snippet}...\n`;
-				summary += `   [Read more: nanostores://docs/page/${res.pageId}]\n\n`;
+				summary += `   [Read more: ${URIS.docsPage(res.pageId)}]\n\n`;
 			}
 
 			const output = {

@@ -52,6 +52,16 @@ export function detectNanostoresDocsSource(params: {
 }): { source: DocsSource | null; info: DocsSourceInfo } {
 	// 1. Explicit env override
 	if (params.envDocsRoot) {
+		if (!existsSync(params.envDocsRoot)) {
+			return {
+				source: null,
+				info: {
+					kind: "none",
+					reason: `NANOSTORES_DOCS_ROOT path does not exist: ${params.envDocsRoot}`,
+				},
+			};
+		}
+
 		return {
 			source: createFsDocsSource({
 				rootDir: params.envDocsRoot,

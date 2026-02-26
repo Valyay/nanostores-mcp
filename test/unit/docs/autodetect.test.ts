@@ -79,8 +79,8 @@ describe("detectNanostoresDocsSource", () => {
 
 		// IDs must be relative, namespaced by package
 		for (const page of index.pages) {
-			expect(page.id).not.toMatch(/^\//);
-			expect(page.filePath).not.toMatch(/^\//);
+			expect(path.isAbsolute(page.id)).toBe(false);
+			expect(path.isAbsolute(page.filePath)).toBe(false);
 		}
 
 		const ids = index.pages.map(p => p.id);
@@ -101,15 +101,28 @@ describe("detectNanostoresDocsSource", () => {
 	it("prefers env override over auto-detection", () => {
 		const result = detectNanostoresDocsSource({
 			workspaceRoots: [workspaceRoot],
-			envDocsRoot: "/custom/docs/root",
+			envDocsRoot: workspaceRoot,
 			envPatterns: ["*.md"],
 		});
 
 		expect(result.source).not.toBeNull();
 		expect(result.info.kind).toBe("env");
 		if (result.info.kind === "env") {
-			expect(result.info.rootDir).toBe("/custom/docs/root");
+			expect(result.info.rootDir).toBe(workspaceRoot);
 			expect(result.info.patterns).toEqual(["*.md"]);
+		}
+	});
+
+	it("returns kind 'none' when envDocsRoot path does not exist", () => {
+		const result = detectNanostoresDocsSource({
+			workspaceRoots: [workspaceRoot],
+			envDocsRoot: "/nonexistent/docs/root",
+		});
+
+		expect(result.source).toBeNull();
+		expect(result.info.kind).toBe("none");
+		if (result.info.kind === "none") {
+			expect(result.info.reason).toContain("/nonexistent/docs/root");
 		}
 	});
 
