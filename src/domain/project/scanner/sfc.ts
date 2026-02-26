@@ -1,4 +1,4 @@
-import { parse as parseVue, compileScript } from "@vue/compiler-sfc";
+import { parse as parseVue } from "@vue/compiler-sfc";
 import { parse as parseSvelte } from "svelte/compiler";
 import type { AST } from "svelte/compiler";
 import { ScriptKind } from "typescript";
@@ -64,26 +64,21 @@ export function extractScriptsFromVueSfc(contents: string, filePath: string): Sf
 		return { code: "", scriptKind, hasScript: false };
 	}
 
+	// Collect raw script blocks. We intentionally use raw content rather than
+	// compileScript() because the compiler wraps <script setup> code inside a
+	// setup() function, which breaks subscriber container detection (the
+	// scanner needs top-level useStore() calls to infer the component name
+	// from the file).
+	const parts: string[] = [];
+	if (descriptor.script) {
+		parts.push(descriptor.script.content);
+	}
 	if (descriptor.scriptSetup) {
-		try {
-			const compiled = compileScript(descriptor, { id: filePath });
-			return {
-				code: compiled.content ?? "",
-				scriptKind,
-				hasScript: true,
-			};
-		} catch {
-			const fallback = descriptor.scriptSetup.content ?? "";
-			return {
-				code: fallback,
-				scriptKind,
-				hasScript: true,
-			};
-		}
+		parts.push(descriptor.scriptSetup.content);
 	}
 
 	return {
-		code: descriptor.script?.content ?? "",
+		code: parts.join("\n"),
 		scriptKind,
 		hasScript: true,
 	};
@@ -130,7 +125,7 @@ export function extractScriptsFromSvelteSfc(contents: string, filePath: string):
 	const scripts: Array<{ start: number; code: string; lang?: string }> = [];
 	let scriptKind = ScriptKind.JS;
 
-	const addScript = (block: AST.Script | null) => {
+	const addScript = (block: AST.Script | null): void => {
 		if (!block) return;
 		const lang = getLangFromAttributes(block.attributes);
 		scriptKind = promoteScriptKind(scriptKind, inferScriptKind(lang));

@@ -1,9 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { scanProject } from "../../../src/domain/index.ts";
 import { findStore, findSubscriber } from "../../helpers/assertIndex.ts";
 import { createProjectFixture, toPosix } from "../../helpers/fixtures.ts";
+import { createTempProject } from "../../helpers/tmpProject.ts";
 
 let projectRoot = "";
 
@@ -35,7 +36,8 @@ describe("scanner domain: scanProject", () => {
 		expect(totalStore).toBeTruthy();
 
 		const derived = index.relations.find(
-			rel => rel.type === "derives_from" && rel.from === totalStore!.id && rel.to === countStore!.id,
+			rel =>
+				rel.type === "derives_from" && rel.from === totalStore!.id && rel.to === countStore!.id,
 		);
 		expect(derived).toBeTruthy();
 
@@ -53,6 +55,21 @@ describe("scanner domain: scanProject", () => {
 	it("rejects missing roots with a clear error", async () => {
 		const missingRoot = path.join(projectRoot, "missing-root");
 		await expect(scanProject(missingRoot)).rejects.toThrow(/does not exist/i);
+	});
+
+	it("rejects a file path (not a directory) as root", async () => {
+		const filePath = path.join(projectRoot, "stores.ts");
+		await expect(scanProject(filePath)).rejects.toThrow(/not a directory/i);
+	});
+
+	it("returns empty index for an empty directory", async () => {
+		const emptyDir = path.join(projectRoot, "empty-subdir");
+		await fs.mkdir(emptyDir, { recursive: true });
+		const index = await scanProject(emptyDir);
+
+		expect(index.filesScanned).toBe(0);
+		expect(index.stores.length).toBe(0);
+		expect(index.subscribers.length).toBe(0);
 	});
 
 	it("detects adapter subscribers and extra file formats", async () => {
@@ -101,7 +118,11 @@ describe("scanner domain: scanProject", () => {
 		expect(countStore).toBeTruthy();
 
 		const vueSubscriber = findSubscriber(index, "VueWidget", "components/VueWidget.vue");
-		const svelteSubscriber = findSubscriber(index, "SvelteWidget", "components/SvelteWidget.svelte");
+		const svelteSubscriber = findSubscriber(
+			index,
+			"SvelteWidget",
+			"components/SvelteWidget.svelte",
+		);
 
 		expect(vueSubscriber?.storeIds).toContain(countStore!.id);
 		expect(svelteSubscriber?.storeIds).toContain(countStore!.id);
@@ -119,5 +140,34 @@ describe("scanner domain: scanProject", () => {
 		expect(Array.from(extensions)).toEqual(
 			expect.arrayContaining([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte"]),
 		);
+	});
+});
+
+describe("scanner domain: gitignore", () => {
+	let cleanup: (() => Promise<void>) | undefined;
+
+	afterEach(async () => {
+		if (cleanup) {
+			await cleanup();
+			cleanup = undefined;
+		}
+	});
+
+	it("respects .gitignore and excludes matching files", async () => {
+		const project = await createTempProject(
+			{
+				".gitignore": "ignored/\n",
+				"src/stores.ts": 'import { atom } from "nanostores";\nexport const $visible = atom(0);',
+				"ignored/stores.ts": 'import { atom } from "nanostores";\nexport const $hidden = atom(0);',
+			},
+			"nanostores-gitignore-",
+		);
+		cleanup = project.cleanup;
+
+		const index = await scanProject(project.rootDir);
+		const storeNames = index.stores.map(store => store.name);
+
+		expect(storeNames).toContain("$visible");
+		expect(storeNames).not.toContain("$hidden");
 	});
 });

@@ -1,10 +1,6 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ProjectAnalysisService } from "../../domain/index.js";
-import {
-	buildGraphOutline,
-	buildIdDictionary,
-	buildStoreSubgraph,
-} from "../../domain/index.js";
+import { buildGraphOutline, buildIdDictionary, buildStoreSubgraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { URIS } from "../uris.js";
 
@@ -139,9 +135,7 @@ export function registerStoreSubgraphResource(
 								uri: uri.href,
 								mimeType: "text/plain",
 								text:
-									"Store not found.\n\n" +
-									`Requested key: ${storeParam}\n` +
-									`Root: ${rootPath}`,
+									"Store not found.\n\n" + `Requested key: ${storeParam}\n` + `Root: ${rootPath}`,
 							},
 						],
 					};

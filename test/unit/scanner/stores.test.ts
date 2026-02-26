@@ -31,7 +31,7 @@ describe("scanner/stores", () => {
 			"",
 			"const $a = createAtom(0);",
 			"const $b = ns.map({});",
-			"const $c = persistentAtom(\"k\", 1);",
+			'const $c = persistentAtom("k", 1);',
 		].join("\n");
 		const { sourceFile } = createSourceFile(code, "stores.ts");
 		const importsInfo = collectNanostoresStoreImports(sourceFile);
@@ -65,7 +65,9 @@ describe("scanner/stores", () => {
 		expect(context.stores.map(store => store.name)).toEqual(
 			expect.arrayContaining(["$a", "$b", "$derived", "$derivedArray", "$self"]),
 		);
-		const derivedStubNames = context.derivedStubs.map(stub => `${stub.derivedVar}->${stub.dependsOnVar}`);
+		const derivedStubNames = context.derivedStubs.map(
+			stub => `${stub.derivedVar}->${stub.dependsOnVar}`,
+		);
 		expect(derivedStubNames).toContain("$derived->$a");
 		expect(derivedStubNames).toContain("$derivedArray->$a");
 		expect(derivedStubNames).toContain("$derivedArray->$b");
@@ -77,11 +79,7 @@ describe("scanner/stores", () => {
 	});
 
 	it("builds symbol keys using declaration location", () => {
-		const code = [
-			'import { atom } from "nanostores";',
-			"",
-			"const $count = atom(0);",
-		].join("\n");
+		const code = ['import { atom } from "nanostores";', "", "const $count = atom(0);"].join("\n");
 		const { sourceFile } = createSourceFile(code, "src/stores.ts");
 		const decl = sourceFile.getVariableDeclarationOrThrow("$count");
 		const symbol = decl.getNameNode()?.getSymbol();

@@ -82,11 +82,8 @@ export function createRuntimeAnalysisService(
 		const effectiveRoot = projectRootOverride || stats.projectRoot;
 		if (effectiveRoot && projectService) {
 			try {
-				const staticStore = await projectService.findStoreByRuntimeKey(
-					effectiveRoot,
-					storeName,
-				);
-				
+				const staticStore = await projectService.findStoreByRuntimeKey(effectiveRoot, storeName);
+
 				if (staticStore) {
 					profile.id = staticStore.id;
 					profile.kind = staticStore.kind;
@@ -111,7 +108,10 @@ export function createRuntimeAnalysisService(
 			return eventStore.getStats();
 		},
 
-		async getStoreProfile(storeName: string, projectRoot?: string): Promise<EnhancedStoreProfile | null> {
+		async getStoreProfile(
+			storeName: string,
+			projectRoot?: string,
+		): Promise<EnhancedStoreProfile | null> {
 			const stats = eventStore.getStoreStats(storeName);
 			if (!stats) {
 				return null;
@@ -120,7 +120,10 @@ export function createRuntimeAnalysisService(
 			return buildEnhancedProfile(storeName, stats, projectRoot);
 		},
 
-		async getStoreProfiles(storeNames: string[], projectRoot?: string): Promise<EnhancedStoreProfile[]> {
+		async getStoreProfiles(
+			storeNames: string[],
+			projectRoot?: string,
+		): Promise<EnhancedStoreProfile[]> {
 			const profiles: EnhancedStoreProfile[] = [];
 
 			for (const storeName of storeNames) {

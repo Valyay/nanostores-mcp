@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { SyntaxKind } from "ts-morph";
-import { collectNanostoresReactImports, collectNanostoresStoreImports } from "../../../src/domain/project/scanner/imports.ts";
+import {
+	collectNanostoresReactImports,
+	collectNanostoresStoreImports,
+} from "../../../src/domain/project/scanner/imports.ts";
 import {
 	analyzeSubscribersInFile,
 	findSubscriberContainerInfo,
@@ -8,7 +11,10 @@ import {
 	isUseStoreCall,
 	type SubscriberAnalysisContext,
 } from "../../../src/domain/project/scanner/subscribers.ts";
-import { analyzeStoresInFile, type StoreAnalysisContext } from "../../../src/domain/project/scanner/stores.ts";
+import {
+	analyzeStoresInFile,
+	type StoreAnalysisContext,
+} from "../../../src/domain/project/scanner/stores.ts";
 import { createSourceFile, createTsMorphProject } from "../../helpers/tsMorphProject.ts";
 import { toPosix } from "../../helpers/fixtures.ts";
 
@@ -98,14 +104,12 @@ describe("scanner/subscribers", () => {
 
 	it("matches stores by symbol even with name collisions", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $shared = atom(0);",
-			].join("\n"),
-			"other.ts": [
-				'import { atom } from "nanostores";',
-				"export const $shared = atom(1);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $shared = atom(0);"].join(
+				"\n",
+			),
+			"other.ts": ['import { atom } from "nanostores";', "export const $shared = atom(1);"].join(
+				"\n",
+			),
 			"component.tsx": [
 				'import { useStore } from "nanostores/react";',
 				'import { $shared } from "./stores";',
@@ -138,10 +142,9 @@ describe("scanner/subscribers", () => {
 
 	it("falls back to name matching and same-file disambiguation", () => {
 		const files = {
-			"consumer.ts": [
-				'import { useStore } from "nanostores/react";',
-				"useStore($nameOnly);",
-			].join("\n"),
+			"consumer.ts": ['import { useStore } from "nanostores/react";', "useStore($nameOnly);"].join(
+				"\n",
+			),
 		};
 		const { absRoot, sourceFiles } = createTsMorphProject(files, "/project");
 		const storeContext = createStoreContext(absRoot);
@@ -176,10 +179,9 @@ describe("scanner/subscribers", () => {
 
 	it("skips ambiguous name matches without same-file candidate", () => {
 		const files = {
-			"consumer.ts": [
-				'import { useStore } from "nanostores/react";',
-				"useStore($ambiguous);",
-			].join("\n"),
+			"consumer.ts": ['import { useStore } from "nanostores/react";', "useStore($ambiguous);"].join(
+				"\n",
+			),
 		};
 		const { absRoot, sourceFiles } = createTsMorphProject(files, "/project");
 		const storeContext = createStoreContext(absRoot);

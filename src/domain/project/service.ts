@@ -106,25 +106,29 @@ export function createProjectAnalysisService(
 
 		async findStoreByRuntimeKey(root: string, storeName: string): Promise<StoreMatch | null> {
 			const index = await repository.getIndex(root);
-			
+
 			// Try to match by store.name field
 			// Runtime storeName might be with or without $ prefix
 			const normalizedName = storeName.startsWith("$") ? storeName : `$${storeName}`;
 			const withoutDollar = storeName.startsWith("$") ? storeName.slice(1) : storeName;
-			
+
 			// First attempt: exact match with store.name
 			for (const store of index.stores) {
-				if (store.name === storeName || store.name === normalizedName || store.name === withoutDollar) {
+				if (
+					store.name === storeName ||
+					store.name === normalizedName ||
+					store.name === withoutDollar
+				) {
 					return store;
 				}
 			}
-			
+
 			// Second attempt: use resolveStore with the name
 			const resolution = resolveStore(index, storeName);
 			if (resolution?.store) {
 				return resolution.store;
 			}
-			
+
 			return null;
 		},
 

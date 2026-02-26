@@ -144,7 +144,8 @@ describe("scanner domain: edge cases", () => {
 		expect(compatComputed?.kind).toBe("computed");
 
 		const derivedEdge = index.relations.find(
-			rel => rel.type === "derives_from" && rel.from === compatComputed!.id && rel.to === compatAtom!.id,
+			rel =>
+				rel.type === "derives_from" && rel.from === compatComputed!.id && rel.to === compatAtom!.id,
 		);
 		expect(derivedEdge?.file).toBe("stores/compat.ts");
 		expect(derivedEdge?.line).toBe(compatComputed?.line);
@@ -206,7 +207,9 @@ describe("scanner domain: edge cases", () => {
 		expect(aliasHot?.derivedDependents).toBe(3);
 		expect(aliasHot?.totalDegree).toBe(8);
 
-		const fileNodeIds = graph.nodes.filter(node => node.type === "file").map(node => toPosix(node.id));
+		const fileNodeIds = graph.nodes
+			.filter(node => node.type === "file")
+			.map(node => toPosix(node.id));
 		expect(fileNodeIds).toContain("file:stores/aliases.ts");
 		expect(fileNodeIds).toContain("file:components/AliasComponent.tsx");
 	});
@@ -239,7 +242,8 @@ describe("scanner domain: edge cases", () => {
 		expect(subscribes?.line).toBe(aliasComponent?.line);
 
 		const derives = index.relations.find(
-			rel => rel.type === "derives_from" && rel.from === computedStore!.id && rel.to === aliasStore!.id,
+			rel =>
+				rel.type === "derives_from" && rel.from === computedStore!.id && rel.to === aliasStore!.id,
 		);
 		expect(derives?.file).toBe(computedStore?.file);
 		expect(derives?.line).toBe(computedStore?.line);

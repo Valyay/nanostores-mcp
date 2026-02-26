@@ -44,7 +44,8 @@ describe("scanProject integration: ts/js matrix", () => {
 
 		const index = await scanProject(project.rootDir);
 
-		expect(index.filesScanned).toBe(6);
+		// 7 files: 6 valid + bad.ts (ts-morph parsing is error-tolerant, so it counts as loaded)
+		expect(index.filesScanned).toBe(7);
 		expect(index.stores.map(store => store.name)).toEqual(
 			expect.arrayContaining(["$count", "$double", "$js", "$jsx", "$mjs", "$cjs"]),
 		);

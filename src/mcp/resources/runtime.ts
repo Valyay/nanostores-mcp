@@ -315,8 +315,7 @@ export function registerRuntimeOverviewResource(
 		URIS.runtimeOverview,
 		{
 			title: "Nanostores runtime overview",
-			description:
-				"Aggregated runtime health summary: totals, noisy stores, and inactive stores.",
+			description: "Aggregated runtime health summary: totals, noisy stores, and inactive stores.",
 		},
 		async uri => {
 			const stats = runtimeService.getStats();
@@ -378,7 +377,8 @@ export function registerRuntimeOverviewResource(
 					name: store.storeName,
 					mounts: store.mounts,
 					changes: store.changes,
-					reason: store.mounts === 0 ? "neverMounted" : store.changes === 0 ? "noChanges" : "unknown",
+					reason:
+						store.mounts === 0 ? "neverMounted" : store.changes === 0 ? "noChanges" : "unknown",
 				}));
 
 			const overview = {

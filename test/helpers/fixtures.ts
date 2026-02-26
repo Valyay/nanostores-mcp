@@ -10,11 +10,7 @@ async function createTempDir(prefix: string): Promise<string> {
 	return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }
 
-async function writeFile(
-	rootDir: string,
-	relativePath: string,
-	contents: string,
-): Promise<void> {
+async function writeFile(rootDir: string, relativePath: string, contents: string): Promise<void> {
 	const filePath = path.join(rootDir, relativePath);
 	await fs.mkdir(path.dirname(filePath), { recursive: true });
 	await fs.writeFile(filePath, contents, "utf8");
@@ -42,9 +38,7 @@ export async function createProjectFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"nested/stores.ts",
-		['import { atom } from "nanostores";', "", "export const $count = atom(10);", ""].join(
-			"\n",
-		),
+		['import { atom } from "nanostores";', "", "export const $count = atom(10);", ""].join("\n"),
 	);
 
 	await writeFile(
@@ -193,17 +187,18 @@ export async function createProjectFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"stores/extra.mjs",
-		['import { atom } from "nanostores";', "", "export const $mjsCount = atom(5);", ""].join(
-			"\n",
-		),
+		['import { atom } from "nanostores";', "", "export const $mjsCount = atom(5);", ""].join("\n"),
 	);
 
 	await writeFile(
 		rootDir,
 		"stores/extra.cjs",
-		['import { map } from "nanostores";', "", 'export const $cjsCart = map({ items: [] });', ""].join(
-			"\n",
-		),
+		[
+			'import { map } from "nanostores";',
+			"",
+			"export const $cjsCart = map({ items: [] });",
+			"",
+		].join("\n"),
 	);
 
 	return rootDir;
@@ -245,12 +240,9 @@ export async function createDocsFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"logger.md",
-		[
-			"# Logger Integration",
-			"",
-			"@nanostores/logger streams changes for debugging.",
-			"",
-		].join("\n"),
+		["# Logger Integration", "", "@nanostores/logger streams changes for debugging.", ""].join(
+			"\n",
+		),
 	);
 
 	return rootDir;
@@ -284,9 +276,7 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"stores/duplicates.ts",
-		['import { atom } from "nanostores";', "", "export const $alias = atom(999);", ""].join(
-			"\n",
-		),
+		['import { atom } from "nanostores";', "", "export const $alias = atom(999);", ""].join("\n"),
 	);
 
 	await writeFile(
@@ -406,9 +396,7 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"stores/framework.ts",
-		['import { atom } from "nanostores";', "", "export const $framework = atom(1);", ""].join(
-			"\n",
-		),
+		['import { atom } from "nanostores";', "", "export const $framework = atom(1);", ""].join("\n"),
 	);
 
 	await writeFile(
@@ -508,28 +496,19 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 	await writeFile(
 		rootDir,
 		"compat/nanostores.ts",
-		[
-			'export { atom, map, computed } from "nanostores";',
-			"",
-		].join("\n"),
+		['export { atom, map, computed } from "nanostores";', ""].join("\n"),
 	);
 
 	await writeFile(
 		rootDir,
 		"compat/persistent.ts",
-		[
-			'export { persistentAtom } from "nanostores/persistent";',
-			"",
-		].join("\n"),
+		['export { persistentAtom } from "nanostores/persistent";', ""].join("\n"),
 	);
 
 	await writeFile(
 		rootDir,
 		"compat/react.ts",
-		[
-			'export { useStore } from "nanostores/react";',
-			"",
-		].join("\n"),
+		['export { useStore } from "nanostores/react";', ""].join("\n"),
 	);
 
 	await writeFile(

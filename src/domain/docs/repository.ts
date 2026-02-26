@@ -282,8 +282,9 @@ function searchChunks(
 
 		// Count term matches
 		for (const term of queryTerms) {
-			const textMatches = (textLower.match(new RegExp(term, "g")) || []).length;
-			const titleMatches = (titleLower.match(new RegExp(term, "g")) || []).length;
+			const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			const textMatches = (textLower.match(new RegExp(escaped, "g")) || []).length;
+			const titleMatches = (titleLower.match(new RegExp(escaped, "g")) || []).length;
 
 			score += textMatches * 1;
 			score += titleMatches * 3; // Title matches are more important

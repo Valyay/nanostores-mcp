@@ -92,7 +92,7 @@ export function collectNanostoresReactImports(sourceFile: SourceFile): Nanostore
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
 
-	if (!NANOSTORES_FRAMEWORKS_MODULES.has(module)) {
+		if (!NANOSTORES_FRAMEWORKS_MODULES.has(module)) {
 			continue;
 		}
 

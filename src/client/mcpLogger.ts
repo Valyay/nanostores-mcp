@@ -8,7 +8,7 @@ export interface McpLoggerClientOptions {
 	batchMs?: number;
 	enabled?: boolean;
 	/** workspace root to link runtime events with static analysis */
-	projectRoot?: string; 
+	projectRoot?: string;
 	maskEvent?: (event: NanostoresLoggerEvent) => NanostoresLoggerEvent | null;
 }
 

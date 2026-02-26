@@ -300,7 +300,8 @@ export function buildStoreSubgraph(
 
 	nodes.sort((a, b) => a.id.localeCompare(b.id));
 	filteredEdges.sort(
-		(a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to) || a.type.localeCompare(b.type),
+		(a, b) =>
+			a.from.localeCompare(b.from) || a.to.localeCompare(b.to) || a.type.localeCompare(b.type),
 	);
 
 	const summary = {

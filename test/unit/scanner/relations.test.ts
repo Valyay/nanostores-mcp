@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { addRelation, resolveDerivedRelations } from "../../../src/domain/project/scanner/relations.ts";
+import {
+	addRelation,
+	resolveDerivedRelations,
+} from "../../../src/domain/project/scanner/relations.ts";
 import type { StoreMatch, StoreRelation } from "../../../src/domain/project/types.ts";
 
 function createStore(id: string, file: string, name: string): StoreMatch {
@@ -73,7 +76,8 @@ describe("scanner/relations", () => {
 		expect(symbolEdge).toBeTruthy();
 
 		const fallbackEdges = relations.filter(
-			rel => rel.type === "derives_from" && rel.from === derived.id && rel.file === "src/derived.ts",
+			rel =>
+				rel.type === "derives_from" && rel.from === derived.id && rel.file === "src/derived.ts",
 		);
 		expect(fallbackEdges.some(rel => rel.to === baseB.id)).toBe(true);
 	});

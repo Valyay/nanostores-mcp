@@ -198,15 +198,13 @@ describe("project domain: graph and summary builders", () => {
 		const dictionary = buildIdDictionary(projectIndex);
 		expect(dictionary.version).toBe(1);
 		expect(dictionary.stores.length).toBe(projectIndex.stores.length);
-		expect(
-			dictionary.files.some(file => toPosix(file.path) === "src/components/Counter.tsx"),
-		).toBe(true);
+		expect(dictionary.files.some(file => toPosix(file.path) === "src/components/Counter.tsx")).toBe(
+			true,
+		);
 
 		const totalStore = projectIndex.stores.find(store => store.id === storeTotal);
 		const subgraph = buildStoreSubgraph(projectIndex, totalStore!, 1);
-		const storeIds = subgraph.nodes
-			.filter(node => node.type === "store")
-			.map(node => node.id);
+		const storeIds = subgraph.nodes.filter(node => node.type === "store").map(node => node.id);
 
 		expect(storeIds).toContain(storeTotal);
 		expect(storeIds).toContain(storeCount);

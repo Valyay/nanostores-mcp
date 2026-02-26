@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const EnvSchema = z.object({
+export const EnvSchema = z.object({
 	NANOSTORES_MCP_ROOTS: z.string().optional(),
 	NANOSTORES_MCP_ROOT: z.string().optional(),
 	WORKSPACE_FOLDER: z.string().optional(),
@@ -14,7 +14,8 @@ const EnvSchema = z.object({
 		.string()
 		.optional()
 		.default("3999")
-		.transform(val => Number.parseInt(val, 10)),
+		.transform(val => Number.parseInt(val, 10))
+		.pipe(z.number().int().min(0).max(65535)),
 	NANOSTORES_MCP_LOGGER_HOST: z.string().optional().default("127.0.0.1"),
 	// Docs configuration
 	NANOSTORES_DOCS_ROOT: z.string().optional(),

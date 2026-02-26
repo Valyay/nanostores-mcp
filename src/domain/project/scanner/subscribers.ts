@@ -5,6 +5,12 @@ import type { NanostoresReactImports } from "./imports.js";
 import { getSymbolKey } from "./stores.js";
 import { addRelation } from "./relations.js";
 
+const SFC_EXTENSIONS = new Set([".vue", ".svelte"]);
+
+function isSfcFile(filePath: string): boolean {
+	return SFC_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
 export interface SubscriberContainerInfo {
 	containerName?: string;
 	containerStartLine: number;
@@ -198,7 +204,29 @@ export function analyzeSubscribersInFile(
 				const sameFile = byName.filter(s => s.file === relativeFile);
 				if (sameFile.length === 1) {
 					matches = sameFile;
+				} else if (isSfcFile(relativeFile)) {
+					// SFC virtual files can't resolve cross-file symbols, so
+					// accept all name matches rather than losing the subscriber.
+					matches = byName;
 				}
+			}
+		}
+
+		// Fallback by import alias: import { $store as localName } from "..."
+		if (matches.length === 0) {
+			const storeVarName = firstArg.getText();
+			for (const imp of sourceFile.getImportDeclarations()) {
+				for (const named of imp.getNamedImports()) {
+					const local = named.getAliasNode()?.getText();
+					if (local === storeVarName) {
+						const importedName = named.getName();
+						const byImported = context.storesByName.get(importedName) ?? [];
+						if (byImported.length === 1) {
+							matches = byImported;
+						}
+					}
+				}
+				if (matches.length > 0) break;
 			}
 		}
 
