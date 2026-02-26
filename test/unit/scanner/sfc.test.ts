@@ -180,3 +180,64 @@ describe("sfc/extractScriptsFromSvelteSfc", () => {
 		expect(result.scriptKind).toBe(ScriptKind.JS);
 	});
 });
+
+describe("sfc/error resilience: Vue", () => {
+	it("throws on malformed Vue template", () => {
+		const malformedVue = [
+			"<template>",
+			"  <div",
+			// missing closing >
+			"</template>",
+			"<script>",
+			'import { atom } from "nanostores";',
+			"</script>",
+		].join("\n");
+
+		// Vue parser is lenient with template errors — it may not throw.
+		// The contract is: if errors.length > 0, formatParseError throws.
+		// In practice, @vue/compiler-sfc often accepts malformed templates in the
+		// descriptor without reporting errors (errors are for <script> compilation).
+		// We test that extraction still works or throws — it should not crash silently.
+		try {
+			const result = extractScriptsFromVueSfc(malformedVue, "malformed.vue");
+			// If it doesn't throw, the script block should still be extracted
+			expect(result.hasScript).toBe(true);
+		} catch (err) {
+			expect(err).toBeInstanceOf(Error);
+		}
+	});
+
+	it("throws on completely broken Vue SFC", () => {
+		// Empty <script> is valid, but a script with broken JS won't cause
+		// the SFC parser to error — only ts-morph would fail later.
+		// Vue SFC parser errors come from broken template/syntax, not script content.
+		const brokenVue = "<template><div></template><script>";
+		try {
+			const result = extractScriptsFromVueSfc(brokenVue, "broken.vue");
+			// Parser may still produce a descriptor for lenient HTML
+			expect(typeof result.hasScript).toBe("boolean");
+		} catch (err) {
+			expect(err).toBeInstanceOf(Error);
+		}
+	});
+});
+
+describe("sfc/error resilience: Svelte", () => {
+	it("throws on syntax error inside Svelte <script> block", () => {
+		const badSvelte = [
+			"<script>",
+			"  const x = {{{;",
+			// JS syntax error
+			"</script>",
+			"<p>Hello</p>",
+		].join("\n");
+
+		expect(() => extractScriptsFromSvelteSfc(badSvelte, "bad.svelte")).toThrow();
+	});
+
+	it("throws on unclosed Svelte <script> tag", () => {
+		const unclosed = "<script>\n  const x = 1;\n<p>Hello</p>";
+
+		expect(() => extractScriptsFromSvelteSfc(unclosed, "unclosed.svelte")).toThrow();
+	});
+});

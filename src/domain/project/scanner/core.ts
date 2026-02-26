@@ -29,7 +29,7 @@ export async function scanProject(
 	rootDir: string,
 	options: ScanOptions = {},
 ): Promise<ProjectIndex> {
-	const { onProgress } = options;
+	const { onProgress, moduleConfig } = options;
 	const absRoot = realpathSafe(
 		path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
 	);
@@ -147,7 +147,7 @@ export async function scanProject(
 
 	// --- First pass: find stores ---
 	for (const sourceFile of project.getSourceFiles()) {
-		const importsInfo = collectNanostoresStoreImports(sourceFile);
+		const importsInfo = collectNanostoresStoreImports(sourceFile, moduleConfig);
 		analyzeStoresInFile(sourceFile, absRoot, importsInfo, storeContext);
 	}
 
@@ -164,7 +164,7 @@ export async function scanProject(
 
 	// --- Second pass: find subscribers ---
 	for (const sourceFile of project.getSourceFiles()) {
-		const reactImports = collectNanostoresReactImports(sourceFile);
+		const reactImports = collectNanostoresReactImports(sourceFile, moduleConfig);
 		analyzeSubscribersInFile(sourceFile, absRoot, reactImports, subscriberContext);
 	}
 

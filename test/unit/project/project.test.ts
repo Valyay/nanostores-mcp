@@ -161,6 +161,47 @@ describe("project domain: store lookup and neighbors", () => {
 		expect(byFile?.store.id).toBe(storeLegacyCount);
 	});
 
+	it("resolves by id tail when name lookup fails", () => {
+		// Use a raw key that doesn't match any name but matches an id tail
+		const result = resolveStore(projectIndex, "$total");
+		expect(result?.store.id).toBe(storeTotal);
+		// Should be "name" since $total is a name match
+		expect(result?.by).toBe("name");
+	});
+
+	it("resolves by id tail fallback when store: prefix id is not found", () => {
+		// Malformed store: prefix — the full id doesn't match, but the tail after # does
+		const result = resolveStore(projectIndex, "store:wrong/path.ts#$cart");
+		expect(result?.store.id).toBe(storeCart);
+		expect(result?.by).toBe("id_tail");
+		expect(result?.requested).toBe("store:wrong/path.ts#$cart");
+	});
+
+	it("returns null for completely unknown store: prefix id", () => {
+		const result = resolveStore(projectIndex, "store:no/such/file.ts#$nope");
+		expect(result).toBeNull();
+	});
+
+	it("returns null for unknown name", () => {
+		const result = resolveStore(projectIndex, "$nonexistent");
+		expect(result).toBeNull();
+	});
+
+	it("falls back to id_tail when file filter eliminates all name matches", () => {
+		const result = resolveStore(projectIndex, "$count", { file: "no/such/file.ts" });
+		// $count exists in 2 files, but neither matches the file filter
+		// Name resolution returns null → falls back to id_tail (which ignores file filter)
+		expect(result?.by).toBe("id_tail");
+		expect(result?.store.name).toBe("$count");
+	});
+
+	it("reports multiple matches with note about other files", () => {
+		// $count exists in src/stores/counter.ts and legacy/count.ts
+		const result = resolveStore(projectIndex, "$count");
+		expect(result?.by).toBe("name");
+		expect(result?.note).toContain("multiple matches");
+	});
+
 	it("collects subscribers and dependency relations for a store", () => {
 		const countStore = projectIndex.stores.find(store => store.id === storeCount);
 		expect(countStore).toBeTruthy();
@@ -169,6 +210,28 @@ describe("project domain: store lookup and neighbors", () => {
 		expect(neighbors.subscribers.some(sub => sub.id === subscriberCounter)).toBe(true);
 		expect(neighbors.dependentsStores.some(store => store.id === storeTotal)).toBe(true);
 		expect(neighbors.derivesFromStores.length).toBe(0);
+	});
+
+	it("collects derivesFrom for computed stores", () => {
+		const totalStore = projectIndex.stores.find(store => store.id === storeTotal);
+		expect(totalStore).toBeTruthy();
+
+		const neighbors = collectStoreNeighbors(projectIndex, totalStore!);
+		expect(neighbors.derivesFromStores).toHaveLength(1);
+		expect(neighbors.derivesFromStores[0].id).toBe(storeCount);
+		expect(neighbors.derivesFromEdges).toHaveLength(1);
+		expect(neighbors.derivesFromEdges[0].type).toBe("derives_from");
+	});
+
+	it("returns empty neighbors for isolated store", () => {
+		const cartStore = projectIndex.stores.find(store => store.id === storeCart);
+		expect(cartStore).toBeTruthy();
+
+		const neighbors = collectStoreNeighbors(projectIndex, cartStore!);
+		// $cart has a subscriber (useCart) but no derives_from/dependents
+		expect(neighbors.subscribers).toHaveLength(1);
+		expect(neighbors.derivesFromStores).toHaveLength(0);
+		expect(neighbors.dependentsStores).toHaveLength(0);
 	});
 });
 

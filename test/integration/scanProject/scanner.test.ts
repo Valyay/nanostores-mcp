@@ -143,6 +143,77 @@ describe("scanner domain: scanProject", () => {
 	});
 });
 
+describe("scanner domain: snapshot", () => {
+	it("produces a stable store/subscriber/relation summary for the fixture project", async () => {
+		const index = await scanProject(projectRoot);
+
+		// Normalize paths to POSIX for cross-platform snapshots
+		const summary = {
+			filesScanned: index.filesScanned,
+			storeCount: index.stores.length,
+			subscriberCount: index.subscribers.length,
+			relationCount: index.relations.length,
+			stores: index.stores
+				.map((s) => ({
+					name: s.name,
+					kind: s.kind,
+					file: toPosix(s.file),
+				}))
+				.sort((a, b) => `${a.file}:${a.name}`.localeCompare(`${b.file}:${b.name}`)),
+			subscribers: index.subscribers
+				.map((s) => ({
+					name: s.name,
+					kind: s.kind,
+					file: toPosix(s.file),
+					storeCount: s.storeIds.length,
+				}))
+				.sort((a, b) => `${a.file}:${a.name}`.localeCompare(`${b.file}:${b.name}`)),
+			relationTypes: {
+				declares: index.relations.filter((r) => r.type === "declares").length,
+				subscribes_to: index.relations.filter((r) => r.type === "subscribes_to").length,
+				derives_from: index.relations.filter((r) => r.type === "derives_from").length,
+			},
+		};
+
+		expect(summary).toMatchSnapshot();
+	});
+});
+
+describe("scanner domain: paths with spaces and non-ASCII", () => {
+	let cleanup: (() => Promise<void>) | undefined;
+
+	afterEach(async () => {
+		if (cleanup) {
+			await cleanup();
+			cleanup = undefined;
+		}
+	});
+
+	it("scans projects in directories with spaces and unicode characters", async () => {
+		const project = await createTempProject(
+			{
+				"src/stores.ts": [
+					'import { atom } from "nanostores";',
+					"export const $grüße = atom(0);",
+				].join("\n"),
+				"src/日本語/stores.ts": [
+					'import { atom } from "nanostores";',
+					"export const $nihongo = atom(42);",
+				].join("\n"),
+			},
+			"nanostores test ünïcödé-",
+		);
+		cleanup = project.cleanup;
+
+		const index = await scanProject(project.rootDir);
+		const names = index.stores.map((s) => s.name);
+
+		expect(names).toContain("$grüße");
+		expect(names).toContain("$nihongo");
+		expect(index.filesScanned).toBe(2);
+	});
+});
+
 describe("scanner domain: gitignore", () => {
 	let cleanup: (() => Promise<void>) | undefined;
 

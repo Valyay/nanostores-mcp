@@ -1,0 +1,119 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scanner domain: snapshot > produces a stable store/subscriber/relation summary for the fixture project 1`] = `
+{
+  "filesScanned": 13,
+  "relationCount": 34,
+  "relationTypes": {
+    "declares": 18,
+    "derives_from": 3,
+    "subscribes_to": 13,
+  },
+  "storeCount": 8,
+  "stores": [
+    {
+      "file": "nested/stores.ts",
+      "kind": "atom",
+      "name": "$count",
+    },
+    {
+      "file": "stores.ts",
+      "kind": "computed",
+      "name": "$bundle",
+    },
+    {
+      "file": "stores.ts",
+      "kind": "map",
+      "name": "$cart",
+    },
+    {
+      "file": "stores.ts",
+      "kind": "atom",
+      "name": "$count",
+    },
+    {
+      "file": "stores.ts",
+      "kind": "persistentAtom",
+      "name": "$prefs",
+    },
+    {
+      "file": "stores.ts",
+      "kind": "computed",
+      "name": "$total",
+    },
+    {
+      "file": "stores/extra.cjs",
+      "kind": "map",
+      "name": "$cjsCart",
+    },
+    {
+      "file": "stores/extra.mjs",
+      "kind": "atom",
+      "name": "$mjsCount",
+    },
+  ],
+  "subscriberCount": 10,
+  "subscribers": [
+    {
+      "file": "components/Counter.tsx",
+      "kind": "component",
+      "name": "Counter",
+      "storeCount": 2,
+    },
+    {
+      "file": "components/Counter.tsx",
+      "kind": "hook",
+      "name": "useCart",
+      "storeCount": 1,
+    },
+    {
+      "file": "components/LitCounter.ts",
+      "kind": "component",
+      "name": "LitCounter",
+      "storeCount": 1,
+    },
+    {
+      "file": "components/PlainWidget.js",
+      "kind": "component",
+      "name": "PlainWidget",
+      "storeCount": 1,
+    },
+    {
+      "file": "components/SvelteCounter.ts",
+      "kind": "component",
+      "name": "SvelteCounter",
+      "storeCount": 1,
+    },
+    {
+      "file": "components/SvelteWidget.svelte",
+      "kind": "component",
+      "name": "SvelteWidget",
+      "storeCount": 2,
+    },
+    {
+      "file": "components/VueCounter.ts",
+      "kind": "component",
+      "name": "VueCounter",
+      "storeCount": 1,
+    },
+    {
+      "file": "components/VueWidget.vue",
+      "kind": "component",
+      "name": "VueWidget",
+      "storeCount": 2,
+    },
+    {
+      "file": "components/Widget.jsx",
+      "kind": "component",
+      "name": "Widget",
+      "storeCount": 1,
+    },
+    {
+      "file": "effects.ts",
+      "kind": "effect",
+      "name": "cartEffect",
+      "storeCount": 1,
+    },
+  ],
+}
+`;

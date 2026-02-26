@@ -1,5 +1,5 @@
 import type { SourceFile } from "ts-morph";
-import type { StoreKind } from "../types.js";
+import type { ModuleConfig, StoreKind } from "../types.js";
 import { normalizeStoreKind } from "../types.js";
 
 /**
@@ -37,18 +37,24 @@ export interface NanostoresStoreImports {
  * - storeFactories: local name → StoreKind
  * - nanostoresNamespaces: local names of namespace imports (import * as ns from "nanostores")
  */
-export function collectNanostoresStoreImports(sourceFile: SourceFile): NanostoresStoreImports {
+export function collectNanostoresStoreImports(
+	sourceFile: SourceFile,
+	moduleConfig?: ModuleConfig,
+): NanostoresStoreImports {
 	const storeFactories = new Map<string, StoreKind>();
 	const nanostoresNamespaces = new Set<string>();
+
+	const baseModules = moduleConfig?.baseModules ?? NANOSTORES_BASE_MODULES;
+	const persistentModules = moduleConfig?.persistentModules ?? NANOSTORES_PERSISTENT_MODULES;
 
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
 
 		// Base stores module
-		const isBaseModule = NANOSTORES_BASE_MODULES.has(module);
+		const isBaseModule = baseModules.has(module);
 
 		// Persistent stores module
-		const isPersistentModule = NANOSTORES_PERSISTENT_MODULES.has(module);
+		const isPersistentModule = persistentModules.has(module);
 
 		if (!isBaseModule && !isPersistentModule) continue;
 
@@ -85,14 +91,19 @@ export interface NanostoresReactImports {
  * - useStoreFns: local function names (useStore, useNanoStore, ...)
  * - reactNamespaces: namespace imports (import * as nsReact from "nanostores/react")
  */
-export function collectNanostoresReactImports(sourceFile: SourceFile): NanostoresReactImports {
+export function collectNanostoresReactImports(
+	sourceFile: SourceFile,
+	moduleConfig?: ModuleConfig,
+): NanostoresReactImports {
 	const useStoreFns = new Set<string>();
 	const reactNamespaces = new Set<string>();
+
+	const frameworkModules = moduleConfig?.frameworkModules ?? NANOSTORES_FRAMEWORKS_MODULES;
 
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
 
-		if (!NANOSTORES_FRAMEWORKS_MODULES.has(module)) {
+		if (!frameworkModules.has(module)) {
 			continue;
 		}
 

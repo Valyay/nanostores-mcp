@@ -5,3 +5,4 @@ export {
 	NANOSTORES_PERSISTENT_MODULES,
 	NANOSTORES_FRAMEWORKS_MODULES,
 } from "./imports.js";
+export type { ModuleConfig } from "../types.js";

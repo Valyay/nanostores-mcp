@@ -6,37 +6,27 @@ import {
 	NANOSTORES_PERSISTENT_MODULES,
 	NANOSTORES_FRAMEWORKS_MODULES,
 } from "../../../src/domain/project/scanner/index.ts";
+import type { ModuleConfig } from "../../../src/domain/project/scanner/index.ts";
+import type { ScanOptions } from "../../../src/domain/project/types.ts";
 import { findStore, findSubscriber } from "../../helpers/assertIndex.ts";
 import { createScannerEdgeCasesFixture, toPosix } from "../../helpers/fixtures.ts";
 
 let projectRoot = "";
-const extraBaseModules = ["../compat/nanostores"];
-const extraPersistentModules = ["../compat/persistent"];
-const extraFrameworkModules = ["../compat/react"];
+
+/** Module config that extends the defaults with compat re-export paths */
+const moduleConfig: ModuleConfig = {
+	baseModules: new Set([...NANOSTORES_BASE_MODULES, "../compat/nanostores"]),
+	persistentModules: new Set([...NANOSTORES_PERSISTENT_MODULES, "../compat/persistent"]),
+	frameworkModules: new Set([...NANOSTORES_FRAMEWORKS_MODULES, "../compat/react"]),
+};
+
+const scanOpts: ScanOptions = { moduleConfig };
 
 beforeAll(async () => {
-	for (const moduleName of extraBaseModules) {
-		NANOSTORES_BASE_MODULES.add(moduleName);
-	}
-	for (const moduleName of extraPersistentModules) {
-		NANOSTORES_PERSISTENT_MODULES.add(moduleName);
-	}
-	for (const moduleName of extraFrameworkModules) {
-		NANOSTORES_FRAMEWORKS_MODULES.add(moduleName);
-	}
 	projectRoot = await createScannerEdgeCasesFixture();
 });
 
 afterAll(async () => {
-	for (const moduleName of extraBaseModules) {
-		NANOSTORES_BASE_MODULES.delete(moduleName);
-	}
-	for (const moduleName of extraPersistentModules) {
-		NANOSTORES_PERSISTENT_MODULES.delete(moduleName);
-	}
-	for (const moduleName of extraFrameworkModules) {
-		NANOSTORES_FRAMEWORKS_MODULES.delete(moduleName);
-	}
 	if (projectRoot) {
 		await fs.rm(projectRoot, { recursive: true, force: true });
 	}
@@ -44,7 +34,7 @@ afterAll(async () => {
 
 describe("scanner domain: edge cases", () => {
 	it("detects alias/namespace store factories and derived dependencies", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 
 		const aliasStore = findStore(index, "$alias", "stores/aliases.ts");
 		const duplicateAliasStore = findStore(index, "$alias", "stores/duplicates.ts");
@@ -94,7 +84,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("detects subscribers across containers and ignores invalid useStore calls", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 
 		const aliasStore = findStore(index, "$alias", "stores/aliases.ts");
 		const nsMapStore = findStore(index, "$nsMap", "stores/aliases.ts");
@@ -131,7 +121,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("supports compat re-exports and namespace imports for stores and subscribers", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 
 		const compatAtom = findStore(index, "$compatAtom", "stores/compat.ts");
 		const compatNsMap = findStore(index, "$compatNsMap", "stores/compat.ts");
@@ -157,7 +147,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("covers framework adapters for useStore across supported imports", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 
 		const frameworkStore = findStore(index, "$framework", "stores/framework.ts");
 		expect(frameworkStore?.kind).toBe("atom");
@@ -181,7 +171,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("detects nanostores usage in .vue and .svelte single-file components", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 
 		const frameworkStore = findStore(index, "$framework", "stores/framework.ts");
 		expect(frameworkStore?.kind).toBe("atom");
@@ -197,7 +187,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("builds graph stats based on scanned dependencies", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 		const graph = buildStoreGraph(index);
 
 		const aliasStore = findStore(index, "$alias", "stores/aliases.ts");
@@ -215,7 +205,7 @@ describe("scanner domain: edge cases", () => {
 	});
 
 	it("includes strict edge metadata and stable ids in graph output", async () => {
-		const index = await scanProject(projectRoot);
+		const index = await scanProject(projectRoot, scanOpts);
 		const graph = buildStoreGraph(index);
 
 		const aliasStore = findStore(index, "$alias", "stores/aliases.ts");

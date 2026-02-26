@@ -63,6 +63,17 @@ export interface ProjectIndex {
 /** Callback for reporting scanning progress */
 export type ProgressCallback = (progress: number, total: number, message: string) => void;
 
+/**
+ * Override the global module Sets used to detect nanostore imports.
+ * When provided, the scanner uses these instead of the mutable globals,
+ * enabling safe parallel test execution.
+ */
+export interface ModuleConfig {
+	baseModules?: ReadonlySet<string>;
+	persistentModules?: ReadonlySet<string>;
+	frameworkModules?: ReadonlySet<string>;
+}
+
 export interface ScanOptions {
 	/** Force rescan, ignoring cache */
 	force?: boolean;
@@ -70,6 +81,8 @@ export interface ScanOptions {
 	cacheTtlMs?: number;
 	/** Callback for reporting progress */
 	onProgress?: ProgressCallback;
+	/** Override global module Sets for import detection */
+	moduleConfig?: ModuleConfig;
 }
 
 export function normalizeStoreKind(raw: string): StoreKind {
