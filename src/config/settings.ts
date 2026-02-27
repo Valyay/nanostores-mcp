@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { normalizeFsPath, resolveSafePath, realpathSafe } from "./security.js";
+import { normalizeFsPath, resolveSafePath, realpathSafe, uriToFsPath } from "./security.js";
 import { envConfig } from "./envConfig.js";
 
 export interface WorkspaceRoot {
@@ -14,6 +14,7 @@ export interface WorkspaceRoot {
 
 let cachedEnvRoots: string[] | null = null;
 let cachedWorkspaceRoots: WorkspaceRoot[] | null = null;
+let clientRoots: WorkspaceRoot[] | null = null;
 
 /**
  * Read roots from environment.
@@ -54,26 +55,37 @@ export function getEnvWorkspaceRoots(): string[] {
 /**
  * Main source of FS access rights for nanostores-mcp.
  *
- * Current priority:
+ * Priority:
  * 1. Explicit roots from env (NANOSTORES_MCP_ROOTS / NANOSTORES_MCP_ROOT / WORKSPACE_*).
- * 2. process.cwd() as the only root.
- *
- * ⚠️ Real MCP roots/list from client can be added here later.
+ * 2. Client roots from MCP roots/list capability.
+ * 3. process.cwd() as the only root.
  */
 export function getWorkspaceRoots(): WorkspaceRoot[] {
 	if (cachedWorkspaceRoots) return cachedWorkspaceRoots;
 
 	const envRoots = getEnvWorkspaceRoots();
-	const fsRoots: string[] = envRoots.length ? envRoots : [normalizeFsPath(process.cwd())];
 
-	cachedWorkspaceRoots = fsRoots.map(fsPath => {
-		const finalPath = realpathSafe(fsPath);
-		return {
-			fsPath: finalPath,
-			uri: pathToFileURL(finalPath).href,
-			name: undefined,
-		};
-	});
+	if (envRoots.length) {
+		cachedWorkspaceRoots = envRoots.map(fsPath => {
+			const finalPath = realpathSafe(fsPath);
+			return {
+				fsPath: finalPath,
+				uri: pathToFileURL(finalPath).href,
+				name: undefined,
+			};
+		});
+	} else if (clientRoots && clientRoots.length) {
+		cachedWorkspaceRoots = clientRoots;
+	} else {
+		const cwdPath = realpathSafe(normalizeFsPath(process.cwd()));
+		cachedWorkspaceRoots = [
+			{
+				fsPath: cwdPath,
+				uri: pathToFileURL(cwdPath).href,
+				name: undefined,
+			},
+		];
+	}
 
 	return cachedWorkspaceRoots;
 }
@@ -115,4 +127,37 @@ export function resolveWorkspaceRoot(rootUri?: string): string {
 
 	// if rootUri is file:// or relative/absolute path — check that it's inside roots
 	return resolveWorkspacePath(rootUri);
+}
+
+/**
+ * Apply workspace roots received from the MCP client via roots/list.
+ * Converts URIs to validated filesystem paths and invalidates the workspace cache.
+ */
+export function setClientRoots(roots: Array<{ uri: string; name?: string }>): void {
+	clientRoots = roots.map(root => {
+		const fsPath = realpathSafe(uriToFsPath(root.uri));
+		return {
+			fsPath,
+			uri: pathToFileURL(fsPath).href,
+			name: root.name,
+		};
+	});
+	cachedWorkspaceRoots = null;
+}
+
+/**
+ * Clear client roots (e.g., when a client disconnects).
+ */
+export function clearClientRoots(): void {
+	clientRoots = null;
+	cachedWorkspaceRoots = null;
+}
+
+/**
+ * Reset all caches. Only for tests.
+ */
+export function resetForTesting(): void {
+	cachedEnvRoots = null;
+	cachedWorkspaceRoots = null;
+	clientRoots = null;
 }

@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import path from "node:path";
-import { normalizeFsPath } from "../../../src/config/security.ts";
+import { pathToFileURL } from "node:url";
+import { normalizeFsPath, realpathSafe } from "../../../src/config/security.ts";
+import {
+	setClientRoots,
+	clearClientRoots,
+	getWorkspaceRoots,
+	resetForTesting,
+} from "../../../src/config/settings.ts";
 
 /**
  * Tests for the settings module logic (src/config/settings.ts).
@@ -126,5 +133,73 @@ describe("settings: resolveWorkspaceRoot logic", () => {
 
 	it("uses rootUri when provided", () => {
 		expect(resolveRoot(["/project"], "/project/sub")).toBe("/project/sub");
+	});
+});
+
+describe("settings: client roots", () => {
+	afterEach(() => {
+		resetForTesting();
+	});
+
+	it("setClientRoots stores roots that appear in getWorkspaceRoots()", () => {
+		const cwd = realpathSafe(process.cwd());
+		setClientRoots([{ uri: pathToFileURL(cwd).href, name: "test-project" }]);
+
+		const roots = getWorkspaceRoots();
+		expect(roots).toHaveLength(1);
+		expect(roots[0].fsPath).toBe(cwd);
+		expect(roots[0].name).toBe("test-project");
+	});
+
+	it("clearClientRoots falls back to cwd", () => {
+		const cwd = realpathSafe(process.cwd());
+		setClientRoots([{ uri: pathToFileURL(cwd).href }]);
+		clearClientRoots();
+
+		const roots = getWorkspaceRoots();
+		expect(roots).toHaveLength(1);
+		expect(roots[0].fsPath).toBe(cwd);
+		expect(roots[0].name).toBeUndefined();
+	});
+
+	it("cache invalidation works when calling setClientRoots after initial cache", () => {
+		// Prime the cache with cwd fallback
+		const cwdRoots = getWorkspaceRoots();
+		expect(cwdRoots).toHaveLength(1);
+
+		// Now set client roots — should invalidate and return new roots
+		const cwd = realpathSafe(process.cwd());
+		setClientRoots([
+			{ uri: pathToFileURL(cwd).href, name: "root-a" },
+			{ uri: pathToFileURL(cwd).href, name: "root-b" },
+		]);
+
+		const roots = getWorkspaceRoots();
+		expect(roots).toHaveLength(2);
+		expect(roots[0].name).toBe("root-a");
+		expect(roots[1].name).toBe("root-b");
+	});
+
+	it("empty client roots array falls through to cwd", () => {
+		setClientRoots([]);
+
+		const roots = getWorkspaceRoots();
+		expect(roots).toHaveLength(1);
+		expect(roots[0].name).toBeUndefined();
+	});
+});
+
+describe("settings: priority order", () => {
+	afterEach(() => {
+		resetForTesting();
+	});
+
+	it("client roots beat cwd fallback", () => {
+		const cwd = realpathSafe(process.cwd());
+		setClientRoots([{ uri: pathToFileURL(cwd).href, name: "from-client" }]);
+
+		const roots = getWorkspaceRoots();
+		expect(roots).toHaveLength(1);
+		expect(roots[0].name).toBe("from-client");
 	});
 });
