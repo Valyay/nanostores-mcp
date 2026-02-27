@@ -2,6 +2,81 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
 
+// ── Reusable Zod schemas matching domain/runtime/types.ts ────────────────────
+
+const BaseEventFields = {
+	storeName: z.string(),
+	storeId: z.string().optional(),
+	timestamp: z.number(),
+	sessionId: z.string().optional(),
+	projectRoot: z.string().optional(),
+};
+
+const ChangeEventSchema = z.object({
+	...BaseEventFields,
+	kind: z.literal("change"),
+	actionId: z.string().optional(),
+	actionName: z.string().optional(),
+	changed: z.union([z.string(), z.array(z.string())]).optional(),
+	newValue: z.unknown().optional(),
+	oldValue: z.unknown().optional(),
+	valueMessage: z.string().optional(),
+});
+
+const ActionErrorEventSchema = z.object({
+	...BaseEventFields,
+	kind: z.literal("action-error"),
+	actionId: z.string(),
+	actionName: z.string().optional(),
+	error: z.unknown().optional(),
+	errorMessage: z.string().optional(),
+});
+
+const LoggerEventSchema = z.discriminatedUnion("kind", [
+	z.object({ ...BaseEventFields, kind: z.literal("mount") }),
+	z.object({ ...BaseEventFields, kind: z.literal("unmount") }),
+	ChangeEventSchema,
+	z.object({
+		...BaseEventFields,
+		kind: z.literal("action-start"),
+		actionId: z.string(),
+		actionName: z.string(),
+		args: z.array(z.unknown()).optional(),
+	}),
+	z.object({
+		...BaseEventFields,
+		kind: z.literal("action-end"),
+		actionId: z.string(),
+		actionName: z.string().optional(),
+	}),
+	ActionErrorEventSchema,
+]);
+
+const StoreRuntimeStatsSchema = z.object({
+	storeName: z.string(),
+	storeId: z.string().optional(),
+	projectRoot: z.string().optional(),
+	firstSeen: z.number(),
+	lastSeen: z.number(),
+	mounts: z.number(),
+	unmounts: z.number(),
+	changes: z.number(),
+	actionsStarted: z.number(),
+	actionsErrored: z.number(),
+	actionsCompleted: z.number(),
+	lastChange: ChangeEventSchema.optional(),
+	lastError: ActionErrorEventSchema.optional(),
+});
+
+const LoggerStatsSnapshotSchema = z.object({
+	stores: z.array(StoreRuntimeStatsSchema),
+	totalEvents: z.number(),
+	sessionStartedAt: z.number(),
+	lastEventAt: z.number(),
+});
+
+// ── Input / Output schemas ───────────────────────────────────────────────────
+
 const StoreActivityInputSchema = z.object({
 	storeName: z.string().optional().describe("Store name to query (optional)"),
 	limit: z.number().optional().default(50).describe("Max events to return"),
@@ -14,8 +89,8 @@ const StoreActivityInputSchema = z.object({
 
 const StoreActivityOutputSchema = z.object({
 	storeName: z.string().optional(),
-	stats: z.any(),
-	events: z.array(z.any()),
+	stats: z.union([StoreRuntimeStatsSchema, LoggerStatsSnapshotSchema]).nullable(),
+	events: z.array(LoggerEventSchema),
 	summary: z.string(),
 });
 
@@ -37,7 +112,7 @@ export function registerStoreActivityTool(
 			outputSchema: StoreActivityOutputSchema,
 			annotations: {
 				readOnlyHint: true,
-				idempotentHint: false, // data changes over time
+				idempotentHint: true,
 				openWorldHint: false,
 			},
 		},
@@ -117,7 +192,7 @@ const FindNoisyStoresInputSchema = z.object({
 });
 
 const FindNoisyStoresOutputSchema = z.object({
-	stores: z.array(z.any()),
+	stores: z.array(StoreRuntimeStatsSchema),
 	summary: z.string(),
 });
 /**
@@ -138,7 +213,7 @@ export function registerFindNoisyStoresTool(
 			outputSchema: FindNoisyStoresOutputSchema,
 			annotations: {
 				readOnlyHint: true,
-				idempotentHint: false,
+				idempotentHint: true,
 				openWorldHint: false,
 			},
 		},
@@ -190,10 +265,10 @@ const RuntimeOverviewInputSchema = z.object({
 
 const RuntimeOverviewOutputSchema = z.object({
 	summary: z.string(),
-	stats: z.any(),
-	noisyStores: z.array(z.any()),
-	errorProneStores: z.array(z.any()),
-	unmountedStores: z.array(z.any()),
+	stats: LoggerStatsSnapshotSchema,
+	noisyStores: z.array(StoreRuntimeStatsSchema),
+	errorProneStores: z.array(StoreRuntimeStatsSchema),
+	unmountedStores: z.array(StoreRuntimeStatsSchema),
 });
 
 /**
@@ -214,7 +289,7 @@ export function registerRuntimeOverviewTool(
 			outputSchema: RuntimeOverviewOutputSchema,
 			annotations: {
 				readOnlyHint: true,
-				idempotentHint: false,
+				idempotentHint: true,
 				openWorldHint: false,
 			},
 		},
