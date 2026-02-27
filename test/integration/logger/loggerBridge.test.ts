@@ -9,7 +9,8 @@ function post(
 	urlPath: string,
 	body: string,
 	method = "POST",
-): Promise<{ status: number; body: string }> {
+	extraHeaders: Record<string, string> = {},
+): Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }> {
 	return new Promise((resolve, reject) => {
 		const req = http.request(
 			{
@@ -17,12 +18,14 @@ function post(
 				port,
 				path: urlPath,
 				method,
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", ...extraHeaders },
 			},
 			res => {
 				let data = "";
 				res.on("data", chunk => (data += chunk));
-				res.on("end", () => resolve({ status: res.statusCode!, body: data }));
+				res.on("end", () =>
+					resolve({ status: res.statusCode!, body: data, headers: res.headers }),
+				);
 			},
 		);
 		req.on("error", reject);
@@ -155,5 +158,49 @@ describe("logger bridge integration", () => {
 		const store2 = createLoggerEventStore();
 		const bridge2 = createLoggerBridge(store2, { port });
 		await expect(bridge2.start()).rejects.toThrow();
+	});
+
+	describe("security", () => {
+		it("rejects start() with non-loopback host", async () => {
+			const store = createLoggerEventStore();
+			bridge = createLoggerBridge(store, { host: "0.0.0.0", port: 0 });
+			await expect(bridge.start()).rejects.toThrow(/loopback/i);
+		});
+
+		it("reflects CORS origin for localhost requests", async () => {
+			await startBridge();
+			const origin = "http://localhost:3000";
+			const res = await post(port, "/nanostores-logger", JSON.stringify({ events: [] }), "POST", {
+				Origin: origin,
+			});
+
+			expect(res.headers["access-control-allow-origin"]).toBe(origin);
+		});
+
+		it("reflects CORS origin for 127.0.0.1 requests", async () => {
+			await startBridge();
+			const origin = "http://127.0.0.1:5173";
+			const res = await post(port, "/nanostores-logger", JSON.stringify({ events: [] }), "POST", {
+				Origin: origin,
+			});
+
+			expect(res.headers["access-control-allow-origin"]).toBe(origin);
+		});
+
+		it("omits CORS header for non-localhost origins", async () => {
+			await startBridge();
+			const res = await post(port, "/nanostores-logger", JSON.stringify({ events: [] }), "POST", {
+				Origin: "https://evil-site.com",
+			});
+
+			expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+		});
+
+		it("omits CORS header when no Origin is sent", async () => {
+			await startBridge();
+			const res = await post(port, "/nanostores-logger", JSON.stringify({ events: [] }));
+
+			expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+		});
 	});
 });

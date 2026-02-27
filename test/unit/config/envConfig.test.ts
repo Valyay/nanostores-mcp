@@ -71,10 +71,18 @@ describe("config/envConfig", () => {
 			expect(parseEnv({}).NANOSTORES_MCP_LOGGER_HOST).toBe("127.0.0.1");
 		});
 
-		it("accepts custom host", () => {
-			expect(parseEnv({ NANOSTORES_MCP_LOGGER_HOST: "0.0.0.0" }).NANOSTORES_MCP_LOGGER_HOST).toBe(
-				"0.0.0.0",
+		it("accepts localhost variants", () => {
+			expect(parseEnv({ NANOSTORES_MCP_LOGGER_HOST: "localhost" }).NANOSTORES_MCP_LOGGER_HOST).toBe(
+				"localhost",
 			);
+			expect(parseEnv({ NANOSTORES_MCP_LOGGER_HOST: "::1" }).NANOSTORES_MCP_LOGGER_HOST).toBe(
+				"::1",
+			);
+		});
+
+		it("rejects non-loopback hosts", () => {
+			expect(() => parseEnv({ NANOSTORES_MCP_LOGGER_HOST: "0.0.0.0" })).toThrow(/loopback/i);
+			expect(() => parseEnv({ NANOSTORES_MCP_LOGGER_HOST: "192.168.1.1" })).toThrow(/loopback/i);
 		});
 	});
 

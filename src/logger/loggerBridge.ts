@@ -130,6 +130,26 @@ function handleLoggerEvents(
 	});
 }
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+
+/**
+ * Check if the Origin header is a localhost URL.
+ * Returns the origin string to reflect, or null to deny.
+ */
+function getAllowedOrigin(req: http.IncomingMessage): string | null {
+	const origin = req.headers.origin;
+	if (!origin) return null;
+
+	try {
+		const url = new URL(origin);
+		if (LOOPBACK_HOSTS.has(url.hostname)) return origin;
+	} catch {
+		// malformed origin
+	}
+
+	return null;
+}
+
 /**
  * Handle incoming HTTP request
  */
@@ -138,8 +158,12 @@ function handleRequest(
 	req: http.IncomingMessage,
 	res: http.ServerResponse,
 ): void {
-	// CORS headers for local development
-	res.setHeader("Access-Control-Allow-Origin", "*");
+	// CORS headers — restricted to localhost origins only
+	const allowedOrigin = getAllowedOrigin(req);
+	if (allowedOrigin) {
+		res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+		res.setHeader("Vary", "Origin");
+	}
 	res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 	res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -193,6 +217,15 @@ export function createLoggerBridge(
 		start(): Promise<void> {
 			if (!state.config.enabled) {
 				return Promise.resolve();
+			}
+
+			if (!LOOPBACK_HOSTS.has(state.config.host)) {
+				return Promise.reject(
+					new Error(
+						`Logger bridge refuses to bind to "${state.config.host}". ` +
+							"Only loopback addresses are allowed (127.0.0.1, localhost, ::1).",
+					),
+				);
 			}
 
 			return new Promise((resolve, reject) => {
