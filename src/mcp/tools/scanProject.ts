@@ -44,6 +44,110 @@ const ScanProjectOutputSchema = z.object({
 	errors: z.array(z.string()).optional(),
 });
 
+export interface ScanProjectData {
+	rootDir: string;
+	filesScanned: number;
+	stores: Array<{ id: string; file: string; line: number; kind: string; name?: string }>;
+	subscribers: Array<{
+		id: string;
+		file: string;
+		line: number;
+		kind: string;
+		name?: string;
+		storeIds: string[];
+	}>;
+	relations: Array<{
+		type: "declares" | "subscribes_to" | "derives_from";
+		from: string;
+		to: string;
+		file?: string;
+		line?: number;
+	}>;
+}
+
+export function buildScanProjectResponse(
+	result: ScanProjectData | null,
+	error?: string,
+): {
+	content: Array<{ type: "text"; text: string }>;
+	structuredContent: Record<string, unknown>;
+} {
+	const errors: string[] = [];
+
+	let rootToReport = "";
+	let filesScanned = 0;
+	let stores: ScanProjectData["stores"] = [];
+	let subscribers: ScanProjectData["subscribers"] = [];
+	let relations: ScanProjectData["relations"] = [];
+
+	if (error) {
+		errors.push(`Failed to scan project: ${error}`);
+	} else if (result) {
+		rootToReport = result.rootDir;
+		filesScanned = result.filesScanned;
+		stores = result.stores;
+		subscribers = result.subscribers;
+		relations = result.relations;
+	}
+
+	const summaryLines: string[] = [];
+
+	summaryLines.push(`Root: ${rootToReport || "<unknown>"}`);
+	summaryLines.push(`Files scanned: ${filesScanned}`);
+	summaryLines.push(`Nanostores stores: ${stores.length}`);
+	summaryLines.push(`Subscribers (components/hooks/effects): ${subscribers.length}`);
+	summaryLines.push(`Relations: ${relations.length}`);
+
+	if (stores.length > 0) {
+		const preview = stores.slice(0, 10);
+		summaryLines.push("");
+		summaryLines.push("First stores:");
+		for (const store of preview) {
+			const namePart = store.name ? ` ${store.name}` : "";
+			summaryLines.push(`- [${store.kind}]${namePart} at ${store.file}:${store.line}`);
+		}
+	}
+
+	if (subscribers.length > 0) {
+		const preview = subscribers.slice(0, 10);
+		summaryLines.push("");
+		summaryLines.push("First subscribers:");
+		for (const sub of preview) {
+			const namePart = sub.name ? ` ${sub.name}` : "";
+			summaryLines.push(
+				`- [${sub.kind}]${namePart} at ${sub.file}:${sub.line} (stores: ${sub.storeIds.length})`,
+			);
+		}
+	}
+
+	if (errors.length > 0) {
+		summaryLines.push("");
+		summaryLines.push("Errors:");
+		for (const e of errors) {
+			summaryLines.push(`- ${e}`);
+		}
+	}
+
+	const structuredContent = {
+		root: rootToReport,
+		filesScanned,
+		stores,
+		subscribers,
+		relations,
+		...(errors.length > 0 ? { errors } : {}),
+	};
+
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: summaryLines.join("\n"),
+			},
+		],
+		structuredContent,
+	};
+}
+
 export function registerScanProjectTool(
 	server: McpServer,
 	projectService: ProjectAnalysisService,
@@ -63,106 +167,14 @@ export function registerScanProjectTool(
 			},
 		},
 		async ({ rootUri }, _extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => {
-			const errors: string[] = [];
-
-			let rootToReport = "";
-			let filesScanned = 0;
-			let stores: Array<{
-				id: string;
-				file: string;
-				line: number;
-				kind: string;
-				name?: string;
-			}> = [];
-			let subscribers: Array<{
-				id: string;
-				file: string;
-				line: number;
-				kind: string;
-				name?: string;
-				storeIds: string[];
-			}> = [];
-			let relations: Array<{
-				type: "declares" | "subscribes_to" | "derives_from";
-				from: string;
-				to: string;
-				file?: string;
-				line?: number;
-			}> = [];
-
 			try {
 				const rootPath = resolveWorkspaceRoot(rootUri);
-				rootToReport = rootPath;
-
-				// Use project service instead of direct scanProject call
 				const result = await projectService.getIndex(rootPath);
-
-				rootToReport = result.rootDir;
-				filesScanned = result.filesScanned;
-				stores = result.stores;
-				subscribers = result.subscribers;
-				relations = result.relations;
+				return buildScanProjectResponse(result);
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
-				errors.push(`Failed to scan project: ${msg}`);
+				return buildScanProjectResponse(null, msg);
 			}
-
-			const summaryLines: string[] = [];
-
-			summaryLines.push(`Root: ${rootToReport || "<unknown>"}`);
-			summaryLines.push(`Files scanned: ${filesScanned}`);
-			summaryLines.push(`Nanostores stores: ${stores.length}`);
-			summaryLines.push(`Subscribers (components/hooks/effects): ${subscribers.length}`);
-			summaryLines.push(`Relations: ${relations.length}`);
-
-			if (stores.length > 0) {
-				const preview = stores.slice(0, 10);
-				summaryLines.push("");
-				summaryLines.push("First stores:");
-				for (const store of preview) {
-					const namePart = store.name ? ` ${store.name}` : "";
-					summaryLines.push(`- [${store.kind}]${namePart} at ${store.file}:${store.line}`);
-				}
-			}
-
-			if (subscribers.length > 0) {
-				const preview = subscribers.slice(0, 10);
-				summaryLines.push("");
-				summaryLines.push("First subscribers:");
-				for (const sub of preview) {
-					const namePart = sub.name ? ` ${sub.name}` : "";
-					summaryLines.push(
-						`- [${sub.kind}]${namePart} at ${sub.file}:${sub.line} (stores: ${sub.storeIds.length})`,
-					);
-				}
-			}
-
-			if (errors.length > 0) {
-				summaryLines.push("");
-				summaryLines.push("Errors:");
-				for (const e of errors) {
-					summaryLines.push(`- ${e}`);
-				}
-			}
-
-			const structuredContent = {
-				root: rootToReport,
-				filesScanned,
-				stores,
-				subscribers,
-				relations,
-				...(errors.length > 0 ? { errors } : {}),
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summaryLines.join("\n"),
-					},
-				],
-				structuredContent,
-			};
 		},
 	);
 }

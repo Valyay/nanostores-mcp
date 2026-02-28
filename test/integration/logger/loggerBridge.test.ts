@@ -119,6 +119,29 @@ describe("logger bridge integration", () => {
 		expect(res.status).toBe(413);
 	});
 
+	it("does not crash after 413 and handles subsequent requests", async () => {
+		const store = await startBridge({ maxPayloadSize: 100 });
+		const largePayload = JSON.stringify({ events: [makeEvent("mount", "x".repeat(200))] });
+
+		// The server may destroy the socket after sending 413, causing a client-side error.
+		// Either outcome (413 response or socket hang up) is acceptable.
+		try {
+			const res413 = await post(port, "/nanostores-logger", largePayload);
+			expect(res413.status).toBe(413);
+		} catch {
+			// Socket hang up is expected when server calls req.destroy()
+		}
+
+		// Allow the server to clean up the destroyed connection
+		await new Promise(resolve => setTimeout(resolve, 50));
+
+		// Server should still be alive and accept valid requests
+		const validPayload = JSON.stringify({ events: [makeEvent("mount", "$ok")] });
+		const res200 = await post(port, "/nanostores-logger", validPayload);
+		expect(res200.status).toBe(200);
+		expect(store.getEvents().length).toBe(1);
+	});
+
 	it("responds to OPTIONS with 204 and CORS headers", async () => {
 		await startBridge();
 		const res = await post(port, "/nanostores-logger", "", "OPTIONS");
@@ -158,6 +181,51 @@ describe("logger bridge integration", () => {
 		const store2 = createLoggerEventStore();
 		const bridge2 = createLoggerBridge(store2, { port });
 		await expect(bridge2.start()).rejects.toThrow();
+	});
+
+	describe("getInfo failure state", () => {
+		it("reports error when port is already in use", async () => {
+			await startBridge();
+
+			const store2 = createLoggerEventStore();
+			const bridge2 = createLoggerBridge(store2, { port });
+			await bridge2.start().catch(() => {});
+
+			const info = bridge2.getInfo();
+			expect(info.enabled).toBe(true);
+			expect(info.error).toMatch(/EADDRINUSE/);
+			expect(info.url).toBeUndefined();
+		});
+
+		it("reports error when host is non-loopback", async () => {
+			const store = createLoggerEventStore();
+			const b = createLoggerBridge(store, { host: "0.0.0.0", port: 0 });
+			await b.start().catch(() => {});
+
+			const info = b.getInfo();
+			expect(info.enabled).toBe(true);
+			expect(info.error).toMatch(/loopback/i);
+			expect(info.url).toBeUndefined();
+		});
+
+		it("reports enabled:false when bridge is disabled", () => {
+			const store = createLoggerEventStore();
+			const b = createLoggerBridge(store, { enabled: false });
+			const info = b.getInfo();
+
+			expect(info.enabled).toBe(false);
+			expect(info.error).toBeUndefined();
+			expect(info.url).toBeUndefined();
+		});
+
+		it("reports url when running successfully", async () => {
+			await startBridge();
+			const info = bridge.getInfo();
+
+			expect(info.enabled).toBe(true);
+			expect(info.url).toBeDefined();
+			expect(info.error).toBeUndefined();
+		});
 	});
 
 	describe("security", () => {

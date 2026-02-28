@@ -1,27 +1,8 @@
 import { describe, expect, it } from "vitest";
-
-/**
- * Tests for the store autocomplete logic (src/mcp/shared/storeAutocomplete.ts).
- *
- * Since suggestStoreNames depends on resolveWorkspaceRoot + scanProject (side-effecting),
- * we replicate the filtering logic here — same approach as runtimeResources.test.ts.
- */
-
-/** Mirrors suggestStoreNames filtering logic */
-function filterStoreNames(allNames: string[], value: string, limit = 20): string[] {
-	if (!value.trim()) {
-		return allNames.slice(0, limit);
-	}
-	const q = value.toLowerCase();
-	return allNames.filter((name) => name.toLowerCase().includes(q)).slice(0, limit);
-}
-
-/** Mirrors name deduplication/sorting logic in getStoreNamesForCurrentRoot */
-function deduplicateAndSort(names: string[]): string[] {
-	return Array.from(new Set(names.filter((n) => n.trim().length > 0))).sort((a, b) =>
-		a.localeCompare(b),
-	);
-}
+import {
+	filterStoreNames,
+	deduplicateAndSort,
+} from "../../../../src/mcp/shared/storeAutocomplete.ts";
 
 describe("store autocomplete: name filtering", () => {
 	const allNames = [

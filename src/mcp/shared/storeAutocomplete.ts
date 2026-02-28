@@ -7,6 +7,25 @@ import { resolveWorkspaceRoot } from "../../config/settings.js";
 let cachedRoot: string | null = null;
 let cachedStoreNames: string[] = [];
 
+export function resetAutocompleteCache(): void {
+	cachedRoot = null;
+	cachedStoreNames = [];
+}
+
+export function deduplicateAndSort(names: string[]): string[] {
+	return Array.from(new Set(names.filter(n => n.trim().length > 0))).sort((a, b) =>
+		a.localeCompare(b),
+	);
+}
+
+export function filterStoreNames(allNames: string[], value: string, limit = 20): string[] {
+	if (!value.trim()) {
+		return allNames.slice(0, limit);
+	}
+	const q = value.toLowerCase();
+	return allNames.filter(name => name.toLowerCase().includes(q)).slice(0, limit);
+}
+
 /**
  * Get the list of all store names for the current workspace root.
  * Uses cache to avoid scanning the project on every call.
@@ -20,9 +39,8 @@ export async function getStoreNamesForCurrentRoot(): Promise<string[]> {
 
 	try {
 		const index = await scanProject(root);
-		const names = index.stores.map(s => s.name ?? "").filter(n => n.trim().length > 0);
-
-		const unique = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+		const names = index.stores.map(s => s.name ?? "");
+		const unique = deduplicateAndSort(names);
 
 		cachedRoot = root;
 		cachedStoreNames = unique;
@@ -42,12 +60,5 @@ export async function getStoreNamesForCurrentRoot(): Promise<string[]> {
  */
 export async function suggestStoreNames(value: string): Promise<string[]> {
 	const allNames = await getStoreNamesForCurrentRoot();
-
-	if (!value.trim()) {
-		return allNames.slice(0, 20);
-	}
-
-	const q = value.toLowerCase();
-
-	return allNames.filter(name => name.toLowerCase().includes(q)).slice(0, 20);
+	return filterStoreNames(allNames, value);
 }

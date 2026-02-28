@@ -18,7 +18,7 @@ interface IncomingEventPayload {
 export interface LoggerBridgeServer {
 	start(): Promise<void>;
 	stop(): Promise<void>;
-	getInfo(): { enabled: boolean; url?: string };
+	getInfo(): { enabled: boolean; url?: string; error?: string };
 }
 
 /**
@@ -28,6 +28,7 @@ interface LoggerBridgeState {
 	server: http.Server | null;
 	config: LoggerBridgeConfig;
 	eventStore: LoggerEventStore;
+	startError: string | null;
 }
 
 /**
@@ -94,6 +95,7 @@ function handleLoggerEvents(
 	});
 
 	req.on("end", () => {
+		if (res.writableEnded) return;
 		try {
 			const payload = JSON.parse(body) as IncomingEventPayload;
 
@@ -125,6 +127,7 @@ function handleLoggerEvents(
 	});
 
 	req.on("error", () => {
+		if (res.writableEnded) return;
 		res.writeHead(500, { "Content-Type": "application/json" });
 		res.end(JSON.stringify({ error: "Internal server error" }));
 	});
@@ -208,6 +211,7 @@ export function createLoggerBridge(
 		server: null,
 		config: fullConfig,
 		eventStore,
+		startError: null,
 	};
 
 	return {
@@ -220,12 +224,11 @@ export function createLoggerBridge(
 			}
 
 			if (!LOOPBACK_HOSTS.has(state.config.host)) {
-				return Promise.reject(
-					new Error(
-						`Logger bridge refuses to bind to "${state.config.host}". ` +
-							"Only loopback addresses are allowed (127.0.0.1, localhost, ::1).",
-					),
-				);
+				const msg =
+					`Logger bridge refuses to bind to "${state.config.host}". ` +
+					"Only loopback addresses are allowed (127.0.0.1, localhost, ::1).";
+				state.startError = msg;
+				return Promise.reject(new Error(msg));
 			}
 
 			return new Promise((resolve, reject) => {
@@ -234,10 +237,12 @@ export function createLoggerBridge(
 				});
 
 				state.server.on("error", (err: NodeJS.ErrnoException) => {
+					state.startError = err.message;
 					reject(err);
 				});
 
 				state.server.listen(state.config.port, state.config.host, () => {
+					state.startError = null;
 					resolve();
 				});
 			});
@@ -266,9 +271,15 @@ export function createLoggerBridge(
 		/**
 		 * Get connection info
 		 */
-		getInfo(): { enabled: boolean; url?: string } {
-			if (!state.config.enabled || !state.server) {
+		getInfo(): { enabled: boolean; url?: string; error?: string } {
+			if (!state.config.enabled) {
 				return { enabled: false };
+			}
+			if (state.startError) {
+				return { enabled: true, error: state.startError };
+			}
+			if (!state.server) {
+				return { enabled: true };
 			}
 			return {
 				enabled: true,

@@ -1,6 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
+import type {
+	StoreRuntimeStats,
+	LoggerStatsSnapshot,
+} from "../../domain/runtime/types.js";
 
 // ── Reusable Zod schemas matching domain/runtime/types.ts ────────────────────
 
@@ -75,6 +79,127 @@ const LoggerStatsSnapshotSchema = z.object({
 	lastEventAt: z.number(),
 });
 
+// ── Summary builders (exported for testing) ─────────────────────────────────
+
+export function buildStoreActivitySummary(
+	storeName: string | undefined,
+	stats: StoreRuntimeStats | LoggerStatsSnapshot | null,
+	hasStaticData: boolean,
+	eventsCount: number,
+): string {
+	if (storeName) {
+		if (!stats) {
+			return `No runtime data found for store "${storeName}". The store may not be instrumented or no events have been received yet.`;
+		} else if ("mounts" in stats && !("stores" in stats)) {
+			let summary = `Store "${storeName}"`;
+			if (hasStaticData) {
+				summary += " (combined with static analysis data)";
+			}
+			summary += ":\n";
+			summary += `- Mounted: ${stats.mounts} times\n`;
+			summary += `- Changes: ${stats.changes}\n`;
+			summary += `- Actions started: ${stats.actionsStarted}\n`;
+			summary += `- Actions completed: ${stats.actionsCompleted}\n`;
+			summary += `- Actions errored: ${stats.actionsErrored}\n`;
+			summary += `- Recent events: ${eventsCount}`;
+			if (stats.lastChange) {
+				summary += `\n- Last change: ${new Date(stats.lastChange.timestamp).toISOString()}`;
+			}
+			return summary;
+		}
+	} else if (stats && "stores" in stats) {
+		let summary = `Overall activity:\n`;
+		summary += `- Total stores: ${stats.stores.length}\n`;
+		summary += `- Total events: ${stats.totalEvents}\n`;
+		summary += `- Session started: ${new Date(stats.sessionStartedAt).toISOString()}\n`;
+		summary += `- Last event: ${new Date(stats.lastEventAt).toISOString()}`;
+		return summary;
+	}
+	return "";
+}
+
+export function buildNoisyStoresSummary(
+	stores: Pick<StoreRuntimeStats, "storeName" | "changes" | "actionsStarted" | "actionsErrored">[],
+): string {
+	if (stores.length === 0) {
+		return "No active stores found.";
+	}
+	let summary = `Top ${stores.length} most active stores:\n\n`;
+	for (const store of stores) {
+		const activity = store.changes + store.actionsStarted;
+		summary += `\u2022 ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} actions)\n`;
+		if (store.actionsErrored > 0) {
+			summary += `  \u26A0\uFE0F  ${store.actionsErrored} errors\n`;
+		}
+	}
+	return summary;
+}
+
+export function buildRuntimeOverviewSummary(args: {
+	stats: LoggerStatsSnapshot;
+	noisyStores: StoreRuntimeStats[];
+	errorProneStores: StoreRuntimeStats[];
+	unmountedStores: StoreRuntimeStats[];
+	windowMs?: number;
+	activeStoresCount?: number;
+}): string {
+	const { stats, noisyStores, errorProneStores, unmountedStores, windowMs, activeStoresCount } =
+		args;
+
+	let summary = "=== Nanostores Runtime Overview ===\n\n";
+	summary += `Session started: ${new Date(stats.sessionStartedAt).toISOString()}\n`;
+	summary += `Last event: ${new Date(stats.lastEventAt).toISOString()}\n`;
+	summary += `Total events: ${stats.totalEvents}\n`;
+	summary += `Total stores seen: ${stats.stores.length}\n`;
+	if (windowMs && activeStoresCount !== undefined) {
+		summary += `Active in last ${windowMs}ms: ${activeStoresCount}\n`;
+	}
+	summary += "\n";
+
+	if (noisyStores.length > 0) {
+		summary += `\uD83D\uDD25 Top 5 most active stores:\n`;
+		for (const store of noisyStores) {
+			summary += `  \u2022 ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} actions\n`;
+		}
+		summary += "\n";
+	}
+
+	if (errorProneStores.length > 0) {
+		summary += `\u26A0\uFE0F  Stores with errors:\n`;
+		for (const store of errorProneStores) {
+			summary += `  \u2022 ${store.storeName}: ${store.actionsErrored} errors out of ${store.actionsStarted} actions\n`;
+			if (store.lastError) {
+				summary += `    Last error: ${new Date(store.lastError.timestamp).toISOString()}\n`;
+			}
+		}
+		summary += "\n";
+	}
+
+	if (unmountedStores.length > 0) {
+		summary += `\uD83D\uDCAC Stores never mounted (${unmountedStores.length}):\n`;
+		for (const store of unmountedStores.slice(0, 10)) {
+			summary += `  \u2022 ${store.storeName}\n`;
+		}
+		if (unmountedStores.length > 10) {
+			summary += `  ... and ${unmountedStores.length - 10} more\n`;
+		}
+		summary += "\n";
+	}
+
+	if (
+		stats.stores.length === 0 ||
+		(noisyStores.length === 0 && errorProneStores.length === 0)
+	) {
+		summary +=
+			"\uD83D\uDCED No runtime activity detected. Make sure:\n" +
+			"  1. Your app is running with @nanostores/logger integration\n" +
+			"  2. Logger bridge is enabled (NANOSTORES_MCP_LOGGER_ENABLED=true)\n" +
+			"  3. Events are being sent to the correct port\n";
+	}
+
+	return summary;
+}
+
 // ── Input / Output schemas ───────────────────────────────────────────────────
 
 const StoreActivityInputSchema = z.object({
@@ -135,36 +260,7 @@ export function registerStoreActivityTool(
 				stats = runtimeService.getStats();
 			}
 
-			// Build summary
-			let summary = "";
-			if (storeName) {
-				if (!stats) {
-					summary = `No runtime data found for store "${storeName}". The store may not be instrumented or no events have been received yet.`;
-				} else if ("mounts" in stats) {
-					// StoreRuntimeStats
-					summary = `Store "${storeName}"`;
-					if (hasStaticData) {
-						summary += " (combined with static analysis data)";
-					}
-					summary += ":\n";
-					summary += `- Mounted: ${stats.mounts} times\n`;
-					summary += `- Changes: ${stats.changes}\n`;
-					summary += `- Actions started: ${stats.actionsStarted}\n`;
-					summary += `- Actions completed: ${stats.actionsCompleted}\n`;
-					summary += `- Actions errored: ${stats.actionsErrored}\n`;
-					summary += `- Recent events: ${events.length}`;
-					if (stats.lastChange) {
-						summary += `\n- Last change: ${new Date(stats.lastChange.timestamp).toISOString()}`;
-					}
-				}
-			} else if (stats && "stores" in stats) {
-				// LoggerStatsSnapshot
-				summary = `Overall activity:\n`;
-				summary += `- Total stores: ${stats.stores.length}\n`;
-				summary += `- Total events: ${stats.totalEvents}\n`;
-				summary += `- Session started: ${new Date(stats.sessionStartedAt).toISOString()}\n`;
-				summary += `- Last event: ${new Date(stats.lastEventAt).toISOString()}`;
-			}
+			const summary = buildStoreActivitySummary(storeName, stats, hasStaticData, events.length);
 
 			const output = {
 				storeName,
@@ -227,19 +323,7 @@ export function registerFindNoisyStoresTool(
 				filteredStores = noisyStores.filter(s => s.lastSeen >= sinceTs);
 			}
 
-			let summary = "";
-			if (filteredStores.length === 0) {
-				summary = "No active stores found.";
-			} else {
-				summary = `Top ${filteredStores.length} most active stores:\n\n`;
-				for (const store of filteredStores) {
-					const activity = store.changes + store.actionsStarted;
-					summary += `• ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} actions)\n`;
-					if (store.actionsErrored > 0) {
-						summary += `  ⚠️  ${store.actionsErrored} errors\n`;
-					}
-				}
-			}
+			const summary = buildNoisyStoresSummary(filteredStores);
 
 			const output = {
 				stores: filteredStores,
@@ -300,62 +384,20 @@ export function registerRuntimeOverviewTool(
 			const unmountedStores = runtimeService.getUnmountedStores();
 
 			// Filter by time window if specified
-			let activeStores = stats.stores;
+			let activeStoresCount: number | undefined;
 			if (windowMs) {
 				const sinceTs = Date.now() - windowMs;
-				activeStores = stats.stores.filter(s => s.lastSeen >= sinceTs);
+				activeStoresCount = stats.stores.filter(s => s.lastSeen >= sinceTs).length;
 			}
 
-			let summary = "=== Nanostores Runtime Overview ===\n\n";
-			summary += `Session started: ${new Date(stats.sessionStartedAt).toISOString()}\n`;
-			summary += `Last event: ${new Date(stats.lastEventAt).toISOString()}\n`;
-			summary += `Total events: ${stats.totalEvents}\n`;
-			summary += `Total stores seen: ${stats.stores.length}\n`;
-			if (windowMs) {
-				summary += `Active in last ${windowMs}ms: ${activeStores.length}\n`;
-			}
-			summary += "\n";
-
-			if (noisyStores.length > 0) {
-				summary += `🔥 Top 5 most active stores:\n`;
-				for (const store of noisyStores) {
-					summary += `  • ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} actions\n`;
-				}
-				summary += "\n";
-			}
-
-			if (errorProneStores.length > 0) {
-				summary += `⚠️  Stores with errors:\n`;
-				for (const store of errorProneStores) {
-					summary += `  • ${store.storeName}: ${store.actionsErrored} errors out of ${store.actionsStarted} actions\n`;
-					if (store.lastError) {
-						summary += `    Last error: ${new Date(store.lastError.timestamp).toISOString()}\n`;
-					}
-				}
-				summary += "\n";
-			}
-
-			if (unmountedStores.length > 0) {
-				summary += `💤 Stores never mounted (${unmountedStores.length}):\n`;
-				for (const store of unmountedStores.slice(0, 10)) {
-					summary += `  • ${store.storeName}\n`;
-				}
-				if (unmountedStores.length > 10) {
-					summary += `  ... and ${unmountedStores.length - 10} more\n`;
-				}
-				summary += "\n";
-			}
-
-			if (
-				stats.stores.length === 0 ||
-				(noisyStores.length === 0 && errorProneStores.length === 0)
-			) {
-				summary +=
-					"📭 No runtime activity detected. Make sure:\n" +
-					"  1. Your app is running with @nanostores/logger integration\n" +
-					"  2. Logger bridge is enabled (NANOSTORES_MCP_LOGGER_ENABLED=true)\n" +
-					"  3. Events are being sent to the correct port\n";
-			}
+			const summary = buildRuntimeOverviewSummary({
+				stats,
+				noisyStores,
+				errorProneStores,
+				unmountedStores,
+				windowMs,
+				activeStoresCount,
+			});
 
 			const output = {
 				summary,

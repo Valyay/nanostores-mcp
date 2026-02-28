@@ -1,51 +1,8 @@
 import { describe, expect, it } from "vitest";
-
-/**
- * Test the query parameter parsing and key normalization logic
- * used by runtime MCP resource handlers (src/mcp/resources/runtime.ts).
- *
- * We replicate the logic here because the actual handlers are registered
- * as callbacks on McpServer and not directly callable.
- */
-
-/** Mirrors the events filter parsing at runtime.ts:57-63 */
-function parseEventsFilter(searchParams: URLSearchParams): {
-	storeName?: string;
-	kinds: string[];
-	sinceTs?: number;
-	limit: number;
-	actionName?: string;
-} {
-	return {
-		storeName: searchParams.get("storeName") || undefined,
-		kinds: searchParams.getAll("kind"),
-		sinceTs: searchParams.has("since")
-			? Number.parseInt(searchParams.get("since")!, 10)
-			: undefined,
-		limit: searchParams.has("limit") ? Number.parseInt(searchParams.get("limit")!, 10) : 100,
-		actionName: searchParams.get("actionName") || undefined,
-	};
-}
-
-/** Mirrors the store key normalization at runtime.ts:173-190 */
-function normalizeStoreKey(key: string): { cleanStoreName: string; candidates: string[] } {
-	let storeName = key;
-
-	if (storeName.startsWith("store:")) {
-		const hashIndex = storeName.indexOf("#");
-		if (hashIndex !== -1) {
-			storeName = storeName.slice(hashIndex + 1);
-		}
-	}
-
-	const cleanStoreName = storeName.startsWith("$") ? storeName.slice(1) : storeName;
-
-	// Both with and without $ prefix are tried
-	return {
-		cleanStoreName,
-		candidates: [`$${cleanStoreName}`, cleanStoreName],
-	};
-}
+import {
+	parseEventsFilter,
+	normalizeStoreKey,
+} from "../../../src/mcp/resources/runtime.ts";
 
 describe("runtime resource: events filter parsing", () => {
 	it("parses standard query params", () => {
@@ -87,7 +44,7 @@ describe("runtime resource: events filter parsing", () => {
 	it("treats absent params as undefined", () => {
 		const filter = parseEventsFilter(new URLSearchParams());
 		expect(filter.storeName).toBeUndefined();
-		expect(filter.kinds).toEqual([]);
+		expect(filter.kinds).toBeUndefined();
 		expect(filter.sinceTs).toBeUndefined();
 		expect(filter.actionName).toBeUndefined();
 	});
@@ -115,9 +72,10 @@ describe("runtime resource: store key normalization", () => {
 	});
 
 	it("handles store: prefix without # (no name segment)", () => {
-		// When there's no #, the key stays as "store:path"
+		// When there's no #, the full store ID is the only candidate
 		const result = normalizeStoreKey("store:src/stores.ts");
 		expect(result.cleanStoreName).toBe("store:src/stores.ts");
+		expect(result.candidates).toEqual(["store:src/stores.ts"]);
 	});
 
 	it("handles key with multiple # characters", () => {

@@ -8,6 +8,41 @@ import type {
 import { toToon } from "../../shared/toon.js";
 import { URIS } from "../uris.js";
 
+export function parseEventsFilter(searchParams: URLSearchParams): LoggerEventFilter {
+	return {
+		storeName: searchParams.get("storeName") || undefined,
+		kinds:
+			searchParams.getAll("kind").length > 0
+				? (searchParams.getAll("kind") as NanostoresLoggerEvent["kind"][])
+				: undefined,
+		sinceTs: searchParams.has("since")
+			? Number.parseInt(searchParams.get("since")!, 10)
+			: undefined,
+		limit: searchParams.has("limit") ? Number.parseInt(searchParams.get("limit")!, 10) : 100,
+		actionName: searchParams.get("actionName") || undefined,
+	};
+}
+
+export function normalizeStoreKey(key: string): { cleanStoreName: string; candidates: string[] } {
+	let storeName = key;
+
+	if (storeName.startsWith("store:")) {
+		const hashIndex = storeName.indexOf("#");
+		if (hashIndex !== -1) {
+			storeName = storeName.slice(hashIndex + 1);
+		} else {
+			return { cleanStoreName: storeName, candidates: [storeName] };
+		}
+	}
+
+	const cleanStoreName = storeName.startsWith("$") ? storeName.slice(1) : storeName;
+
+	return {
+		cleanStoreName,
+		candidates: [`$${cleanStoreName}`, cleanStoreName],
+	};
+}
+
 /**
  * Runtime events resource:
  *   nanostores://runtime/events
@@ -52,15 +87,7 @@ export function registerRuntimeEventsResource(
 		},
 		async uri => {
 			const url = new URL(uri.href);
-			const params = url.searchParams;
-
-			const filter: LoggerEventFilter = {
-				storeName: params.get("storeName") || undefined,
-				kinds: params.getAll("kind") as NanostoresLoggerEvent["kind"][],
-				sinceTs: params.has("since") ? Number.parseInt(params.get("since")!, 10) : undefined,
-				limit: params.has("limit") ? Number.parseInt(params.get("limit")!, 10) : 100,
-				actionName: params.get("actionName") || undefined,
-			};
+			const filter = parseEventsFilter(url.searchParams);
 
 			const events = runtimeService.getEvents(filter);
 			const stats = runtimeService.getStats();
@@ -168,25 +195,12 @@ export function registerRuntimeStoreResource(
 			const url = new URL(uri.href);
 			const projectRoot = url.searchParams.get("projectRoot") || undefined;
 
-			// Try to extract store name from key
-			// key can be either "$storeName", "storeName", or "store:path#$storeName"
-			let storeName = key as string;
-
-			if (storeName.startsWith("store:")) {
-				// Extract from full id: "store:src/stores/cart.ts#$cartTotal" -> "$cartTotal"
-				const hashIndex = storeName.indexOf("#");
-				if (hashIndex !== -1) {
-					storeName = storeName.slice(hashIndex + 1);
-				}
-			}
-
-			// Remove $ prefix if present for matching
-			const cleanStoreName = storeName.startsWith("$") ? storeName.slice(1) : storeName;
+			const { candidates } = normalizeStoreKey(key as string);
 
 			// Try both with and without $ prefix, pass projectRoot for static data linking
-			let profile = await runtimeService.getStoreProfile(`$${cleanStoreName}`, projectRoot);
-			if (!profile) {
-				profile = await runtimeService.getStoreProfile(cleanStoreName, projectRoot);
+			let profile = await runtimeService.getStoreProfile(candidates[0], projectRoot);
+			if (!profile && candidates[1]) {
+				profile = await runtimeService.getStoreProfile(candidates[1], projectRoot);
 			}
 
 			if (!profile) {

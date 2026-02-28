@@ -12,9 +12,33 @@ const PingOutputSchema = z.object({
 		.object({
 			enabled: z.boolean(),
 			url: z.string().optional(),
+			error: z.string().optional(),
 		})
 		.optional(),
 });
+
+export function buildLoggerBridgeStatusText(
+	loggerInfo?: { enabled: boolean; url?: string; error?: string },
+): string {
+	if (!loggerInfo) return "";
+
+	if (loggerInfo.error) {
+		return (
+			`\n\nLogger Bridge: enabled but not running` + `\nError: ${loggerInfo.error}`
+		);
+	}
+	if (loggerInfo.url) {
+		return (
+			`\n\nLogger Bridge: enabled` +
+			`\nListening on: ${loggerInfo.url}` +
+			`\nConfigure client to send events to: POST ${loggerInfo.url}/nanostores-logger`
+		);
+	}
+	if (!loggerInfo.enabled) {
+		return `\n\nLogger Bridge: disabled`;
+	}
+	return `\n\nLogger Bridge: enabled (starting...)`;
+}
 
 export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeServer): void {
 	server.registerTool(
@@ -39,15 +63,9 @@ export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeS
 				loggerBridge: loggerInfo,
 			};
 
-			let text = `Nanostores MCP server is alive: ${message}`;
-
-			if (loggerInfo) {
-				text += `\n\nLogger Bridge: ${loggerInfo.enabled ? "enabled" : "disabled"}`;
-				if (loggerInfo.url) {
-					text += `\nListening on: ${loggerInfo.url}`;
-					text += `\nConfigure client to send events to: POST ${loggerInfo.url}/nanostores-logger`;
-				}
-			}
+			const text =
+				`Nanostores MCP server is alive: ${message}` +
+				buildLoggerBridgeStatusText(loggerInfo);
 
 			return {
 				content: [
