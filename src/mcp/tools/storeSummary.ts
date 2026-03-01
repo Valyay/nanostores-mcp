@@ -106,6 +106,11 @@ export function registerStoreSummaryTool(
 				// Use project service to find the store
 				const store = await projectService.getStoreByKey(rootPath, key, file);
 
+				// TODO: This not-found path returns text-only without structuredContent,
+				// which violates the declared outputSchema (StoreSummaryOutputSchema).
+				// MCP SDK v1.23+ enforces output schema compliance and rejects this
+				// response with -32602 "Output validation error". The error path below
+				// has the same issue. Both must return structuredContent to comply.
 				if (!store) {
 					return {
 						content: [
@@ -123,6 +128,8 @@ export function registerStoreSummaryTool(
 					store,
 				);
 
+				// TODO: resolutionBy is hardcoded to "name" — should be "id" when
+				// storeId was provided. Affects both structuredContent and text output.
 				const structuredContent = buildStoreStructuredContent({
 					store,
 					requestedKey: key,
@@ -157,6 +164,8 @@ export function registerStoreSummaryTool(
 					],
 				};
 			} catch (error) {
+				// TODO: Same outputSchema violation as the not-found path above —
+				// missing structuredContent causes MCP SDK -32602 rejection.
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
 				return {
 					content: [
