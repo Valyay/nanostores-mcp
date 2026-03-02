@@ -59,44 +59,57 @@ export function registerDocsSearchTool(server: McpServer, docsService: DocsServi
 				};
 			}
 
-			const result = await docsService.search(query, { limit, tags });
+			try {
+				const result = await docsService.search(query, { limit, tags });
 
-			const results = result.hits.map(hit => ({
-				pageId: hit.page.id,
-				title: hit.page.title,
-				url: hit.page.url,
-				headingPath: hit.chunk.headingPath,
-				snippet: hit.chunk.text.slice(0, 200).replace(/\n/g, " "),
-				score: hit.score,
-			}));
+				const results = result.hits.map(hit => ({
+					pageId: hit.page.id,
+					title: hit.page.title,
+					url: hit.page.url,
+					headingPath: hit.chunk.headingPath,
+					snippet: hit.chunk.text.slice(0, 200).replace(/\n/g, " "),
+					score: hit.score,
+				}));
 
-			let summary = `Found ${results.length} results for "${query}"`;
-			if (tags) summary += ` (tags: ${tags.join(", ")})`;
-			summary += "\n\n";
+				let summary = `Found ${results.length} results for "${query}"`;
+				if (tags) summary += ` (tags: ${tags.join(", ")})`;
+				summary += "\n\n";
 
-			for (const [i, res] of results.entries()) {
-				summary += `${i + 1}. ${res.title}`;
-				if (res.headingPath.length > 0) {
-					summary += ` > ${res.headingPath.join(" > ")}`;
+				for (const [i, res] of results.entries()) {
+					summary += `${i + 1}. ${res.title}`;
+					if (res.headingPath.length > 0) {
+						summary += ` > ${res.headingPath.join(" > ")}`;
+					}
+					summary += `\n   ${res.snippet}...\n`;
+					summary += `   [Read more: ${URIS.docsPage(res.pageId)}]\n\n`;
 				}
-				summary += `\n   ${res.snippet}...\n`;
-				summary += `   [Read more: ${URIS.docsPage(res.pageId)}]\n\n`;
+
+				const output = {
+					query,
+					results,
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: summary,
+						},
+					],
+					structuredContent: output,
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to search documentation.\n\nQuery: ${query}\nError: ${msg}`,
+						},
+					],
+				};
 			}
-
-			const output = {
-				query,
-				results,
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summary,
-					},
-				],
-				structuredContent: output,
-			};
 		},
 	);
 }
@@ -158,75 +171,88 @@ export function registerDocsForStoreTool(server: McpServer, docsService: DocsSer
 				};
 			}
 
-			// Build search query based on store kind
-			const queries: string[] = [];
-			if (kindHint === "atom") {
-				queries.push("atom primitive value", "createAtom");
-			} else if (kindHint === "map") {
-				queries.push("map object store", "createMap");
-			} else if (kindHint === "computed") {
-				queries.push("computed derived", "computed store");
-			} else if (kindHint === "persistent") {
-				queries.push("persistent localStorage", "persistentAtom persistentMap");
-			} else {
-				queries.push("store best practices");
-			}
+			try {
+				// Build search query based on store kind
+				const queries: string[] = [];
+				if (kindHint === "atom") {
+					queries.push("atom primitive value", "createAtom");
+				} else if (kindHint === "map") {
+					queries.push("map object store", "createMap");
+				} else if (kindHint === "computed") {
+					queries.push("computed derived", "computed store");
+				} else if (kindHint === "persistent") {
+					queries.push("persistent localStorage", "persistentAtom persistentMap");
+				} else {
+					queries.push("store best practices");
+				}
 
-			// Always add general best practices
-			queries.push("best practices patterns");
+				// Always add general best practices
+				queries.push("best practices patterns");
 
-			const allResults = new Map<string, { page: DocPage; score: number; reason: string }>();
+				const allResults = new Map<string, { page: DocPage; score: number; reason: string }>();
 
-			for (const query of queries) {
-				const result = await docsService.search(query, { limit: 3 });
+				for (const query of queries) {
+					const result = await docsService.search(query, { limit: 3 });
 
-				for (const hit of result.hits) {
-					const existing = allResults.get(hit.page.id);
-					if (!existing || existing.score < hit.score) {
-						allResults.set(hit.page.id, {
-							page: hit.page,
-							score: hit.score,
-							reason: `Relevant for ${kindHint || "store"} type`,
-						});
+					for (const hit of result.hits) {
+						const existing = allResults.get(hit.page.id);
+						if (!existing || existing.score < hit.score) {
+							allResults.set(hit.page.id, {
+								page: hit.page,
+								score: hit.score,
+								reason: `Relevant for ${kindHint || "store"} type`,
+							});
+						}
 					}
 				}
+
+				const relevantDocs = Array.from(allResults.values())
+					.sort((a, b) => b.score - a.score)
+					.slice(0, 5)
+					.map(r => ({
+						pageId: r.page.id,
+						title: r.page.title,
+						url: r.page.url,
+						reason: r.reason,
+					}));
+
+				let summary = `Documentation for store "${storeName}"`;
+				if (kindHint) summary += ` (${kindHint})`;
+				summary += ":\n\n";
+
+				for (const [i, doc] of relevantDocs.entries()) {
+					summary += `${i + 1}. ${doc.title}\n`;
+					summary += `   ${doc.reason}\n`;
+					summary += `   [Read: ${URIS.docsPage(doc.pageId)}]\n\n`;
+				}
+
+				const output = {
+					storeName,
+					kind: kindHint,
+					relevantDocs,
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: summary,
+						},
+					],
+					structuredContent: output,
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to find docs for store.\n\nStore: ${storeName}\nError: ${msg}`,
+						},
+					],
+				};
 			}
-
-			const relevantDocs = Array.from(allResults.values())
-				.sort((a, b) => b.score - a.score)
-				.slice(0, 5)
-				.map(r => ({
-					pageId: r.page.id,
-					title: r.page.title,
-					url: r.page.url,
-					reason: r.reason,
-				}));
-
-			let summary = `Documentation for store "${storeName}"`;
-			if (kindHint) summary += ` (${kindHint})`;
-			summary += ":\n\n";
-
-			for (const [i, doc] of relevantDocs.entries()) {
-				summary += `${i + 1}. ${doc.title}\n`;
-				summary += `   ${doc.reason}\n`;
-				summary += `   [Read: ${URIS.docsPage(doc.pageId)}]\n\n`;
-			}
-
-			const output = {
-				storeName,
-				kind: kindHint,
-				relevantDocs,
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summary,
-					},
-				],
-				structuredContent: output,
-			};
 		},
 	);
 }

@@ -75,16 +75,14 @@ describe("Tools", () => {
 			}
 		});
 
-		it("returns errors in structuredContent for out-of-roots path", async () => {
+		it("returns isError for out-of-roots path", async () => {
 			const ctx = await setup();
 			try {
-				const result = await ctx.callTool("scan_project", {
-					rootUri: "/nonexistent/outside/workspace",
-				});
-				const sc = result.structuredContent as { errors?: string[] };
-
-				expect(sc.errors).toBeDefined();
-				expect(sc.errors!.length).toBeGreaterThan(0);
+				await expect(
+					ctx.callTool("scan_project", {
+						rootUri: "/nonexistent/outside/workspace",
+					}),
+				).rejects.toThrow(/outside of allowed roots/i);
 			} finally {
 				await ctx.cleanup();
 			}
@@ -121,18 +119,12 @@ describe("Tools", () => {
 			}
 		});
 
-		// TODO: fix store_summary handler — not-found and error paths must return
-		// structuredContent to satisfy the declared outputSchema. Once fixed,
-		// this test should assert on the text response instead of the SDK rejection.
-		it("returns error for unknown store name (output schema violation)", async () => {
+		it("returns isError for unknown store name", async () => {
 			const ctx = await setup();
 			try {
-				// store_summary declares outputSchema, but the not-found path returns
-				// text-only without structuredContent. The MCP SDK rejects this with
-				// -32602 "Output validation error".
 				await expect(
 					ctx.callTool("store_summary", { name: "$nonExistentStore" }),
-				).rejects.toThrow(/output validation error/i);
+				).rejects.toThrow(/store not found/i);
 			} finally {
 				await ctx.cleanup();
 			}

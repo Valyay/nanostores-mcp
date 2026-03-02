@@ -242,42 +242,55 @@ export function registerStoreActivityTool(
 			},
 		},
 		async ({ storeName, limit, windowMs, projectRoot }) => {
-			const sinceTs = windowMs ? Date.now() - windowMs : undefined;
+			try {
+				const sinceTs = windowMs ? Date.now() - windowMs : undefined;
 
-			const events = runtimeService.getEvents({
-				storeName,
-				limit,
-				sinceTs,
-			});
+				const events = runtimeService.getEvents({
+					storeName,
+					limit,
+					sinceTs,
+				});
 
-			let stats = null;
-			let hasStaticData = false;
-			if (storeName) {
-				const profile = await runtimeService.getStoreProfile(storeName, projectRoot);
-				stats = profile?.stats ?? null;
-				hasStaticData = !!(profile?.id || profile?.kind || profile?.file);
-			} else {
-				stats = runtimeService.getStats();
+				let stats = null;
+				let hasStaticData = false;
+				if (storeName) {
+					const profile = await runtimeService.getStoreProfile(storeName, projectRoot);
+					stats = profile?.stats ?? null;
+					hasStaticData = !!(profile?.id || profile?.kind || profile?.file);
+				} else {
+					stats = runtimeService.getStats();
+				}
+
+				const summary = buildStoreActivitySummary(storeName, stats, hasStaticData, events.length);
+
+				const output = {
+					storeName,
+					stats,
+					events,
+					summary,
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: summary,
+						},
+					],
+					structuredContent: output,
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to get store activity.\n\nError: ${msg}`,
+						},
+					],
+				};
 			}
-
-			const summary = buildStoreActivitySummary(storeName, stats, hasStaticData, events.length);
-
-			const output = {
-				storeName,
-				stats,
-				events,
-				summary,
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summary,
-					},
-				],
-				structuredContent: output,
-			};
 		},
 	);
 }
@@ -314,31 +327,44 @@ export function registerFindNoisyStoresTool(
 			},
 		},
 		async ({ limit, windowMs }) => {
-			const noisyStores = runtimeService.getNoisyStores(limit);
+			try {
+				const noisyStores = runtimeService.getNoisyStores(limit);
 
-			// Filter by time window if specified
-			let filteredStores = noisyStores;
-			if (windowMs) {
-				const sinceTs = Date.now() - windowMs;
-				filteredStores = noisyStores.filter(s => s.lastSeen >= sinceTs);
+				// Filter by time window if specified
+				let filteredStores = noisyStores;
+				if (windowMs) {
+					const sinceTs = Date.now() - windowMs;
+					filteredStores = noisyStores.filter(s => s.lastSeen >= sinceTs);
+				}
+
+				const summary = buildNoisyStoresSummary(filteredStores);
+
+				const output = {
+					stores: filteredStores,
+					summary,
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: summary,
+						},
+					],
+					structuredContent: output,
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to find noisy stores.\n\nError: ${msg}`,
+						},
+					],
+				};
 			}
-
-			const summary = buildNoisyStoresSummary(filteredStores);
-
-			const output = {
-				stores: filteredStores,
-				summary,
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summary,
-					},
-				],
-				structuredContent: output,
-			};
 		},
 	);
 }
@@ -378,44 +404,57 @@ export function registerRuntimeOverviewTool(
 			},
 		},
 		async ({ windowMs }) => {
-			const stats = runtimeService.getStats();
-			const noisyStores = runtimeService.getNoisyStores(5);
-			const errorProneStores = runtimeService.getErrorProneStores(1);
-			const unmountedStores = runtimeService.getUnmountedStores();
+			try {
+				const stats = runtimeService.getStats();
+				const noisyStores = runtimeService.getNoisyStores(5);
+				const errorProneStores = runtimeService.getErrorProneStores(1);
+				const unmountedStores = runtimeService.getUnmountedStores();
 
-			// Filter by time window if specified
-			let activeStoresCount: number | undefined;
-			if (windowMs) {
-				const sinceTs = Date.now() - windowMs;
-				activeStoresCount = stats.stores.filter(s => s.lastSeen >= sinceTs).length;
+				// Filter by time window if specified
+				let activeStoresCount: number | undefined;
+				if (windowMs) {
+					const sinceTs = Date.now() - windowMs;
+					activeStoresCount = stats.stores.filter(s => s.lastSeen >= sinceTs).length;
+				}
+
+				const summary = buildRuntimeOverviewSummary({
+					stats,
+					noisyStores,
+					errorProneStores,
+					unmountedStores,
+					windowMs,
+					activeStoresCount,
+				});
+
+				const output = {
+					summary,
+					stats,
+					noisyStores,
+					errorProneStores,
+					unmountedStores,
+				};
+
+				return {
+					content: [
+						{
+							type: "text",
+							text: summary,
+						},
+					],
+					structuredContent: output,
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to get runtime overview.\n\nError: ${msg}`,
+						},
+					],
+				};
 			}
-
-			const summary = buildRuntimeOverviewSummary({
-				stats,
-				noisyStores,
-				errorProneStores,
-				unmountedStores,
-				windowMs,
-				activeStoresCount,
-			});
-
-			const output = {
-				summary,
-				stats,
-				noisyStores,
-				errorProneStores,
-				unmountedStores,
-			};
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: summary,
-					},
-				],
-				structuredContent: output,
-			};
 		},
 	);
 }

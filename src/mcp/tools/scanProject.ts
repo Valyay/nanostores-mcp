@@ -173,7 +173,10 @@ export function registerScanProjectTool(
 				return buildScanProjectResponse(result);
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
-				return buildScanProjectResponse(null, msg);
+				return {
+					...buildScanProjectResponse(null, msg),
+					isError: true,
+				};
 			}
 		},
 	);

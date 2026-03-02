@@ -113,6 +113,7 @@ export function registerStoreSummaryTool(
 				// has the same issue. Both must return structuredContent to comply.
 				if (!store) {
 					return {
+						isError: true,
 						content: [
 							{
 								type: "text",
@@ -168,6 +169,7 @@ export function registerStoreSummaryTool(
 				// missing structuredContent causes MCP SDK -32602 rejection.
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
 				return {
+					isError: true,
 					content: [
 						{
 							type: "text",
