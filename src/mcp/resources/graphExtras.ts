@@ -1,4 +1,5 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { buildGraphOutline, buildIdDictionary, buildStoreSubgraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
@@ -110,15 +111,10 @@ export function registerStoreSubgraphResource(
 			const radiusParam = url.searchParams.get("radius");
 
 			if (!storeParam) {
-				return {
-					contents: [
-						{
-							uri: uri.href,
-							mimeType: "text/plain",
-							text: "Missing required query parameter: store",
-						},
-					],
-				};
+				throw new McpError(
+					ErrorCode.InvalidParams,
+					"Missing required query parameter: store",
+				);
 			}
 
 			const radius = radiusParam ? Number.parseInt(radiusParam, 10) : 2;
@@ -154,6 +150,7 @@ export function registerStoreSubgraphResource(
 					structuredContent: subgraph,
 				};
 			} catch (error) {
+				if (error instanceof McpError) throw error;
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
 				return {
 					contents: [

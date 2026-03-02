@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
@@ -96,7 +97,10 @@ export function registerStoreSummaryTool(
 		},
 		async ({ storeId, name, file }) => {
 			if (!storeId && !name) {
-				throw new Error("Either 'storeId' or 'name' must be provided to store_summary");
+				throw new McpError(
+					ErrorCode.InvalidParams,
+					"Either 'storeId' or 'name' must be provided to store_summary",
+				);
 			}
 
 			const rootPath = resolveWorkspaceRoot();
