@@ -57,9 +57,9 @@ const isMainModule =
 	pathToFileURL(process.argv[1]).href === import.meta.url;
 
 if (isMainModule) {
-	main().catch(error => {
-		// eslint-disable-next-line no-console
-		console.error("[nanostores-mcp] Fatal error:", error);
+	main().catch((error: unknown) => {
+		const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+		process.stderr.write(`[nanostores-mcp] Fatal error: ${detail}\n`);
 		process.exit(1);
 	});
 }

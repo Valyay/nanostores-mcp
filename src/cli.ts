@@ -6,8 +6,8 @@
 
 import { main } from "./index.js";
 
-main().catch(error => {
-	// eslint-disable-next-line no-console
-	console.error("[nanostores-mcp] CLI error:", error);
+main().catch((error: unknown) => {
+	const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+	process.stderr.write(`[nanostores-mcp] CLI error: ${detail}\n`);
 	process.exit(1);
 });
