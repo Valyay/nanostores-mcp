@@ -54,7 +54,7 @@ export async function scanProject(
 		}
 	} catch (err) {
 		if (isErrnoException(err) && err.code === "ENOENT") {
-			throw new Error(`Workspace root does not exist: ${absRoot}`);
+			throw new Error(`Workspace root does not exist: ${absRoot}`, { cause: err });
 		}
 		throw err;
 	}

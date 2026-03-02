@@ -159,7 +159,7 @@ export function buildMermaidFromGraph(graph: StoreGraph): string {
 
 		let fromId = edge.from;
 		let toId = edge.to;
-		let label = "";
+		let label: string;
 
 		if (edge.type === "subscribes_to") {
 			// in index: subscriber -> store (depends on)

@@ -37,7 +37,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "lint": "eslint . --ext .ts,.tsx,.js,.cjs,.mjs",
+    "lint": "eslint .",
     "lint:fix": "pnpm run lint -- --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
@@ -55,7 +55,7 @@
   ],
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
@@ -69,19 +69,17 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.10.0",
-    "@typescript-eslint/eslint-plugin": "^8.48.0",
-    "@typescript-eslint/parser": "^8.48.0",
     "@vitest/coverage-v8": "^4.0.18",
     "@vue/compiler-sfc": "^3.5.27",
-    "eslint": "^9.39.0",
+    "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.7.0",
     "svelte": "^5.49.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
-    "typescript-eslint": "^8.48.0",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.17"
   }
 }

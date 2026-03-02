@@ -101,8 +101,8 @@ function createRuntimeFixture() {
 	eventStore.addMany([...countEvents, ...cartEvents]);
 
 	const repository = {
-		getIndex: async (_root: string) => projectIndex,
-		clearCache: (_root?: string) => {},
+		getIndex: async () => projectIndex,
+		clearCache: () => {},
 	};
 	const projectService = createProjectAnalysisService(repository);
 	const runtimeService = createRuntimeAnalysisService(eventStore, projectService, {

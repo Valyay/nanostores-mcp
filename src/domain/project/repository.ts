@@ -66,7 +66,7 @@ export function createProjectIndexRepository(cacheTtlMs: number = 30_000): Proje
 				return inFlight;
 			}
 
-			const scanPromise = (async () => {
+			const scanPromise = (async (): Promise<ProjectIndex> => {
 				// Scan project (without internal caching - scanner is now pure)
 				const index = await scanProject(root, opts);
 

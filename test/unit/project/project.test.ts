@@ -278,8 +278,8 @@ describe("project domain: graph and summary builders", () => {
 describe("project domain: project analysis service", () => {
 	it("exposes store names and runtime key resolution", async () => {
 		const repository = {
-			getIndex: async (_root: string) => projectIndex,
-			clearCache: (_root?: string) => {},
+			getIndex: async () => projectIndex,
+			clearCache: () => {},
 		};
 		const service = createProjectAnalysisService(repository);
 

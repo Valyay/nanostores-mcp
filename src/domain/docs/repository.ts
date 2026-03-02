@@ -145,7 +145,7 @@ function createChunks(page: DocPage, text: string, maxChunkLength: number): DocC
 	if (headings.length === 0) {
 		const chunkText = text.slice(0, maxChunkLength);
 		chunks.push({
-			id: `${page.id}#chunk-${chunkId++}`,
+			id: `${page.id}#chunk-${chunkId}`,
 			pageId: page.id,
 			headingPath: [],
 			text: chunkText,
