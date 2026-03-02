@@ -58,7 +58,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.23.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@nanostores/logger": "^1.0.0",
     "@toon-format/toon": "^0.6.0",
     "globby": "^16.0.0",
