@@ -88,8 +88,8 @@ export async function scanProject(
 				const contents = await fs.readFile(filePath, "utf8");
 				const { code, scriptKind, hasScript } =
 					ext === ".vue"
-						? extractScriptsFromVueSfc(contents, filePath)
-						: extractScriptsFromSvelteSfc(contents, filePath);
+						? await extractScriptsFromVueSfc(contents, filePath)
+						: await extractScriptsFromSvelteSfc(contents, filePath);
 
 				if (!hasScript) {
 					project.createSourceFile(filePath, "", { overwrite: true, scriptKind: ScriptKind.JS });

@@ -1,5 +1,3 @@
-import { parse as parseVue } from "@vue/compiler-sfc";
-import { parse as parseSvelte } from "svelte/compiler";
 import type { AST } from "svelte/compiler";
 import { ScriptKind } from "typescript";
 
@@ -7,6 +5,40 @@ export interface SfcScriptResult {
 	code: string;
 	scriptKind: ScriptKind;
 	hasScript: boolean;
+}
+
+const NO_SCRIPT: SfcScriptResult = { code: "", scriptKind: ScriptKind.JS, hasScript: false };
+
+type VueParser = typeof import("@vue/compiler-sfc").parse;
+type SvelteParser = typeof import("svelte/compiler").parse;
+
+let vueParser: VueParser | false | undefined;
+let svelteParser: SvelteParser | false | undefined;
+
+async function getVueParser(): Promise<VueParser | undefined> {
+	if (vueParser === false) return undefined;
+	if (vueParser) return vueParser;
+	try {
+		const mod = await import("@vue/compiler-sfc");
+		vueParser = mod.parse;
+		return vueParser;
+	} catch {
+		vueParser = false;
+		return undefined;
+	}
+}
+
+async function getSvelteParser(): Promise<SvelteParser | undefined> {
+	if (svelteParser === false) return undefined;
+	if (svelteParser) return svelteParser;
+	try {
+		const mod = await import("svelte/compiler");
+		svelteParser = mod.parse;
+		return svelteParser;
+	} catch {
+		svelteParser = false;
+		return undefined;
+	}
 }
 
 type ScriptKindInput = ScriptKind | undefined;
@@ -48,8 +80,14 @@ function formatParseError(errors: unknown[]): Error {
 	return new Error(message);
 }
 
-export function extractScriptsFromVueSfc(contents: string, filePath: string): SfcScriptResult {
-	const { descriptor, errors } = parseVue(contents, { filename: filePath });
+export async function extractScriptsFromVueSfc(
+	contents: string,
+	filePath: string,
+): Promise<SfcScriptResult> {
+	const parse = await getVueParser();
+	if (!parse) return NO_SCRIPT;
+
+	const { descriptor, errors } = parse(contents, { filename: filePath });
 	if (errors.length > 0) {
 		throw formatParseError(errors);
 	}
@@ -119,8 +157,14 @@ function getContentRange(block: AST.Script): Range | undefined {
 	return undefined;
 }
 
-export function extractScriptsFromSvelteSfc(contents: string, filePath: string): SfcScriptResult {
-	const ast = parseSvelte(contents, { filename: filePath, modern: true });
+export async function extractScriptsFromSvelteSfc(
+	contents: string,
+	filePath: string,
+): Promise<SfcScriptResult> {
+	const parse = await getSvelteParser();
+	if (!parse) return NO_SCRIPT;
+
+	const ast = parse(contents, { filename: filePath, modern: true });
 
 	const scripts: Array<{ start: number; code: string; lang?: string }> = [];
 	let scriptKind = ScriptKind.JS;

@@ -11,9 +11,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.27.1
         version: 1.27.1(zod@4.3.6)
-      '@nanostores/logger':
-        specifier: ^1.0.0
-        version: 1.0.0(nanostores@1.1.0)
       '@toon-format/toon':
         specifier: ^2.1.0
         version: 2.1.0
@@ -26,9 +23,6 @@ importers:
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
-      nanostores:
-        specifier: ^1.1.0
-        version: 1.1.0
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2
@@ -39,6 +33,9 @@ importers:
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.0.2)
+      '@nanostores/logger':
+        specifier: ^1.0.0
+        version: 1.0.0(nanostores@1.1.0)
       '@types/node':
         specifier: ^24.10.0
         version: 24.10.1
@@ -54,6 +51,9 @@ importers:
       eslint-config-prettier:
         specifier: ^10.1.8
         version: 10.1.8(eslint@10.0.2)
+      nanostores:
+        specifier: ^1.1.0
+        version: 1.1.0
       prettier:
         specifier: ^3.7.0
         version: 3.7.3
