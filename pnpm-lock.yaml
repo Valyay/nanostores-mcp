@@ -15,8 +15,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(nanostores@1.1.0)
       '@toon-format/toon':
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^2.1.0
+        version: 2.1.0
       globby:
         specifier: ^16.0.0
         version: 16.0.0
@@ -672,8 +672,8 @@ packages:
     peerDependencies:
       acorn: ^8.9.0
 
-  '@toon-format/toon@0.6.0':
-    resolution: {integrity: sha512-yJQsCTkbe1qgsKvMzWXD2Fecn6bzv5b3OHFNU0ctcGv264pqpwYdZFIPTcZcAYMK0IT8cT6gDu2/anhJzJwMqA==}
+  '@toon-format/toon@2.1.0':
+    resolution: {integrity: sha512-JwWptdF5eOA0HaQxbKAzkpQtR4wSWTEfDlEy/y3/4okmOAX1qwnpLZMmtEWr+ncAhTTY1raCKH0kteHhSXnQqg==}
 
   '@ts-morph/common@0.28.1':
     resolution: {integrity: sha512-W74iWf7ILp1ZKNYXY5qbddNaml7e9Sedv5lvU1V8lftlitkc9Pq1A+jlH23ltDgWYeZFFEqGCD1Ies9hqu3O+g==}
@@ -2185,7 +2185,7 @@ snapshots:
     dependencies:
       acorn: 8.15.0
 
-  '@toon-format/toon@0.6.0': {}
+  '@toon-format/toon@2.1.0': {}
 
   '@ts-morph/common@0.28.1':
     dependencies:
