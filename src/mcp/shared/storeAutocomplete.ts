@@ -1,15 +1,14 @@
-import { scanProject } from "../../domain/index.js";
+import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 
 /**
- * Simple cache for store names to avoid running scanProject on every completion.
+ * Callback type for store name autocomplete, used by prompt registrations.
  */
-let cachedRoot: string | null = null;
-let cachedStoreNames: string[] = [];
+export type SuggestStoreNamesFn = (value: string) => Promise<string[]>;
 
-export function resetAutocompleteCache(): void {
-	cachedRoot = null;
-	cachedStoreNames = [];
+export interface StoreAutocompleteFns {
+	suggestStoreNames: SuggestStoreNamesFn;
+	resetCache: () => void;
 }
 
 export function deduplicateAndSort(names: string[]): string[] {
@@ -27,38 +26,39 @@ export function filterStoreNames(allNames: string[], value: string, limit = 20):
 }
 
 /**
- * Get the list of all store names for the current workspace root.
- * Uses cache to avoid scanning the project on every call.
+ * Creates autocomplete functions bound to a ProjectAnalysisService.
+ * Uses the service's built-in cache instead of maintaining a separate scanner call.
+ * A lightweight name cache avoids extracting names on every keystroke.
  */
-export async function getStoreNamesForCurrentRoot(): Promise<string[]> {
-	const root = resolveWorkspaceRoot();
+export function createStoreAutocomplete(
+	projectService: ProjectAnalysisService,
+): StoreAutocompleteFns {
+	let cachedRoot: string | null = null;
+	let cachedNames: string[] = [];
 
-	if (cachedRoot === root && cachedStoreNames.length > 0) {
-		return cachedStoreNames;
+	async function getNames(): Promise<string[]> {
+		const root = resolveWorkspaceRoot();
+		if (cachedRoot === root && cachedNames.length > 0) {
+			return cachedNames;
+		}
+		try {
+			const names = await projectService.getStoreNames(root);
+			cachedRoot = root;
+			cachedNames = names;
+			return names;
+		} catch {
+			return cachedNames;
+		}
 	}
 
-	try {
-		const index = await scanProject(root);
-		const names = index.stores.map(s => s.name ?? "");
-		const unique = deduplicateAndSort(names);
-
-		cachedRoot = root;
-		cachedStoreNames = unique;
-
-		return unique;
-	} catch {
-		return cachedStoreNames;
-	}
-}
-
-/**
- * Get autocomplete suggestions for store names.
- * Filters by substring (case-insensitive) and returns up to 20 results.
- *
- * @param value - User input value for filtering
- * @returns Array of matching store names
- */
-export async function suggestStoreNames(value: string): Promise<string[]> {
-	const allNames = await getStoreNamesForCurrentRoot();
-	return filterStoreNames(allNames, value);
+	return {
+		async suggestStoreNames(value: string): Promise<string[]> {
+			const allNames = await getNames();
+			return filterStoreNames(allNames, value);
+		},
+		resetCache(): void {
+			cachedRoot = null;
+			cachedNames = [];
+		},
+	};
 }

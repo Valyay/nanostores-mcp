@@ -1,5 +1,5 @@
 import type { ProjectIndexRepository } from "./repository.js";
-import type { ProjectIndex, StoreMatch, SubscriberMatch } from "./types.js";
+import type { ProjectIndex, ScanOptions, StoreMatch, SubscriberMatch } from "./types.js";
 import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./lookup.js";
 
 /**
@@ -12,7 +12,7 @@ export interface ProjectAnalysisService {
 	 * Get the full project index for a given root directory
 	 * Results are cached for performance
 	 */
-	getIndex(root: string): Promise<ProjectIndex>;
+	getIndex(root: string, opts?: ScanOptions): Promise<ProjectIndex>;
 
 	/**
 	 * Find a store by key (id, name, or id tail)
@@ -63,8 +63,8 @@ export function createProjectAnalysisService(
 	repository: ProjectIndexRepository,
 ): ProjectAnalysisService {
 	return {
-		async getIndex(root: string): Promise<ProjectIndex> {
-			return repository.getIndex(root);
+		async getIndex(root: string, opts?: ScanOptions): Promise<ProjectIndex> {
+			return repository.getIndex(root, opts);
 		},
 
 		async getStoreByKey(root: string, key: string, file?: string): Promise<StoreMatch | null> {

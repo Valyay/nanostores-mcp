@@ -57,15 +57,15 @@ describe("Tools", () => {
 				expect(sc.subscribers.length).toBeGreaterThan(0);
 				expect(sc.relations.length).toBeGreaterThan(0);
 
-				const storeNames = sc.stores.map((s) => s.name);
+				const storeNames = sc.stores.map(s => s.name);
 				expect(storeNames).toContain("$count");
 				expect(storeNames).toContain("$cart");
 				expect(storeNames).toContain("$total");
 
-				const subNames = sc.subscribers.map((s) => s.name);
+				const subNames = sc.subscribers.map(s => s.name);
 				expect(subNames).toContain("Counter");
 
-				const relationTypes = sc.relations.map((r) => r.type);
+				const relationTypes = sc.relations.map(r => r.type);
 				expect(relationTypes).toContain("derives_from");
 				expect(relationTypes).toContain("subscribes_to");
 
@@ -83,6 +83,38 @@ describe("Tools", () => {
 						rootUri: "/nonexistent/outside/workspace",
 					}),
 				).rejects.toThrow(/outside of allowed roots/i);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("accepts force parameter and returns fresh results", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("scan_project", { force: true });
+				const sc = result.structuredContent as { filesScanned: number };
+				expect(sc.filesScanned).toBeGreaterThan(0);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+	});
+
+	describe("clear_cache", () => {
+		it("clears cache and allows fresh scan", async () => {
+			const ctx = await setup();
+			try {
+				// First scan populates cache
+				await ctx.callTool("scan_project", {});
+
+				// Clear cache
+				const clearResult = await ctx.callTool("clear_cache", {});
+				expect(clearResult.text).toContain("Cache cleared");
+
+				// Second scan should succeed (fresh scan)
+				const result = await ctx.callTool("scan_project", {});
+				const sc = result.structuredContent as { filesScanned: number };
+				expect(sc.filesScanned).toBeGreaterThan(0);
 			} finally {
 				await ctx.cleanup();
 			}
@@ -108,11 +140,11 @@ describe("Tools", () => {
 
 				// cartEffect subscribes to $cart
 				expect(sc.subscribers.length).toBeGreaterThan(0);
-				const subNames = sc.subscribers.map((s) => s.name);
+				const subNames = sc.subscribers.map(s => s.name);
 				expect(subNames).toContain("cartEffect");
 
 				// $bundle derives from $cart
-				const depNames = sc.derivedDependents.stores.map((s) => s.name);
+				const depNames = sc.derivedDependents.stores.map(s => s.name);
 				expect(depNames).toContain("$bundle");
 			} finally {
 				await ctx.cleanup();
@@ -122,9 +154,9 @@ describe("Tools", () => {
 		it("returns isError for unknown store name", async () => {
 			const ctx = await setup();
 			try {
-				await expect(
-					ctx.callTool("store_summary", { name: "$nonExistentStore" }),
-				).rejects.toThrow(/store not found/i);
+				await expect(ctx.callTool("store_summary", { name: "$nonExistentStore" })).rejects.toThrow(
+					/store not found/i,
+				);
 			} finally {
 				await ctx.cleanup();
 			}
@@ -150,7 +182,7 @@ describe("Resources", () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listResources();
-			const uris = result.resources.map((r) => r.uri);
+			const uris = result.resources.map(r => r.uri);
 
 			expect(uris).toContain("nanostores://graph");
 			expect(uris).toContain("nanostores://graph/outline");
@@ -165,9 +197,9 @@ describe("Resources", () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listResourceTemplates();
-			const uriTemplates = result.resourceTemplates.map((t) => t.uriTemplate);
+			const uriTemplates = result.resourceTemplates.map(t => t.uriTemplate);
 
-			expect(uriTemplates.some((u) => u.includes("store"))).toBe(true);
+			expect(uriTemplates.some(u => u.includes("store"))).toBe(true);
 		} finally {
 			await ctx.cleanup();
 		}
@@ -180,18 +212,18 @@ describe("Resources", () => {
 
 			expect(result.contents.length).toBeGreaterThanOrEqual(2);
 
-			const textContent = result.contents.find((c) => c.mimeType === "text/plain");
+			const textContent = result.contents.find(c => c.mimeType === "text/plain");
 			expect(textContent?.text).toBeDefined();
 			expect(stabilizePaths(textContent!.text!, rootDir)).toContain("Stores:");
 
-			const jsonContent = result.contents.find((c) => c.mimeType === "application/json");
+			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
 			expect(jsonContent?.text).toBeDefined();
 
 			const graph = JSON.parse(jsonContent!.text!) as {
 				nodes: Array<{ type: string }>;
 				edges: Array<{ type: string }>;
 			};
-			expect(graph.nodes.some((n) => n.type === "store")).toBe(true);
+			expect(graph.nodes.some(n => n.type === "store")).toBe(true);
 			expect(graph.edges.length).toBeGreaterThan(0);
 		} finally {
 			await ctx.cleanup();
@@ -205,7 +237,7 @@ describe("Resources", () => {
 			const result = await ctx.readResource(`nanostores://store/${encodedKey}`);
 
 			expect(result.contents.length).toBeGreaterThanOrEqual(1);
-			const textContent = result.contents.find((c) => c.mimeType === "text/plain");
+			const textContent = result.contents.find(c => c.mimeType === "text/plain");
 			expect(textContent?.text).toMatch(/\$count/);
 		} finally {
 			await ctx.cleanup();
@@ -222,7 +254,7 @@ describe("Prompts", () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listPrompts();
-			const names = result.prompts.map((p) => p.name);
+			const names = result.prompts.map(p => p.name);
 
 			expect(names).toContain("explain-project");
 			expect(names).toContain("explain-store");

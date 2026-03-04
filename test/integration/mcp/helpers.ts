@@ -9,6 +9,7 @@ import {
 } from "../../../src/domain/index.ts";
 import type { LoggerEventStore } from "../../../src/domain/index.ts";
 import { createLoggerBridge } from "../../../src/logger/loggerBridge.ts";
+import { createStoreAutocomplete } from "../../../src/mcp/shared/storeAutocomplete.ts";
 import { registerStaticFeatures } from "../../../src/features/static/index.ts";
 import { registerRuntimeFeatures } from "../../../src/features/runtime/index.ts";
 import { registerDocsFeatures } from "../../../src/features/docs/index.ts";
@@ -69,15 +70,15 @@ async function connectMcp(server: McpServer): Promise<TestMcpContext> {
 		// isError means the tool handler threw — surface it as a JS error
 		if ("isError" in result && result.isError) {
 			const errorText = (result.content as Array<{ type: string; text?: string }>)
-				.filter((c) => c.type === "text")
-				.map((c) => c.text ?? "")
+				.filter(c => c.type === "text")
+				.map(c => c.text ?? "")
 				.join("\n");
 			throw new Error(`Tool "${name}" returned isError: ${errorText}`);
 		}
 
 		const text = (result.content as Array<{ type: string; text?: string }>)
-			.filter((c) => c.type === "text")
-			.map((c) => c.text ?? "")
+			.filter(c => c.type === "text")
+			.map(c => c.text ?? "")
 			.join("\n");
 
 		let parsed: unknown = text;
@@ -116,9 +117,10 @@ async function connectMcp(server: McpServer): Promise<TestMcpContext> {
 export async function setupStaticMcp(): Promise<TestMcpContext> {
 	const repo = createProjectIndexRepository(0);
 	const projectService = createProjectAnalysisService(repo);
+	const { suggestStoreNames, resetCache } = createStoreAutocomplete(projectService);
 
 	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
-	registerStaticFeatures(server, projectService);
+	registerStaticFeatures(server, projectService, suggestStoreNames, resetCache);
 
 	return connectMcp(server);
 }
@@ -130,9 +132,10 @@ export async function setupRuntimeMcp(): Promise<RuntimeTestMcpContext> {
 	const runtimeService = createRuntimeAnalysisService(eventStore, projectService);
 	// Bridge with enabled=false — no HTTP server, just satisfies getInfo()
 	const bridge = createLoggerBridge(eventStore, { enabled: false });
+	const { suggestStoreNames } = createStoreAutocomplete(projectService);
 
 	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
-	registerRuntimeFeatures(server, runtimeService, bridge);
+	registerRuntimeFeatures(server, runtimeService, bridge, suggestStoreNames);
 
 	const ctx = await connectMcp(server);
 	return { ...ctx, eventStore };

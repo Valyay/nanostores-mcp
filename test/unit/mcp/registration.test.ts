@@ -54,16 +54,23 @@ describe("MCP feature registration", () => {
 	it("registers static features without errors", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
 		const projectService = createMockProjectService();
+		const suggestStoreNames = async (): Promise<string[]> => [];
+		const resetCache = (): void => {};
 
-		expect(() => registerStaticFeatures(server, projectService)).not.toThrow();
+		expect(() =>
+			registerStaticFeatures(server, projectService, suggestStoreNames, resetCache),
+		).not.toThrow();
 	});
 
 	it("registers runtime features without errors", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
 		const runtimeService = createMockRuntimeService();
 		const bridge = createMockBridge();
+		const suggestStoreNames = async (): Promise<string[]> => [];
 
-		expect(() => registerRuntimeFeatures(server, runtimeService, bridge)).not.toThrow();
+		expect(() =>
+			registerRuntimeFeatures(server, runtimeService, bridge, suggestStoreNames),
+		).not.toThrow();
 	});
 
 	it("registers docs features without errors (with null service)", () => {

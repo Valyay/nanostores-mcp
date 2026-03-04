@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
 	filterStoreNames,
 	deduplicateAndSort,
+	createStoreAutocomplete,
 } from "../../../../src/mcp/shared/storeAutocomplete.ts";
+import type { ProjectAnalysisService } from "../../../../src/domain/index.ts";
 
 describe("store autocomplete: name filtering", () => {
 	const allNames = [
@@ -61,5 +63,58 @@ describe("store autocomplete: name deduplication", () => {
 
 	it("handles empty input", () => {
 		expect(deduplicateAndSort([])).toEqual([]);
+	});
+});
+
+describe("createStoreAutocomplete", () => {
+	function createMockService(names: string[]): ProjectAnalysisService {
+		return {
+			getStoreNames: vi.fn().mockResolvedValue(names),
+			getIndex: vi.fn(),
+			getStoreByKey: vi.fn(),
+			getStoreNeighbors: vi.fn(),
+			findStoreByRuntimeKey: vi.fn(),
+			clearCache: vi.fn(),
+		} as unknown as ProjectAnalysisService;
+	}
+
+	it("returns filtered store names via suggestStoreNames", async () => {
+		const service = createMockService(["$cart", "$counter", "$theme"]);
+		const { suggestStoreNames } = createStoreAutocomplete(service);
+
+		const result = await suggestStoreNames("cart");
+		expect(result).toEqual(["$cart"]);
+	});
+
+	it("returns all names for empty query", async () => {
+		const service = createMockService(["$a", "$b", "$c"]);
+		const { suggestStoreNames } = createStoreAutocomplete(service);
+
+		const result = await suggestStoreNames("");
+		expect(result).toEqual(["$a", "$b", "$c"]);
+	});
+
+	it("caches names — second call does not hit service again", async () => {
+		const service = createMockService(["$x"]);
+		const { suggestStoreNames } = createStoreAutocomplete(service);
+
+		await suggestStoreNames("");
+		await suggestStoreNames("x");
+
+		expect(service.getStoreNames).toHaveBeenCalledTimes(1);
+	});
+
+	it("resetCache allows a fresh fetch", async () => {
+		const service = createMockService(["$old"]);
+		const { suggestStoreNames, resetCache } = createStoreAutocomplete(service);
+
+		await suggestStoreNames("");
+		expect(service.getStoreNames).toHaveBeenCalledTimes(1);
+
+		resetCache();
+		(service.getStoreNames as ReturnType<typeof vi.fn>).mockResolvedValue(["$new"]);
+		const result = await suggestStoreNames("");
+		expect(result).toEqual(["$new"]);
+		expect(service.getStoreNames).toHaveBeenCalledTimes(2);
 	});
 });

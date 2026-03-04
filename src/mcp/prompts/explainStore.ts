@@ -2,10 +2,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 
-import { suggestStoreNames } from "../shared/storeAutocomplete.js";
+import type { SuggestStoreNamesFn } from "../shared/storeAutocomplete.js";
 import { URIS } from "../uris.js";
 
-export function registerExplainStorePrompt(server: McpServer): void {
+export function registerExplainStorePrompt(
+	server: McpServer,
+	suggestStoreNames: SuggestStoreNamesFn,
+): void {
 	server.registerPrompt(
 		"explain-store",
 		{

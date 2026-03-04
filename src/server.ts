@@ -14,6 +14,7 @@ import { getWorkspaceRootPaths } from "./config/settings.js";
 import { registerStaticFeatures } from "./features/static/index.js";
 import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
+import { createStoreAutocomplete } from "./mcp/shared/storeAutocomplete.js";
 
 import packageJson from "../package.json" with { type: "json" };
 
@@ -78,9 +79,13 @@ export function buildNanostoresServer(): McpServer {
 		},
 	);
 
+	// Create shared autocomplete bound to the project analysis service
+	const { suggestStoreNames, resetCache: resetAutocompleteCache } =
+		createStoreAutocomplete(projectAnalysisService);
+
 	// Register feature modules with domain services
-	registerStaticFeatures(server, projectAnalysisService);
-	registerRuntimeFeatures(server, runtimeAnalysisService, loggerBridge);
+	registerStaticFeatures(server, projectAnalysisService, suggestStoreNames, resetAutocompleteCache);
+	registerRuntimeFeatures(server, runtimeAnalysisService, loggerBridge, suggestStoreNames);
 	registerDocsFeatures(server, docsService);
 
 	return server;

@@ -1,14 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
-import { suggestStoreNames } from "../shared/storeAutocomplete.js";
+import type { SuggestStoreNamesFn } from "../shared/storeAutocomplete.js";
 import { URIS } from "../uris.js";
 
 /**
  * Prompt: nanostores/debug-store
  * Debug a specific store with both static and runtime analysis
  */
-export function registerDebugStorePrompt(server: McpServer): void {
+export function registerDebugStorePrompt(
+	server: McpServer,
+	suggestStoreNames: SuggestStoreNamesFn,
+): void {
 	server.registerPrompt(
 		"debug-store",
 		{

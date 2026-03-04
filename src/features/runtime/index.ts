@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
 import type { LoggerBridgeServer } from "../../logger/loggerBridge.js";
+import type { SuggestStoreNamesFn } from "../../mcp/shared/storeAutocomplete.js";
 import { registerPingTool } from "../../mcp/tools/ping.js";
 import {
 	registerStoreActivityTool,
@@ -27,6 +28,7 @@ export function registerRuntimeFeatures(
 	server: McpServer,
 	runtimeService: RuntimeAnalysisService,
 	bridge: LoggerBridgeServer,
+	suggestStoreNames: SuggestStoreNamesFn,
 ): void {
 	// Tools
 	registerPingTool(server, bridge);
@@ -43,6 +45,6 @@ export function registerRuntimeFeatures(
 	registerRuntimeStoreResource(server, runtimeService);
 
 	// Prompts
-	registerDebugStorePrompt(server);
+	registerDebugStorePrompt(server, suggestStoreNames);
 	registerDebugProjectActivityPrompt(server);
 }

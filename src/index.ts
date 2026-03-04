@@ -35,12 +35,9 @@ export async function main(): Promise<void> {
 		void fetchAndApplyClientRoots(mcpServer);
 
 		if (capabilities.roots.listChanged) {
-			mcpServer.server.setNotificationHandler(
-				RootsListChangedNotificationSchema,
-				async () => {
-					await fetchAndApplyClientRoots(mcpServer);
-				},
-			);
+			mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async () => {
+				await fetchAndApplyClientRoots(mcpServer);
+			});
 		}
 	};
 

@@ -1,13 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
+import { createMcpProgressCallback } from "../shared/progress.js";
 
 const ScanProjectInputSchema = z.object({
 	// file:// URI or path inside workspace; if not specified - first root is taken
 	rootUri: z.string().optional(),
+	force: z.boolean().optional().describe("Force a fresh scan, bypassing the cache."),
+	cacheTtlMs: z
+		.number()
+		.optional()
+		.describe("Custom cache TTL in milliseconds. Default is 30000 (30s)."),
 });
 
 const ScanProjectOutputSchema = z.object({
@@ -166,10 +170,15 @@ export function registerScanProjectTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ rootUri }, _extra: RequestHandlerExtra<ServerRequest, ServerNotification>) => {
+		async ({ rootUri, force, cacheTtlMs }, extra) => {
 			try {
 				const rootPath = resolveWorkspaceRoot(rootUri);
-				const result = await projectService.getIndex(rootPath);
+				const onProgress = createMcpProgressCallback(extra);
+				const result = await projectService.getIndex(rootPath, {
+					force,
+					cacheTtlMs,
+					onProgress,
+				});
 				return buildScanProjectResponse(result);
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
