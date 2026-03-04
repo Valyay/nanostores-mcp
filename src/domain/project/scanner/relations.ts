@@ -1,7 +1,7 @@
 import type { StoreRelation, StoreMatch } from "../types.js";
 import type { DerivedStub } from "./stores.js";
 
-export function makeRelationKey(rel: StoreRelation): string {
+function makeRelationKey(rel: StoreRelation): string {
 	const filePart = rel.file ?? "";
 	const linePart = rel.line != null ? String(rel.line) : "";
 	return `${rel.type}|${rel.from}|${rel.to}|${filePart}|${linePart}`;

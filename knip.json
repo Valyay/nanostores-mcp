@@ -1,0 +1,13 @@
+{
+	"$schema": "https://unpkg.com/knip@5/schema.json",
+	"project": ["src/**/*.ts"],
+	"ignoreDependencies": ["@vue/compiler-sfc", "svelte", "@nanostores/logger"],
+	"ignoreExportsUsedInFile": {
+		"interface": true,
+		"type": true
+	},
+	"ignoreIssues": {
+		"src/domain/index.ts": ["exports", "types"]
+	},
+	"tags": ["-lintignore"]
+}

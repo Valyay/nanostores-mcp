@@ -44,7 +44,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "pnpm run lint && pnpm run format && pnpm run test && pnpm run build"
+    "check": "pnpm run lint && pnpm run format && pnpm run test && pnpm run build",
+    "knip": "knip"
   },
   "keywords": [
     "mcp",
@@ -86,16 +87,17 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@nanostores/logger": "^1.0.0",
-    "@types/node": "^24.10.0",
+    "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@vue/compiler-sfc": "^3.5.27",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
+    "knip": "^5.85.0",
     "nanostores": "^1.1.0",
     "prettier": "^3.7.0",
     "svelte": "^5.49.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.17"
   }

@@ -67,7 +67,7 @@ function displayNameForStore(store: StoreNode): string {
  *   - store -> subscriber (updates)
  *   - baseStore -> derivedStore (derives)
  */
-export function buildMermaidFromGraph(graph: StoreGraph): string {
+function buildMermaidFromGraph(graph: StoreGraph): string {
 	const lines: string[] = [];
 
 	lines.push("graph LR");

@@ -24,7 +24,7 @@ let clientRoots: WorkspaceRoot[] | null = null;
  * - NANOSTORES_MCP_ROOT  — single path
  * - WORKSPACE_FOLDER_PATHS / WORKSPACE_FOLDER — as in some hosts (Cursor, etc.)
  */
-export function getEnvWorkspaceRoots(): string[] {
+function getEnvWorkspaceRoots(): string[] {
 	if (cachedEnvRoots) return cachedEnvRoots;
 
 	const roots: string[] = [];
@@ -103,7 +103,7 @@ export function getWorkspaceRootPaths(): string[] {
  *
  * If path goes outside bounds — throw error.
  */
-export function resolveWorkspacePath(uriOrPath: string): string {
+function resolveWorkspacePath(uriOrPath: string): string {
 	const roots = getWorkspaceRootPaths();
 	return resolveSafePath(uriOrPath, roots);
 }
