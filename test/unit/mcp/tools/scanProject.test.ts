@@ -9,8 +9,20 @@ function makeIndex(overrides: Partial<ScanProjectData> = {}): ScanProjectData {
 		rootDir: "/project",
 		filesScanned: 42,
 		stores: [
-			{ id: "store:src/stores.ts#$counter", file: "src/stores.ts", line: 5, kind: "atom", name: "$counter" },
-			{ id: "store:src/stores.ts#$items", file: "src/stores.ts", line: 10, kind: "map", name: "$items" },
+			{
+				id: "store:src/stores.ts#$counter",
+				file: "src/stores.ts",
+				line: 5,
+				kind: "atom",
+				name: "$counter",
+			},
+			{
+				id: "store:src/stores.ts#$items",
+				file: "src/stores.ts",
+				line: 10,
+				kind: "map",
+				name: "$items",
+			},
 		],
 		subscribers: [
 			{

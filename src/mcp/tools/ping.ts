@@ -17,15 +17,15 @@ const PingOutputSchema = z.object({
 		.optional(),
 });
 
-export function buildLoggerBridgeStatusText(
-	loggerInfo?: { enabled: boolean; url?: string; error?: string },
-): string {
+export function buildLoggerBridgeStatusText(loggerInfo?: {
+	enabled: boolean;
+	url?: string;
+	error?: string;
+}): string {
 	if (!loggerInfo) return "";
 
 	if (loggerInfo.error) {
-		return (
-			`\n\nLogger Bridge: enabled but not running` + `\nError: ${loggerInfo.error}`
-		);
+		return `\n\nLogger Bridge: enabled but not running` + `\nError: ${loggerInfo.error}`;
 	}
 	if (loggerInfo.url) {
 		return (
@@ -64,8 +64,7 @@ export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeS
 			};
 
 			const text =
-				`Nanostores MCP server is alive: ${message}` +
-				buildLoggerBridgeStatusText(loggerInfo);
+				`Nanostores MCP server is alive: ${message}` + buildLoggerBridgeStatusText(loggerInfo);
 
 			return {
 				content: [

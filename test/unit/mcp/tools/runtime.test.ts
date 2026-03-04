@@ -90,7 +90,7 @@ describe("find_noisy_stores tool: filtering and summary", () => {
 
 		const windowMs = 5_000;
 		const sinceTs = now - windowMs;
-		const filtered = noisyStores.filter((s) => s.lastSeen >= sinceTs);
+		const filtered = noisyStores.filter(s => s.lastSeen >= sinceTs);
 
 		expect(filtered).toHaveLength(1);
 		expect(filtered[0].storeName).toBe("$active");
@@ -159,7 +159,7 @@ describe("runtime_overview tool: health report", () => {
 		];
 		const windowMs = 10_000;
 		const sinceTs = now - windowMs;
-		const active = stores.filter((s) => s.lastSeen >= sinceTs);
+		const active = stores.filter(s => s.lastSeen >= sinceTs);
 
 		expect(active).toHaveLength(1);
 		expect(active[0].storeName).toBe("$recent");

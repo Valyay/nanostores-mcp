@@ -23,9 +23,7 @@ function post(
 			res => {
 				let data = "";
 				res.on("data", chunk => (data += chunk));
-				res.on("end", () =>
-					resolve({ status: res.statusCode!, body: data, headers: res.headers }),
-				);
+				res.on("end", () => resolve({ status: res.statusCode!, body: data, headers: res.headers }));
 			},
 		);
 		req.on("error", reject);

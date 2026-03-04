@@ -11,15 +11,68 @@ const NOW = 1700000000000;
 function makeSeedEvents(): NanostoresLoggerEvent[] {
 	return [
 		{ kind: "mount", storeName: "$counter", timestamp: NOW - 5000 },
-		{ kind: "change", storeName: "$counter", timestamp: NOW - 4000, changed: "value", newValue: 1, oldValue: 0 },
-		{ kind: "change", storeName: "$counter", timestamp: NOW - 3000, changed: "value", newValue: 2, oldValue: 1 },
-		{ kind: "change", storeName: "$counter", timestamp: NOW - 2000, changed: "value", newValue: 3, oldValue: 2 },
+		{
+			kind: "change",
+			storeName: "$counter",
+			timestamp: NOW - 4000,
+			changed: "value",
+			newValue: 1,
+			oldValue: 0,
+		},
+		{
+			kind: "change",
+			storeName: "$counter",
+			timestamp: NOW - 3000,
+			changed: "value",
+			newValue: 2,
+			oldValue: 1,
+		},
+		{
+			kind: "change",
+			storeName: "$counter",
+			timestamp: NOW - 2000,
+			changed: "value",
+			newValue: 3,
+			oldValue: 2,
+		},
 		{ kind: "mount", storeName: "$user", timestamp: NOW - 4500 },
-		{ kind: "change", storeName: "$user", timestamp: NOW - 3500, changed: "name", newValue: "Alice" },
-		{ kind: "action-start", storeName: "$user", timestamp: NOW - 3000, actionId: "a1", actionName: "fetchUser" },
-		{ kind: "action-end", storeName: "$user", timestamp: NOW - 2500, actionId: "a1", actionName: "fetchUser" },
-		{ kind: "action-start", storeName: "$user", timestamp: NOW - 2000, actionId: "a2", actionName: "updateUser" },
-		{ kind: "action-error", storeName: "$user", timestamp: NOW - 1500, actionId: "a2", actionName: "updateUser", error: "Network error", errorMessage: "Network error" },
+		{
+			kind: "change",
+			storeName: "$user",
+			timestamp: NOW - 3500,
+			changed: "name",
+			newValue: "Alice",
+		},
+		{
+			kind: "action-start",
+			storeName: "$user",
+			timestamp: NOW - 3000,
+			actionId: "a1",
+			actionName: "fetchUser",
+		},
+		{
+			kind: "action-end",
+			storeName: "$user",
+			timestamp: NOW - 2500,
+			actionId: "a1",
+			actionName: "fetchUser",
+		},
+		{
+			kind: "action-start",
+			storeName: "$user",
+			timestamp: NOW - 2000,
+			actionId: "a2",
+			actionName: "updateUser",
+		},
+		{
+			kind: "action-error",
+			storeName: "$user",
+			timestamp: NOW - 1500,
+			actionId: "a2",
+			actionName: "updateUser",
+			error: "Network error",
+			errorMessage: "Network error",
+		},
 	];
 }
 
@@ -116,7 +169,7 @@ describe("Tools", () => {
 				expect(sc.stores.length).toBe(2);
 				// $counter has 3 changes + 0 actions = 3 activity
 				// $user has 1 change + 2 actions = 3 activity — tie is possible
-				const names = sc.stores.map((s) => s.storeName);
+				const names = sc.stores.map(s => s.storeName);
 				expect(names).toContain("$counter");
 				expect(names).toContain("$user");
 				expect(sc.summary).toContain("most active");
@@ -143,7 +196,7 @@ describe("Tools", () => {
 				expect(sc.stats.stores).toHaveLength(2);
 				expect(sc.noisyStores.length).toBeGreaterThan(0);
 				// $user has 1 action error — the tool calls getErrorProneStores(1), not the default of 3
-				expect(sc.errorProneStores.some((s) => s.storeName === "$user")).toBe(true);
+				expect(sc.errorProneStores.some(s => s.storeName === "$user")).toBe(true);
 				expect(sc.summary).toContain("Runtime Overview");
 			} finally {
 				await ctx.cleanup();
@@ -161,9 +214,9 @@ describe("Resources", () => {
 		const ctx = await setup();
 		try {
 			const templates = await ctx.client.listResourceTemplates();
-			const uriTemplates = templates.resourceTemplates.map((t) => t.uriTemplate);
+			const uriTemplates = templates.resourceTemplates.map(t => t.uriTemplate);
 
-			expect(uriTemplates.some((u) => u.includes("runtime"))).toBe(true);
+			expect(uriTemplates.some(u => u.includes("runtime"))).toBe(true);
 		} finally {
 			await ctx.cleanup();
 		}
@@ -175,7 +228,7 @@ describe("Resources", () => {
 			const result = await ctx.readResource("nanostores://runtime/stats");
 
 			expect(result.contents.length).toBeGreaterThanOrEqual(1);
-			const jsonContent = result.contents.find((c) => c.mimeType === "application/json");
+			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
 			expect(jsonContent?.text).toBeDefined();
 
 			const data = JSON.parse(jsonContent!.text!) as {
@@ -194,7 +247,7 @@ describe("Resources", () => {
 		try {
 			const result = await ctx.readResource("nanostores://runtime/events");
 
-			const jsonContent = result.contents.find((c) => c.mimeType === "application/json");
+			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
 			expect(jsonContent?.text).toBeDefined();
 
 			const data = JSON.parse(jsonContent!.text!) as {
@@ -213,7 +266,7 @@ describe("Resources", () => {
 		try {
 			const result = await ctx.readResource("nanostores://runtime/overview");
 
-			const jsonContent = result.contents.find((c) => c.mimeType === "application/json");
+			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
 			expect(jsonContent?.text).toBeDefined();
 
 			const data = JSON.parse(jsonContent!.text!) as {
@@ -234,7 +287,7 @@ describe("Resources", () => {
 		try {
 			const result = await ctx.readResource("nanostores://runtime/overview");
 
-			const jsonContent = result.contents.find((c) => c.mimeType === "application/json");
+			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
 			const data = JSON.parse(jsonContent!.text!) as {
 				hasRuntimeData: boolean;
 				totals: { storesSeen: number; events: number };
@@ -251,7 +304,7 @@ describe("Resources", () => {
 		try {
 			const result = await ctx.readResource("nanostores://runtime/stats-toon");
 
-			const toonContent = result.contents.find((c) => c.mimeType === "text/toon");
+			const toonContent = result.contents.find(c => c.mimeType === "text/toon");
 			expect(toonContent?.text).toBeDefined();
 			// TOON output should mention store names
 			expect(toonContent!.text!).toContain("$counter");
@@ -271,7 +324,7 @@ describe("Prompts", () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listPrompts();
-			const names = result.prompts.map((p) => p.name);
+			const names = result.prompts.map(p => p.name);
 
 			expect(names).toContain("debug-store");
 			expect(names).toContain("debug-project-activity");

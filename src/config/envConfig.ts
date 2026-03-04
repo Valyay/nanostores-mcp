@@ -20,14 +20,11 @@ export const EnvSchema = z.object({
 		.string()
 		.optional()
 		.default("127.0.0.1")
-		.refine(
-			host => ["127.0.0.1", "localhost", "::1"].includes(host),
-			{
-				message:
-					"NANOSTORES_MCP_LOGGER_HOST must be a loopback address (127.0.0.1, localhost, ::1). " +
-					"Binding to 0.0.0.0 or other non-loopback addresses is not allowed for security reasons.",
-			},
-		),
+		.refine(host => ["127.0.0.1", "localhost", "::1"].includes(host), {
+			message:
+				"NANOSTORES_MCP_LOGGER_HOST must be a loopback address (127.0.0.1, localhost, ::1). " +
+				"Binding to 0.0.0.0 or other non-loopback addresses is not allowed for security reasons.",
+		}),
 	// Docs configuration
 	NANOSTORES_DOCS_ROOT: z.string().optional(),
 	NANOSTORES_DOCS_PATTERNS: z

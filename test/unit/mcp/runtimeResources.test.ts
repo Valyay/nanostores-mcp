@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	parseEventsFilter,
-	normalizeStoreKey,
-} from "../../../src/mcp/resources/runtime.ts";
+import { parseEventsFilter, normalizeStoreKey } from "../../../src/mcp/resources/runtime.ts";
 
 describe("runtime resource: events filter parsing", () => {
 	it("parses standard query params", () => {

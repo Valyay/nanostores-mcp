@@ -31,7 +31,11 @@ describe("docs_search tool: result formatting", () => {
 	it("formats search results with snippets and resource links", () => {
 		const hits = [
 			{
-				page: { id: "getting-started", title: "Getting Started", url: "https://docs.example.com/start" },
+				page: {
+					id: "getting-started",
+					title: "Getting Started",
+					url: "https://docs.example.com/start",
+				},
 				chunk: {
 					headingPath: ["Introduction", "Quick Start"],
 					text: "Nanostores is a tiny state management library for modern frontend frameworks. It provides a simple API to create stores and subscribe to them.\n\nMore details here.",
@@ -48,7 +52,7 @@ describe("docs_search tool: result formatting", () => {
 			},
 		];
 
-		const results = hits.map((hit) => ({
+		const results = hits.map(hit => ({
 			pageId: hit.page.id,
 			title: hit.page.title,
 			url: (hit.page as { url?: string }).url,
@@ -118,7 +122,8 @@ describe("docs_for_store tool: query building", () => {
 	it("builds persistent-specific queries", () => {
 		const kindHint = "persistent";
 		const queries: string[] = [];
-		if (kindHint === "persistent") queries.push("persistent localStorage", "persistentAtom persistentMap");
+		if (kindHint === "persistent")
+			queries.push("persistent localStorage", "persistentAtom persistentMap");
 		queries.push("best practices patterns");
 
 		expect(queries).toContain("persistent localStorage");

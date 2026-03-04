@@ -107,8 +107,7 @@ describe("store_summary tool: response building", () => {
 	it("builds error response text", () => {
 		const rootPath = "/workspace";
 		const msg = "Index scan failed";
-		const text =
-			"Failed to get store summary.\n\n" + `Root: ${rootPath}\n` + `Error: ${msg}`;
+		const text = "Failed to get store summary.\n\n" + `Root: ${rootPath}\n` + `Error: ${msg}`;
 
 		expect(text).toContain("Failed to get store summary");
 		expect(text).toContain("Index scan failed");

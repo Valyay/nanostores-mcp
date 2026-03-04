@@ -111,10 +111,7 @@ export function registerStoreSubgraphResource(
 			const radiusParam = url.searchParams.get("radius");
 
 			if (!storeParam) {
-				throw new McpError(
-					ErrorCode.InvalidParams,
-					"Missing required query parameter: store",
-				);
+				throw new McpError(ErrorCode.InvalidParams, "Missing required query parameter: store");
 			}
 
 			const radius = radiusParam ? Number.parseInt(radiusParam, 10) : 2;

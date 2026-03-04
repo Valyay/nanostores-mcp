@@ -154,14 +154,14 @@ describe("scanner domain: snapshot", () => {
 			subscriberCount: index.subscribers.length,
 			relationCount: index.relations.length,
 			stores: index.stores
-				.map((s) => ({
+				.map(s => ({
 					name: s.name,
 					kind: s.kind,
 					file: toPosix(s.file),
 				}))
 				.sort((a, b) => `${a.file}:${a.name}`.localeCompare(`${b.file}:${b.name}`)),
 			subscribers: index.subscribers
-				.map((s) => ({
+				.map(s => ({
 					name: s.name,
 					kind: s.kind,
 					file: toPosix(s.file),
@@ -169,9 +169,9 @@ describe("scanner domain: snapshot", () => {
 				}))
 				.sort((a, b) => `${a.file}:${a.name}`.localeCompare(`${b.file}:${b.name}`)),
 			relationTypes: {
-				declares: index.relations.filter((r) => r.type === "declares").length,
-				subscribes_to: index.relations.filter((r) => r.type === "subscribes_to").length,
-				derives_from: index.relations.filter((r) => r.type === "derives_from").length,
+				declares: index.relations.filter(r => r.type === "declares").length,
+				subscribes_to: index.relations.filter(r => r.type === "subscribes_to").length,
+				derives_from: index.relations.filter(r => r.type === "derives_from").length,
 			},
 		};
 
@@ -206,7 +206,7 @@ describe("scanner domain: paths with spaces and non-ASCII", () => {
 		cleanup = project.cleanup;
 
 		const index = await scanProject(project.rootDir);
-		const names = index.stores.map((s) => s.name);
+		const names = index.stores.map(s => s.name);
 
 		expect(names).toContain("$grüße");
 		expect(names).toContain("$nihongo");

@@ -1,10 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
-import type {
-	StoreRuntimeStats,
-	LoggerStatsSnapshot,
-} from "../../domain/runtime/types.js";
+import type { StoreRuntimeStats, LoggerStatsSnapshot } from "../../domain/runtime/types.js";
 
 // ── Reusable Zod schemas matching domain/runtime/types.ts ────────────────────
 
@@ -186,10 +183,7 @@ export function buildRuntimeOverviewSummary(args: {
 		summary += "\n";
 	}
 
-	if (
-		stats.stores.length === 0 ||
-		(noisyStores.length === 0 && errorProneStores.length === 0)
-	) {
+	if (stats.stores.length === 0 || (noisyStores.length === 0 && errorProneStores.length === 0)) {
 		summary +=
 			"\uD83D\uDCED No runtime activity detected. Make sure:\n" +
 			"  1. Your app is running with @nanostores/logger integration\n" +

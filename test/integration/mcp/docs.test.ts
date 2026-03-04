@@ -71,9 +71,9 @@ describe("Resources", () => {
 		const ctx = await setup();
 		try {
 			const templates = await ctx.client.listResourceTemplates();
-			const uriTemplates = templates.resourceTemplates.map((t) => t.uriTemplate);
+			const uriTemplates = templates.resourceTemplates.map(t => t.uriTemplate);
 
-			expect(uriTemplates.some((u) => u.includes("docs"))).toBe(true);
+			expect(uriTemplates.some(u => u.includes("docs"))).toBe(true);
 		} finally {
 			await ctx.cleanup();
 		}
@@ -85,7 +85,7 @@ describe("Resources", () => {
 			const result = await ctx.readResource("nanostores://docs");
 
 			expect(result.contents.length).toBeGreaterThanOrEqual(1);
-			const textContent = result.contents.find((c) => c.mimeType === "text/plain");
+			const textContent = result.contents.find(c => c.mimeType === "text/plain");
 			expect(textContent?.text).toContain("documentation was not found");
 		} finally {
 			await ctx.cleanup();
@@ -102,7 +102,7 @@ describe("Prompts", () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listPrompts();
-			const names = result.prompts.map((p) => p.name);
+			const names = result.prompts.map(p => p.name);
 
 			expect(names).toContain("docs-how-to");
 		} finally {
