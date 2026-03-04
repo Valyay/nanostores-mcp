@@ -77,8 +77,6 @@ export interface ModuleConfig {
 export interface ScanOptions {
 	/** Force rescan, ignoring cache */
 	force?: boolean;
-	/** Custom cache TTL in milliseconds */
-	cacheTtlMs?: number;
 	/** Callback for reporting progress */
 	onProgress?: ProgressCallback;
 	/** Override global module Sets for import detection */

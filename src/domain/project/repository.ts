@@ -1,12 +1,14 @@
-import { scanProject } from "./scanner/index.js";
+import { scanProject, discoverSourceFiles, getFilesMaxMtime } from "./scanner/index.js";
 import type { ProjectIndex, ScanOptions } from "./types.js";
 
 /**
- * Cache entry for project index
+ * Cache entry for project index.
+ * Stores the discovered file list and max mtime for change detection.
  */
 interface CacheEntry {
 	index: ProjectIndex;
-	timestamp: number;
+	files: string[];
+	maxMtime: number;
 }
 
 /**
@@ -15,8 +17,9 @@ interface CacheEntry {
  */
 export interface ProjectIndexRepository {
 	/**
-	 * Get the full project index for a given root directory
-	 * Results are cached for performance
+	 * Get the full project index for a given root directory.
+	 * Uses mtime-based invalidation: rescans only when files
+	 * are added, removed, or modified.
 	 */
 	getIndex(root: string, opts?: ScanOptions): Promise<ProjectIndex>;
 
@@ -31,33 +34,50 @@ export interface ProjectIndexRepository {
  */
 interface ProjectIndexRepositoryState {
 	cache: Map<string, CacheEntry>;
-	cacheTtlMs: number;
 	inFlight: Map<string, Promise<ProjectIndex>>;
 }
 
 /**
- * Create a new project index repository
- *
- * @param cacheTtlMs - Time-to-live for cache entries in milliseconds (default: 30 seconds)
+ * Check whether the cached file list is still up-to-date.
+ * Returns true if cached index can be reused.
  */
-export function createProjectIndexRepository(cacheTtlMs: number = 30_000): ProjectIndexRepository {
+async function isCacheFresh(cached: CacheEntry, root: string): Promise<boolean> {
+	const currentFiles = await discoverSourceFiles(root);
+
+	if (currentFiles.length !== cached.files.length) return false;
+
+	const cachedSet = new Set(cached.files);
+	for (const f of currentFiles) {
+		if (!cachedSet.has(f)) return false;
+	}
+
+	const currentMaxMtime = await getFilesMaxMtime(currentFiles);
+	return currentMaxMtime <= cached.maxMtime;
+}
+
+/**
+ * Create a new project index repository with mtime-based cache invalidation.
+ */
+export function createProjectIndexRepository(): ProjectIndexRepository {
 	const state: ProjectIndexRepositoryState = {
 		cache: new Map(),
-		cacheTtlMs,
 		inFlight: new Map(),
 	};
 
 	return {
 		async getIndex(root: string, opts?: ScanOptions): Promise<ProjectIndex> {
 			const force = opts?.force ?? false;
-			const ttl = opts?.cacheTtlMs ?? state.cacheTtlMs;
-			const now = Date.now();
 
-			// Check cache unless force is true
 			if (!force) {
 				const cached = state.cache.get(root);
-				if (cached && now - cached.timestamp < ttl) {
-					return cached.index;
+				if (cached) {
+					try {
+						if (await isCacheFresh(cached, root)) {
+							return cached.index;
+						}
+					} catch {
+						// mtime check failed — fall through to rescan
+					}
 				}
 			}
 
@@ -67,11 +87,12 @@ export function createProjectIndexRepository(cacheTtlMs: number = 30_000): Proje
 			}
 
 			const scanPromise = (async (): Promise<ProjectIndex> => {
-				// Scan project (without internal caching - scanner is now pure)
 				const index = await scanProject(root, opts);
 
-				// Update cache
-				state.cache.set(root, { index, timestamp: Date.now() });
+				const files = await discoverSourceFiles(root);
+				const maxMtime = await getFilesMaxMtime(files);
+
+				state.cache.set(root, { index, files, maxMtime });
 
 				return index;
 			})();

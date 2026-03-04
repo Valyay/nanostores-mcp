@@ -8,10 +8,6 @@ const ScanProjectInputSchema = z.object({
 	// file:// URI or path inside workspace; if not specified - first root is taken
 	rootUri: z.string().optional(),
 	force: z.boolean().optional().describe("Force a fresh scan, bypassing the cache."),
-	cacheTtlMs: z
-		.number()
-		.optional()
-		.describe("Custom cache TTL in milliseconds. Default is 30000 (30s)."),
 });
 
 const ScanProjectOutputSchema = z.object({
@@ -170,13 +166,12 @@ export function registerScanProjectTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ rootUri, force, cacheTtlMs }, extra) => {
+		async ({ rootUri, force }, extra) => {
 			try {
 				const rootPath = resolveWorkspaceRoot(rootUri);
 				const onProgress = createMcpProgressCallback(extra);
 				const result = await projectService.getIndex(rootPath, {
 					force,
-					cacheTtlMs,
 					onProgress,
 				});
 				return buildScanProjectResponse(result);

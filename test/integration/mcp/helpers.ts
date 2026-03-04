@@ -115,7 +115,7 @@ async function connectMcp(server: McpServer): Promise<TestMcpContext> {
 // ---------------------------------------------------------------------------
 
 export async function setupStaticMcp(): Promise<TestMcpContext> {
-	const repo = createProjectIndexRepository(0);
+	const repo = createProjectIndexRepository();
 	const projectService = createProjectAnalysisService(repo);
 	const { suggestStoreNames, resetCache } = createStoreAutocomplete(projectService);
 
@@ -127,7 +127,7 @@ export async function setupStaticMcp(): Promise<TestMcpContext> {
 
 export async function setupRuntimeMcp(): Promise<RuntimeTestMcpContext> {
 	const eventStore = createLoggerEventStore(1000);
-	const repo = createProjectIndexRepository(0);
+	const repo = createProjectIndexRepository();
 	const projectService = createProjectAnalysisService(repo);
 	const runtimeService = createRuntimeAnalysisService(eventStore, projectService);
 	// Bridge with enabled=false — no HTTP server, just satisfies getInfo()

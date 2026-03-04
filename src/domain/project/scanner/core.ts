@@ -2,8 +2,8 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { Project } from "ts-morph";
 import { JsxEmit, ScriptKind } from "typescript";
-import { globby } from "globby";
 import { isErrnoException, realpathSafe } from "../../../config/security.js";
+import { discoverSourceFiles } from "./files.js";
 import type { ProjectIndex, ScanOptions } from "../types.js";
 import type { StoreMatch, SubscriberMatch, StoreRelation } from "../types.js";
 import { collectNanostoresStoreImports, collectNanostoresReactImports } from "./imports.js";
@@ -59,20 +59,7 @@ export async function scanProject(
 		throw err;
 	}
 
-	const files = await globby("**/*.{ts,tsx,js,jsx,mjs,cjs,vue,svelte}", {
-		cwd: absRoot,
-		absolute: true,
-		gitignore: true,
-		onlyFiles: true,
-		ignore: [
-			"**/node_modules/**",
-			"**/dist/**",
-			"**/build/**",
-			"**/.next/**",
-			"**/.turbo/**",
-			"**/coverage/**",
-		],
-	});
+	const files = await discoverSourceFiles(absRoot);
 
 	onProgress?.(1, 4, `Found ${files.length} candidate source files`);
 

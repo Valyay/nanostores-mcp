@@ -22,7 +22,7 @@ const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = (packageJson as { version: string }).version;
 
 // Domain services - project analysis
-const projectIndexRepository = createProjectIndexRepository(30_000); // 30s cache
+const projectIndexRepository = createProjectIndexRepository();
 const projectAnalysisService = createProjectAnalysisService(projectIndexRepository);
 
 // Domain services - runtime analysis
