@@ -202,7 +202,7 @@ export function registerDocsForStoreTool(server: McpServer, docsService: DocsSer
 							allResults.set(hit.page.id, {
 								page: hit.page,
 								score: hit.score,
-								reason: `Relevant for ${kindHint || "store"} type`,
+								reason: `Matched query "${query}"`,
 							});
 						}
 					}
