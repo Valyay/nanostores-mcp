@@ -22,23 +22,6 @@ export type GraphOutlineResponse = {
 	}>;
 };
 
-export type IdDictionaryResponse = {
-	version: 1;
-	generatedAt: string;
-	stores: Array<{
-		sid: number;
-		fullId: string;
-		name: string;
-		file?: string;
-		kind?: string;
-	}>;
-	files: Array<{
-		fid: number;
-		path: string;
-		fullId?: string;
-	}>;
-};
-
 export type StoreSubgraphResponse = {
 	centerStoreId: string;
 	radius: number;
@@ -64,7 +47,6 @@ export type StoreSubgraphResponse = {
 };
 
 const outlineCache = new WeakMap<ProjectIndex, GraphOutlineResponse>();
-const dictionaryCache = new WeakMap<ProjectIndex, IdDictionaryResponse>();
 
 const TOP_DIRS_LIMIT = 10;
 const HUBS_LIMIT = 10;
@@ -145,47 +127,6 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 
 	outlineCache.set(index, outline);
 	return outline;
-}
-
-export function buildIdDictionary(index: ProjectIndex): IdDictionaryResponse {
-	const cached = dictionaryCache.get(index);
-	if (cached) {
-		return cached;
-	}
-
-	const storesSorted = [...index.stores].sort((a, b) => a.id.localeCompare(b.id));
-	const stores = storesSorted.map((store, idx) => ({
-		sid: idx + 1,
-		fullId: store.id,
-		name: store.name ?? store.id,
-		file: store.file,
-		kind: store.kind,
-	}));
-
-	const filePaths = new Set<string>();
-	for (const store of index.stores) {
-		filePaths.add(store.file);
-	}
-	for (const sub of index.subscribers) {
-		filePaths.add(sub.file);
-	}
-
-	const filesSorted = Array.from(filePaths).sort();
-	const files = filesSorted.map((filePath, idx) => ({
-		fid: idx + 1,
-		path: filePath,
-		fullId: `file:${filePath}`,
-	}));
-
-	const dictionary: IdDictionaryResponse = {
-		version: 1,
-		generatedAt: new Date().toISOString(),
-		stores,
-		files,
-	};
-
-	dictionaryCache.set(index, dictionary);
-	return dictionary;
 }
 
 export function buildStoreSubgraph(

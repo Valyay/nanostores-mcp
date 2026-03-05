@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { ProjectIndex } from "../../../src/domain/project/types.ts";
 import {
 	buildGraphOutline,
-	buildIdDictionary,
 	buildStoreGraph,
 	buildStoreSubgraph,
 	collectStoreNeighbors,
@@ -257,13 +256,6 @@ describe("project domain: graph and summary builders", () => {
 		const topDirs = outline.topDirs.map(dir => toPosix(dir.dir));
 		expect(topDirs).toContain("src/stores");
 		expect(topDirs).toContain("legacy");
-
-		const dictionary = buildIdDictionary(projectIndex);
-		expect(dictionary.version).toBe(1);
-		expect(dictionary.stores.length).toBe(projectIndex.stores.length);
-		expect(dictionary.files.some(file => toPosix(file.path) === "src/components/Counter.tsx")).toBe(
-			true,
-		);
 
 		const totalStore = projectIndex.stores.find(store => store.id === storeTotal);
 		const subgraph = buildStoreSubgraph(projectIndex, totalStore!, 1);

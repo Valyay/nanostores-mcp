@@ -8,7 +8,6 @@ import { registerStoreResource } from "../../mcp/resources/store.js";
 import { registerGraphResource } from "../../mcp/resources/graph.js";
 import {
 	registerGraphOutlineResource,
-	registerIdDictionaryResource,
 	registerStoreSubgraphResource,
 } from "../../mcp/resources/graphExtras.js";
 import { registerExplainProjectPrompt } from "../../mcp/prompts/explainProject.js";
@@ -32,7 +31,6 @@ export function registerStaticFeatures(
 	registerStoreResource(server, projectService);
 	registerGraphResource(server, projectService);
 	registerGraphOutlineResource(server, projectService);
-	registerIdDictionaryResource(server, projectService);
 	registerStoreSubgraphResource(server, projectService);
 
 	// Prompts

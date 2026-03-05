@@ -1,7 +1,7 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { ProjectAnalysisService } from "../../domain/index.js";
-import { buildGraphOutline, buildIdDictionary, buildStoreSubgraph } from "../../domain/index.js";
+import { buildGraphOutline, buildStoreSubgraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { storeNotFoundMessage } from "../shared/consts.js";
 import { URIS } from "../uris.js";
@@ -42,50 +42,6 @@ export function registerGraphOutlineResource(
 							uri: uri.href,
 							mimeType: "text/plain",
 							text: "Failed to build graph outline.\n\n" + `Error: ${msg}`,
-						},
-					],
-				};
-			}
-		},
-	);
-}
-
-export function registerIdDictionaryResource(
-	server: McpServer,
-	projectService: ProjectAnalysisService,
-): void {
-	server.registerResource(
-		"id-dictionary",
-		URIS.idDictionary,
-		{
-			title: "Nanostores id dictionary",
-			description:
-				"Stable short ids for store and file identifiers to reduce repeated long strings in other resources.",
-		},
-		async uri => {
-			try {
-				const rootPath = resolveWorkspaceRoot();
-				const index = await projectService.getIndex(rootPath);
-				const dictionary = buildIdDictionary(index);
-
-				return {
-					contents: [
-						{
-							uri: uri.href,
-							mimeType: "application/json",
-							text: JSON.stringify(dictionary),
-						},
-					],
-					structuredContent: dictionary,
-				};
-			} catch (error) {
-				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
-				return {
-					contents: [
-						{
-							uri: uri.href,
-							mimeType: "text/plain",
-							text: "Failed to build id dictionary.\n\n" + `Error: ${msg}`,
 						},
 					],
 				};

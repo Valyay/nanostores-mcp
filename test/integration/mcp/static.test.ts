@@ -254,7 +254,6 @@ describe("Resources", () => {
 
 			expect(uris).toContain("nanostores://graph");
 			expect(uris).toContain("nanostores://graph/outline");
-			expect(uris).toContain("nanostores://graph/id-dictionary");
 		} finally {
 			await ctx.cleanup();
 		}
