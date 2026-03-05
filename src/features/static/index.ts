@@ -11,7 +11,6 @@ import {
 	registerIdDictionaryResource,
 	registerStoreSubgraphResource,
 } from "../../mcp/resources/graphExtras.js";
-import { registerGraphMermaidResource } from "../../mcp/resources/graphMermaid.js";
 import { registerExplainProjectPrompt } from "../../mcp/prompts/explainProject.js";
 import { registerExplainStorePrompt } from "../../mcp/prompts/explainStore.js";
 
@@ -35,7 +34,6 @@ export function registerStaticFeatures(
 	registerGraphOutlineResource(server, projectService);
 	registerIdDictionaryResource(server, projectService);
 	registerStoreSubgraphResource(server, projectService);
-	registerGraphMermaidResource(server, projectService);
 
 	// Prompts
 	registerExplainProjectPrompt(server);

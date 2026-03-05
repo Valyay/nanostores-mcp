@@ -51,7 +51,6 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 				"",
 				"Additional resources (optional, use when they help):",
 				`- ${URIS.graphOutline} — lightweight summary (store counts, kinds distribution, top directories, hubs). Useful as a quick overview before loading the full graph.`,
-				`- ${URIS.graphMermaid} — Mermaid diagram of the store dependency graph for visual representation.`,
 				"</ENVIRONMENT>",
 				"",
 				"<GRAPH_SCHEMA>",

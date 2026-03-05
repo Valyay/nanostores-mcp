@@ -5,7 +5,6 @@
 export const URIS = {
 	graph: "nanostores://graph",
 	graphOutline: "nanostores://graph/outline",
-	graphMermaid: "nanostores://graph/mermaid",
 	idDictionary: "nanostores://graph/id-dictionary",
 	storeSubgraphBase: "nanostores://graph/store-subgraph",
 	storeSubgraph: (storeId: string, radius = 2): string =>
