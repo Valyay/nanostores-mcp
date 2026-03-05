@@ -82,7 +82,7 @@ export function registerStoreSummaryTool(
 	projectService: ProjectAnalysisService,
 ): void {
 	server.registerTool(
-		"store_summary",
+		"nanostores_store_summary",
 		{
 			title: "Summarize a Nanostores store",
 			description:

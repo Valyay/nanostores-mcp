@@ -93,11 +93,11 @@ async function setup(): Promise<RuntimeTestMcpContext> {
 // ===========================================================================
 
 describe("Tools", () => {
-	describe("ping", () => {
+	describe("nanostores_ping", () => {
 		it("returns alive message and logger bridge status", async () => {
 			const ctx = await setupRuntimeMcp();
 			try {
-				const result = await ctx.callTool("ping", { message: "hello" });
+				const result = await ctx.callTool("nanostores_ping", { message: "hello" });
 				const sc = result.structuredContent as {
 					message: string;
 					loggerBridge?: { enabled: boolean };

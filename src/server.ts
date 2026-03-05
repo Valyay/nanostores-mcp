@@ -71,7 +71,7 @@ const docsService = docsRepository ? createDocsService(docsRepository) : null;
 function buildInstructions(): string {
 	const lines = [
 		"Analyzes Nanostores state management via layered approach:",
-		"1. Static analysis: scan_project discovers stores and dependency graph; store_summary inspects individual stores.",
+		"1. Static analysis: nanostores_scan_project discovers stores and dependency graph; nanostores_store_summary inspects individual stores.",
 	];
 
 	if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
@@ -87,7 +87,7 @@ function buildInstructions(): string {
 	}
 
 	lines.push(
-		"Start with scan_project. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.",
+		"Start with nanostores_scan_project. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.",
 	);
 
 	return lines.join("\n");

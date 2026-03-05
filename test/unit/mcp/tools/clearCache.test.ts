@@ -52,7 +52,7 @@ describe("clear_cache tool", () => {
 		const ctx = await setupClearCacheTool();
 		try {
 			const result = await ctx.client.callTool({
-				name: "clear_cache",
+				name: "nanostores_clear_cache",
 				arguments: {},
 			});
 
@@ -73,7 +73,7 @@ describe("clear_cache tool", () => {
 		const ctx = await setupClearCacheTool();
 		try {
 			const result = await ctx.client.callTool({
-				name: "clear_cache",
+				name: "nanostores_clear_cache",
 				arguments: { rootUri: "/workspace" },
 			});
 
@@ -91,8 +91,8 @@ describe("clear_cache tool", () => {
 	it("always resets autocomplete cache", async () => {
 		const ctx = await setupClearCacheTool();
 		try {
-			await ctx.client.callTool({ name: "clear_cache", arguments: {} });
-			await ctx.client.callTool({ name: "clear_cache", arguments: {} });
+			await ctx.client.callTool({ name: "nanostores_clear_cache", arguments: {} });
+			await ctx.client.callTool({ name: "nanostores_clear_cache", arguments: {} });
 
 			expect(ctx.resetAutocompleteCache).toHaveBeenCalledTimes(2);
 		} finally {

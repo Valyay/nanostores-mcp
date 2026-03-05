@@ -42,7 +42,7 @@ export function buildLoggerBridgeStatusText(loggerInfo?: {
 
 export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeServer): void {
 	server.registerTool(
-		"ping",
+		"nanostores_ping",
 		{
 			title: "Ping Nanostores MCP server",
 			description:

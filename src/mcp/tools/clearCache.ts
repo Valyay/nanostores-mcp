@@ -16,11 +16,11 @@ export function registerClearCacheTool(
 	resetAutocompleteCache: () => void,
 ): void {
 	server.registerTool(
-		"clear_cache",
+		"nanostores_clear_cache",
 		{
 			title: "Clear project analysis cache",
 			description:
-				"Clears the cached project index so that the next scan_project " +
+				"Clears the cached project index so that the next nanostores_scan_project " +
 				"call performs a fresh scan. Use after file changes that the " +
 				"server may not have detected.",
 			inputSchema: ClearCacheInputSchema,

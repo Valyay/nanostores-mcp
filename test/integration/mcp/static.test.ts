@@ -39,11 +39,11 @@ async function setup(): Promise<TestMcpContext> {
 // ===========================================================================
 
 describe("Tools", () => {
-	describe("scan_project", () => {
+	describe("nanostores_scan_project", () => {
 		it("scans fixture and returns stores, subscribers, and relations", async () => {
 			const ctx = await setup();
 			try {
-				const result = await ctx.callTool("scan_project", {});
+				const result = await ctx.callTool("nanostores_scan_project", {});
 				const sc = result.structuredContent as {
 					root: string;
 					filesScanned: number;
@@ -79,7 +79,7 @@ describe("Tools", () => {
 			const ctx = await setup();
 			try {
 				await expect(
-					ctx.callTool("scan_project", {
+					ctx.callTool("nanostores_scan_project", {
 						rootUri: "/nonexistent/outside/workspace",
 					}),
 				).rejects.toThrow(/outside of allowed roots/i);
@@ -91,7 +91,7 @@ describe("Tools", () => {
 		it("accepts force parameter and returns fresh results", async () => {
 			const ctx = await setup();
 			try {
-				const result = await ctx.callTool("scan_project", { force: true });
+				const result = await ctx.callTool("nanostores_scan_project", { force: true });
 				const sc = result.structuredContent as { filesScanned: number };
 				expect(sc.filesScanned).toBeGreaterThan(0);
 			} finally {
@@ -100,19 +100,19 @@ describe("Tools", () => {
 		});
 	});
 
-	describe("clear_cache", () => {
+	describe("nanostores_clear_cache", () => {
 		it("clears cache and allows fresh scan", async () => {
 			const ctx = await setup();
 			try {
 				// First scan populates cache
-				await ctx.callTool("scan_project", {});
+				await ctx.callTool("nanostores_scan_project", {});
 
 				// Clear cache
-				const clearResult = await ctx.callTool("clear_cache", {});
+				const clearResult = await ctx.callTool("nanostores_clear_cache", {});
 				expect(clearResult.text).toContain("Cache cleared");
 
 				// Second scan should succeed (fresh scan)
-				const result = await ctx.callTool("scan_project", {});
+				const result = await ctx.callTool("nanostores_scan_project", {});
 				const sc = result.structuredContent as { filesScanned: number };
 				expect(sc.filesScanned).toBeGreaterThan(0);
 			} finally {
@@ -121,12 +121,12 @@ describe("Tools", () => {
 		});
 	});
 
-	describe("store_summary", () => {
+	describe("nanostores_store_summary", () => {
 		it("resolves store by name and returns structured content", async () => {
 			const ctx = await setup();
 			try {
 				// Use $cart — unique name in the fixture (unlike $count which exists in two files)
-				const result = await ctx.callTool("store_summary", { name: "$cart" });
+				const result = await ctx.callTool("nanostores_store_summary", { name: "$cart" });
 				const sc = result.structuredContent as {
 					store: { name?: string; kind: string };
 					resolution: { by: string; requested: string };
@@ -155,14 +155,14 @@ describe("Tools", () => {
 			const ctx = await setup();
 			try {
 				// First get a store id via scan
-				const scan = await ctx.callTool("scan_project", {});
+				const scan = await ctx.callTool("nanostores_scan_project", {});
 				const scanSc = scan.structuredContent as {
 					stores: Array<{ id: string; name?: string }>;
 				};
 				const cartStore = scanSc.stores.find(s => s.name === "$cart");
 				expect(cartStore).toBeDefined();
 
-				const result = await ctx.callTool("store_summary", { storeId: cartStore!.id });
+				const result = await ctx.callTool("nanostores_store_summary", { storeId: cartStore!.id });
 				const sc = result.structuredContent as {
 					store: { name?: string };
 					resolution: { by: string; requested: string };
@@ -179,7 +179,7 @@ describe("Tools", () => {
 		it("returns non-empty relations for computed store", async () => {
 			const ctx = await setup();
 			try {
-				const result = await ctx.callTool("store_summary", { name: "$total" });
+				const result = await ctx.callTool("nanostores_store_summary", { name: "$total" });
 				const sc = result.structuredContent as {
 					store: { name?: string; kind: string };
 					derivesFrom: {
@@ -202,7 +202,7 @@ describe("Tools", () => {
 			const ctx = await setup();
 			try {
 				// $cart is a unique base store; $bundle derives from it
-				const result = await ctx.callTool("store_summary", { name: "$cart" });
+				const result = await ctx.callTool("nanostores_store_summary", { name: "$cart" });
 				const sc = result.structuredContent as {
 					derivedDependents: {
 						stores: Array<{ name?: string }>;
@@ -222,7 +222,7 @@ describe("Tools", () => {
 		it("returns isError for unknown store name", async () => {
 			const ctx = await setup();
 			try {
-				await expect(ctx.callTool("store_summary", { name: "$nonExistentStore" })).rejects.toThrow(
+				await expect(ctx.callTool("nanostores_store_summary", { name: "$nonExistentStore" })).rejects.toThrow(
 					/store not found/i,
 				);
 			} finally {
@@ -233,7 +233,7 @@ describe("Tools", () => {
 		it("throws when neither storeId nor name is provided", async () => {
 			const ctx = await setup();
 			try {
-				await expect(ctx.callTool("store_summary", {})).rejects.toThrow(/storeId|name/i);
+				await expect(ctx.callTool("nanostores_store_summary", {})).rejects.toThrow(/storeId|name/i);
 			} finally {
 				await ctx.cleanup();
 			}

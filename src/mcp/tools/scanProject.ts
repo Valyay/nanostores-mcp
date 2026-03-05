@@ -153,7 +153,7 @@ export function registerScanProjectTool(
 	projectService: ProjectAnalysisService,
 ): void {
 	server.registerTool(
-		"scan_project",
+		"nanostores_scan_project",
 		{
 			title: "Scan project for Nanostores usage",
 			description:
