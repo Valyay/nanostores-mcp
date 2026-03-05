@@ -282,7 +282,13 @@ export function registerStoreActivityTool(
 					content: [
 						{
 							type: "text",
-							text: `Failed to get store activity.\n\nError: ${msg}`,
+							text:
+								`Failed to get store activity.` +
+								(storeName
+									? ` Verify the store name "${storeName}" is correct (use nanostores_list_stores to check available stores).`
+									: ``) +
+								` Ensure the app is running with @nanostores/logger and events are being sent to the logger bridge.` +
+								`\n\nError: ${msg}`,
 						},
 					],
 				};
@@ -358,7 +364,11 @@ export function registerFindNoisyStoresTool(
 					content: [
 						{
 							type: "text",
-							text: `Failed to find noisy stores.\n\nError: ${msg}`,
+							text:
+								`Failed to find noisy stores.` +
+								` Ensure the app is running with @nanostores/logger and events are being sent to the logger bridge.` +
+								` If no stores appear active, try nanostores_runtime_overview for a health check.` +
+								`\n\nError: ${msg}`,
 						},
 					],
 				};
@@ -449,7 +459,11 @@ export function registerRuntimeOverviewTool(
 					content: [
 						{
 							type: "text",
-							text: `Failed to get runtime overview.\n\nError: ${msg}`,
+							text:
+								`Failed to get runtime overview.` +
+								` Check that the logger bridge is receiving events on port NANOSTORES_MCP_LOGGER_PORT (default 3999).` +
+								` Ensure the app is running with @nanostores/logger integration.` +
+								`\n\nError: ${msg}`,
 						},
 					],
 				};
