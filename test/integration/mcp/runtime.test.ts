@@ -261,44 +261,6 @@ describe("Resources", () => {
 		}
 	});
 
-	it("runtime overview resource returns health summary", async () => {
-		const ctx = await setup();
-		try {
-			const result = await ctx.readResource("nanostores://runtime/overview");
-
-			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
-			expect(jsonContent?.text).toBeDefined();
-
-			const data = JSON.parse(jsonContent!.text!) as {
-				hasRuntimeData: boolean;
-				totals: { storesSeen: number; events: number };
-			};
-			expect(data.hasRuntimeData).toBe(true);
-			expect(data.totals.storesSeen).toBe(2);
-			expect(data.totals.events).toBe(10);
-		} finally {
-			await ctx.cleanup();
-		}
-	});
-
-	it("runtime overview resource returns empty state when no events", async () => {
-		// Fresh context without seeded events
-		const ctx = await setupRuntimeMcp();
-		try {
-			const result = await ctx.readResource("nanostores://runtime/overview");
-
-			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
-			const data = JSON.parse(jsonContent!.text!) as {
-				hasRuntimeData: boolean;
-				totals: { storesSeen: number; events: number };
-			};
-			expect(data.hasRuntimeData).toBe(false);
-			expect(data.totals.storesSeen).toBe(0);
-		} finally {
-			await ctx.cleanup();
-		}
-	});
-
 	it("runtime stats-toon resource returns TOON-encoded data", async () => {
 		const ctx = await setup();
 		try {

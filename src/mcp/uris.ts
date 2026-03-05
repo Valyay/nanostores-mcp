@@ -19,7 +19,6 @@ export const URIS = {
 
 	runtimeEvents: "nanostores://runtime/events",
 	runtimeStats: "nanostores://runtime/stats",
-	runtimeOverview: "nanostores://runtime/overview",
 	runtimeStatsToon: "nanostores://runtime/stats-toon",
 	runtimeEventsAggToon: "nanostores://runtime/events-agg-toon",
 	runtimeStoreTemplate: "nanostores://runtime/store/{key}",
