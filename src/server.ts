@@ -64,18 +64,51 @@ const docsRepository = docsSource
 
 const docsService = docsRepository ? createDocsService(docsRepository) : null;
 
+/**
+ * Build the server instructions string sent to LLM clients during initialization.
+ * Conditionally includes sections for enabled features to avoid mentioning disabled tools.
+ */
+function buildInstructions(): string {
+	const lines = [
+		"Analyzes Nanostores state management via layered approach:",
+		"1. Static analysis: scan_project discovers stores and dependency graph; store_summary inspects individual stores.",
+	];
+
+	if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
+		lines.push(
+			"2. Runtime monitoring (active): nanostores_runtime_overview for health, nanostores_store_activity for per-store events, nanostores_find_noisy_stores for performance hotspots.",
+		);
+	}
+
+	if (docsService) {
+		lines.push(
+			`${envConfig.NANOSTORES_MCP_LOGGER_ENABLED ? "3" : "2"}. Documentation: nanostores_docs_search for guides and API references.`,
+		);
+	}
+
+	lines.push(
+		"Start with scan_project. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.",
+	);
+
+	return lines.join("\n");
+}
+
 export function buildNanostoresServer(): McpServer {
 	const server = new McpServer(
 		{
 			name: SERVER_NAME,
 			version: SERVER_VERSION,
+			description:
+				"Static AST analysis and optional runtime monitoring for Nanostores state management",
 		},
 		{
 			capabilities: {
+				logging: {},
 				tools: {},
 				resources: {},
 				prompts: {},
 			},
+			instructions: buildInstructions(),
 		},
 	);
 
