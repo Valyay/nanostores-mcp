@@ -1,8 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
-import type { LoggerBridgeServer } from "../../logger/loggerBridge.js";
 import type { SuggestStoreNamesFn } from "../../mcp/shared/storeAutocomplete.js";
-import { registerPingTool } from "../../mcp/tools/ping.js";
 import {
 	registerStoreActivityTool,
 	registerFindNoisyStoresTool,
@@ -22,16 +20,15 @@ import {
 } from "../../mcp/prompts/debugRuntime.js";
 
 /**
- * Registers all runtime features (logger bridge, event store, runtime monitoring).
+ * Registers runtime features (event store, runtime monitoring).
+ * Only call when NANOSTORES_MCP_LOGGER_ENABLED=true; ping is registered separately.
  */
 export function registerRuntimeFeatures(
 	server: McpServer,
 	runtimeService: RuntimeAnalysisService,
-	bridge: LoggerBridgeServer,
 	suggestStoreNames: SuggestStoreNamesFn,
 ): void {
 	// Tools
-	registerPingTool(server, bridge);
 	registerStoreActivityTool(server, runtimeService);
 	registerFindNoisyStoresTool(server, runtimeService);
 	registerRuntimeOverviewTool(server, runtimeService);

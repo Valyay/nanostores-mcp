@@ -113,10 +113,7 @@ export function registerStoreSummaryTool(
 				const resolution = await projectService.resolveStoreByKey(rootPath, key, file);
 
 				if (!resolution) {
-					throw new McpError(
-						ErrorCode.InvalidParams,
-						storeNotFoundMessage(key, rootPath),
-					);
+					throw new McpError(ErrorCode.InvalidParams, storeNotFoundMessage(key, rootPath));
 				}
 
 				const { store, by: resolutionBy } = resolution;

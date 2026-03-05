@@ -8,11 +8,12 @@ import {
 	createRuntimeAnalysisService,
 } from "../../../src/domain/index.ts";
 import type { LoggerEventStore } from "../../../src/domain/index.ts";
-import { createLoggerBridge } from "../../../src/logger/loggerBridge.ts";
 import { createStoreAutocomplete } from "../../../src/mcp/shared/storeAutocomplete.ts";
 import { registerStaticFeatures } from "../../../src/features/static/index.ts";
 import { registerRuntimeFeatures } from "../../../src/features/runtime/index.ts";
 import { registerDocsFeatures } from "../../../src/features/docs/index.ts";
+import { createLoggerBridge } from "../../../src/logger/loggerBridge.ts";
+import { registerPingTool } from "../../../src/mcp/tools/ping.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,12 +131,13 @@ export async function setupRuntimeMcp(): Promise<RuntimeTestMcpContext> {
 	const repo = createProjectIndexRepository();
 	const projectService = createProjectAnalysisService(repo);
 	const runtimeService = createRuntimeAnalysisService(eventStore, projectService);
-	// Bridge with enabled=false — no HTTP server, just satisfies getInfo()
-	const bridge = createLoggerBridge(eventStore, { enabled: false });
 	const { suggestStoreNames } = createStoreAutocomplete(projectService);
 
+	const bridge = createLoggerBridge(eventStore, { enabled: false });
+
 	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
-	registerRuntimeFeatures(server, runtimeService, bridge, suggestStoreNames);
+	registerPingTool(server, bridge);
+	registerRuntimeFeatures(server, runtimeService, suggestStoreNames);
 
 	const ctx = await connectMcp(server);
 	return { ...ctx, eventStore };

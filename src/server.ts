@@ -14,6 +14,7 @@ import { getWorkspaceRootPaths } from "./config/settings.js";
 import { registerStaticFeatures } from "./features/static/index.js";
 import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
+import { registerPingTool } from "./mcp/tools/ping.js";
 import { createStoreAutocomplete } from "./mcp/shared/storeAutocomplete.js";
 
 import packageJson from "../package.json" with { type: "json" };
@@ -118,7 +119,10 @@ export function buildNanostoresServer(): McpServer {
 
 	// Register feature modules with domain services
 	registerStaticFeatures(server, projectAnalysisService, suggestStoreNames, resetAutocompleteCache);
-	registerRuntimeFeatures(server, runtimeAnalysisService, loggerBridge, suggestStoreNames);
+	registerPingTool(server, loggerBridge);
+	if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
+		registerRuntimeFeatures(server, runtimeAnalysisService, suggestStoreNames);
+	}
 	registerDocsFeatures(server, docsService);
 
 	return server;

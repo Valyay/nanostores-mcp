@@ -5,7 +5,6 @@ import { registerRuntimeFeatures } from "../../../src/features/runtime/index.ts"
 import { registerDocsFeatures } from "../../../src/features/docs/index.ts";
 import { toToon } from "../../../src/shared/toon.ts";
 import type { ProjectAnalysisService, RuntimeAnalysisService } from "../../../src/domain/index.ts";
-import type { LoggerBridgeServer } from "../../../src/logger/loggerBridge.ts";
 
 function createMockProjectService(): ProjectAnalysisService {
 	return {
@@ -42,14 +41,6 @@ function createMockRuntimeService(): RuntimeAnalysisService {
 	} as unknown as RuntimeAnalysisService;
 }
 
-function createMockBridge(): LoggerBridgeServer {
-	return {
-		start: async () => {},
-		stop: async () => {},
-		getInfo: () => ({ enabled: false }),
-	};
-}
-
 describe("MCP feature registration", () => {
 	it("registers static features without errors", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
@@ -65,12 +56,9 @@ describe("MCP feature registration", () => {
 	it("registers runtime features without errors", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
 		const runtimeService = createMockRuntimeService();
-		const bridge = createMockBridge();
 		const suggestStoreNames = async (): Promise<string[]> => [];
 
-		expect(() =>
-			registerRuntimeFeatures(server, runtimeService, bridge, suggestStoreNames),
-		).not.toThrow();
+		expect(() => registerRuntimeFeatures(server, runtimeService, suggestStoreNames)).not.toThrow();
 	});
 
 	it("registers docs features without errors (with null service)", () => {

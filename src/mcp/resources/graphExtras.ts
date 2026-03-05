@@ -128,8 +128,7 @@ export function registerStoreSubgraphResource(
 							{
 								uri: uri.href,
 								mimeType: "text/plain",
-								text:
-									storeNotFoundMessage(storeParam, rootPath),
+								text: storeNotFoundMessage(storeParam, rootPath),
 							},
 						],
 					};
