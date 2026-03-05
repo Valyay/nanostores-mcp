@@ -16,6 +16,9 @@ export type StoreKind =
 	| "atomFamily"
 	| "mapTemplate"
 	| "computedTemplate"
+	| "router"
+	| "i18n"
+	| "deepMap"
 	| "unknown";
 
 export type SubscriberKind = "component" | "hook" | "effect" | "unknown";
@@ -72,6 +75,7 @@ export interface ModuleConfig {
 	baseModules?: ReadonlySet<string>;
 	persistentModules?: ReadonlySet<string>;
 	frameworkModules?: ReadonlySet<string>;
+	ecosystemModules?: ReadonlySet<string>;
 }
 
 export interface ScanOptions {
@@ -93,7 +97,16 @@ export function normalizeStoreKind(raw: string): StoreKind {
 		case "atomFamily":
 		case "mapTemplate":
 		case "computedTemplate":
+		case "router":
+		case "i18n":
+		case "deepMap":
 			return raw;
+		// Ecosystem factory function names → StoreKind
+		case "createRouter":
+			return "router";
+		case "createI18n":
+		case "localeFrom":
+			return "i18n";
 		default:
 			return "unknown";
 	}

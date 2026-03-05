@@ -78,6 +78,31 @@ describe("scanner/stores", () => {
 		expect(declares.length).toBe(context.stores.length);
 	});
 
+	it("detects ecosystem package stores (router, i18n, deepMap)", () => {
+		const code = [
+			'import { createRouter } from "@nanostores/router";',
+			'import { createI18n, localeFrom } from "@nanostores/i18n";',
+			'import { deepMap } from "@nanostores/deepmap";',
+			"",
+			"const $router = createRouter({ home: '/' });",
+			"const $i18n = createI18n($locale, { get: async () => ({}) });",
+			"const $locale = localeFrom(navigator);",
+			"const $profile = deepMap({ name: '' });",
+		].join("\n");
+		const { sourceFile, absRoot } = createSourceFile(code, "src/stores.ts");
+		const importsInfo = collectNanostoresStoreImports(sourceFile);
+		const context = createStoreContext(absRoot);
+
+		analyzeStoresInFile(sourceFile, absRoot, importsInfo, context);
+
+		const storesByName = new Map(context.stores.map(s => [s.name, s]));
+		expect(storesByName.get("$router")?.kind).toBe("router");
+		expect(storesByName.get("$i18n")?.kind).toBe("i18n");
+		expect(storesByName.get("$locale")?.kind).toBe("i18n");
+		expect(storesByName.get("$profile")?.kind).toBe("deepMap");
+		expect(context.stores).toHaveLength(4);
+	});
+
 	it("builds symbol keys using declaration location", () => {
 		const code = ['import { atom } from "nanostores";', "", "const $count = atom(0);"].join("\n");
 		const { sourceFile } = createSourceFile(code, "src/stores.ts");

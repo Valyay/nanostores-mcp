@@ -14,6 +14,16 @@ export const NANOSTORES_PERSISTENT_MODULES = new Set<string>([
 ]);
 
 /**
+ * Ecosystem modules that export store factory functions (router, i18n, deepmap).
+ * Non-factory exports (openPage, getPath, etc.) are filtered by normalizeStoreKind.
+ */
+export const NANOSTORES_ECOSYSTEM_MODULES = new Set<string>([
+	"@nanostores/router",
+	"@nanostores/i18n",
+	"@nanostores/deepmap",
+]);
+
+/**
  * Framework modules from which we consider useStore() subscriptions.
  * Can be extended when needed (e.g., for custom wrappers).
  */
@@ -46,19 +56,18 @@ export function collectNanostoresStoreImports(
 
 	const baseModules = moduleConfig?.baseModules ?? NANOSTORES_BASE_MODULES;
 	const persistentModules = moduleConfig?.persistentModules ?? NANOSTORES_PERSISTENT_MODULES;
+	const ecosystemModules = moduleConfig?.ecosystemModules ?? NANOSTORES_ECOSYSTEM_MODULES;
 
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
 
-		// Base stores module
 		const isBaseModule = baseModules.has(module);
+		const isStoreModule =
+			isBaseModule || persistentModules.has(module) || ecosystemModules.has(module);
 
-		// Persistent stores module
-		const isPersistentModule = persistentModules.has(module);
+		if (!isStoreModule) continue;
 
-		if (!isBaseModule && !isPersistentModule) continue;
-
-		// Named imports: atom, map, computed, persistentAtom, ...
+		// Named imports: atom, map, computed, persistentAtom, createRouter, deepMap, ...
 		for (const named of imp.getNamedImports()) {
 			const importedName = named.getName();
 			const localName = named.getAliasNode()?.getText() ?? importedName;
