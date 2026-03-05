@@ -1,4 +1,4 @@
-import type { StoreMatch, SubscriberMatch } from "../../domain/project/types.js";
+import type { StoreMatch, StoreRelation, SubscriberMatch } from "../../domain/project/types.js";
 
 export interface StoreStructuredContent extends Record<string, unknown> {
 	store: {
@@ -62,7 +62,9 @@ export function buildStoreStructuredContent(args: {
 	resolutionNote?: string;
 	subscribers: SubscriberMatch[];
 	derivesFromStores: StoreMatch[];
+	derivesFromEdges?: StoreRelation[];
 	dependentsStores: StoreMatch[];
+	dependentsEdges?: StoreRelation[];
 }): StoreStructuredContent {
 	const {
 		store,
@@ -71,7 +73,9 @@ export function buildStoreStructuredContent(args: {
 		resolutionNote,
 		subscribers,
 		derivesFromStores,
+		derivesFromEdges = [],
 		dependentsStores,
+		dependentsEdges = [],
 	} = args;
 
 	return {
@@ -105,7 +109,13 @@ export function buildStoreStructuredContent(args: {
 				kind: s.kind,
 				name: s.name,
 			})),
-			relations: [], // TODO: expose edges from domain layer
+			relations: derivesFromEdges.map(e => ({
+				from: e.from,
+				to: e.to,
+				type: e.type,
+				...(e.file && { file: e.file }),
+				...(e.line !== undefined && { line: e.line }),
+			})),
 		},
 		derivedDependents: {
 			stores: dependentsStores.map(s => ({
@@ -115,7 +125,13 @@ export function buildStoreStructuredContent(args: {
 				kind: s.kind,
 				name: s.name,
 			})),
-			relations: [], // TODO: expose edges from domain layer
+			relations: dependentsEdges.map(e => ({
+				from: e.from,
+				to: e.to,
+				type: e.type,
+				...(e.file && { file: e.file }),
+				...(e.line !== undefined && { line: e.line }),
+			})),
 		},
 	};
 }

@@ -1,5 +1,12 @@
 import type { ProjectIndexRepository } from "./repository.js";
-import type { ProjectIndex, ScanOptions, StoreMatch, SubscriberMatch } from "./types.js";
+import type {
+	ProjectIndex,
+	ScanOptions,
+	StoreMatch,
+	StoreRelation,
+	StoreResolution,
+	SubscriberMatch,
+} from "./types.js";
 import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./lookup.js";
 
 /**
@@ -21,6 +28,11 @@ export interface ProjectAnalysisService {
 	getStoreByKey(root: string, key: string, file?: string): Promise<StoreMatch | null>;
 
 	/**
+	 * Resolve a store by key with full resolution metadata (by, requested, note)
+	 */
+	resolveStoreByKey(root: string, key: string, file?: string): Promise<StoreResolution | null>;
+
+	/**
 	 * Get all stores and subscribers that are related to the given store
 	 * - derivesFrom: stores this store depends on
 	 * - dependents: stores that depend on this store
@@ -31,7 +43,9 @@ export interface ProjectAnalysisService {
 		store: StoreMatch,
 	): Promise<{
 		derivesFrom: StoreMatch[];
+		derivesFromEdges: StoreRelation[];
 		dependents: StoreMatch[];
+		dependentsEdges: StoreRelation[];
 		subscribers: SubscriberMatch[];
 	}>;
 
@@ -73,12 +87,23 @@ export function createProjectAnalysisService(
 			return resolution?.store ?? null;
 		},
 
+		async resolveStoreByKey(
+			root: string,
+			key: string,
+			file?: string,
+		): Promise<StoreResolution | null> {
+			const index = await repository.getIndex(root);
+			return resolveStore(index, key, { file });
+		},
+
 		async getStoreNeighbors(
 			root: string,
 			store: StoreMatch,
 		): Promise<{
 			derivesFrom: StoreMatch[];
+			derivesFromEdges: StoreRelation[];
 			dependents: StoreMatch[];
+			dependentsEdges: StoreRelation[];
 			subscribers: SubscriberMatch[];
 		}> {
 			const index = await repository.getIndex(root);
@@ -86,7 +111,9 @@ export function createProjectAnalysisService(
 
 			return {
 				derivesFrom: neighbors.derivesFromStores,
+				derivesFromEdges: neighbors.derivesFromEdges,
 				dependents: neighbors.dependentsStores,
+				dependentsEdges: neighbors.dependentsEdges,
 				subscribers: neighbors.subscribers,
 			};
 		},

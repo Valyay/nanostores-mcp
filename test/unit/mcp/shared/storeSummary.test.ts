@@ -3,7 +3,11 @@ import {
 	buildStoreSummaryText,
 	buildStoreStructuredContent,
 } from "../../../../src/mcp/shared/storeSummary.ts";
-import type { StoreMatch, SubscriberMatch } from "../../../../src/domain/project/types.ts";
+import type {
+	StoreMatch,
+	StoreRelation,
+	SubscriberMatch,
+} from "../../../../src/domain/project/types.ts";
 
 function makeStore(overrides: Partial<StoreMatch> = {}): StoreMatch {
 	return {
@@ -169,5 +173,97 @@ describe("buildStoreStructuredContent", () => {
 		expect(result.derivesFrom.stores[0].id).toBe("store:a#$a");
 		expect(result.derivedDependents.stores).toHaveLength(1);
 		expect(result.derivedDependents.stores[0].id).toBe("store:b#$b");
+	});
+
+	it("maps derivesFrom and dependents edges into relations", () => {
+		const parent = makeStore({ id: "store:a#$a", name: "$a", file: "a.ts", line: 1 });
+		const store = makeStore({ id: "store:src/stores.ts#$computed", kind: "computed" });
+		const dependent = makeStore({ id: "store:b#$b", name: "$b", file: "b.ts", line: 2 });
+
+		const derivesFromEdges: StoreRelation[] = [
+			{ type: "derives_from", from: store.id, to: parent.id, file: "src/stores.ts", line: 5 },
+		];
+		const dependentsEdges: StoreRelation[] = [
+			{ type: "derives_from", from: dependent.id, to: store.id, file: "b.ts", line: 2 },
+		];
+
+		const result = buildStoreStructuredContent({
+			store,
+			requestedKey: "$computed",
+			subscribers: [],
+			derivesFromStores: [parent],
+			derivesFromEdges,
+			dependentsStores: [dependent],
+			dependentsEdges,
+		});
+
+		expect(result.derivesFrom.relations).toHaveLength(1);
+		expect(result.derivesFrom.relations[0]).toEqual({
+			from: store.id,
+			to: parent.id,
+			type: "derives_from",
+			file: "src/stores.ts",
+			line: 5,
+		});
+
+		expect(result.derivedDependents.relations).toHaveLength(1);
+		expect(result.derivedDependents.relations[0]).toEqual({
+			from: dependent.id,
+			to: store.id,
+			type: "derives_from",
+			file: "b.ts",
+			line: 2,
+		});
+	});
+
+	it("defaults relations to empty arrays when edges not provided", () => {
+		const result = buildStoreStructuredContent({
+			store: makeStore(),
+			requestedKey: "$counter",
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+
+		expect(result.derivesFrom.relations).toEqual([]);
+		expect(result.derivedDependents.relations).toEqual([]);
+	});
+
+	it("omits optional file/line from relations when absent on edges", () => {
+		const edge: StoreRelation = {
+			type: "derives_from",
+			from: "store:a#$a",
+			to: "store:b#$b",
+		};
+
+		const result = buildStoreStructuredContent({
+			store: makeStore(),
+			requestedKey: "$counter",
+			subscribers: [],
+			derivesFromStores: [],
+			derivesFromEdges: [edge],
+			dependentsStores: [],
+		});
+
+		const rel = result.derivesFrom.relations[0];
+		expect(rel.from).toBe("store:a#$a");
+		expect(rel.to).toBe("store:b#$b");
+		expect("file" in rel).toBe(false);
+		expect("line" in rel).toBe(false);
+	});
+
+	it("passes through resolutionBy value correctly for id resolution", () => {
+		const result = buildStoreStructuredContent({
+			store: makeStore(),
+			requestedKey: "store:src/stores.ts#$counter",
+			resolutionBy: "id",
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+
+		expect(result.resolution).toBeDefined();
+		expect(result.resolution!.by).toBe("id");
+		expect(result.resolution!.requested).toBe("store:src/stores.ts#$counter");
 	});
 });

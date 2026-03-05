@@ -151,6 +151,74 @@ describe("Tools", () => {
 			}
 		});
 
+		it("resolves store by storeId with resolution.by = id", async () => {
+			const ctx = await setup();
+			try {
+				// First get a store id via scan
+				const scan = await ctx.callTool("scan_project", {});
+				const scanSc = scan.structuredContent as {
+					stores: Array<{ id: string; name?: string }>;
+				};
+				const cartStore = scanSc.stores.find(s => s.name === "$cart");
+				expect(cartStore).toBeDefined();
+
+				const result = await ctx.callTool("store_summary", { storeId: cartStore!.id });
+				const sc = result.structuredContent as {
+					store: { name?: string };
+					resolution: { by: string; requested: string };
+				};
+
+				expect(sc.store.name).toBe("$cart");
+				expect(sc.resolution.by).toBe("id");
+				expect(sc.resolution.requested).toBe(cartStore!.id);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("returns non-empty relations for computed store", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("store_summary", { name: "$total" });
+				const sc = result.structuredContent as {
+					store: { name?: string; kind: string };
+					derivesFrom: {
+						stores: Array<{ name?: string }>;
+						relations: Array<{ from: string; to: string; type: string }>;
+					};
+				};
+
+				expect(sc.store.kind).toBe("computed");
+				expect(sc.derivesFrom.stores.length).toBeGreaterThan(0);
+				expect(sc.derivesFrom.relations.length).toBeGreaterThan(0);
+				expect(sc.derivesFrom.relations[0].type).toBe("derives_from");
+				expect(sc.derivesFrom.relations[0].from).toContain("$total");
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("returns non-empty dependents relations for base store", async () => {
+			const ctx = await setup();
+			try {
+				// $cart is a unique base store; $bundle derives from it
+				const result = await ctx.callTool("store_summary", { name: "$cart" });
+				const sc = result.structuredContent as {
+					derivedDependents: {
+						stores: Array<{ name?: string }>;
+						relations: Array<{ from: string; to: string; type: string }>;
+					};
+				};
+
+				const depNames = sc.derivedDependents.stores.map(s => s.name);
+				expect(depNames).toContain("$bundle");
+				expect(sc.derivedDependents.relations.length).toBeGreaterThan(0);
+				expect(sc.derivedDependents.relations[0].type).toBe("derives_from");
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
 		it("returns isError for unknown store name", async () => {
 			const ctx = await setup();
 			try {

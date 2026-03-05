@@ -276,11 +276,12 @@ describe("project domain: graph and summary builders", () => {
 });
 
 describe("project domain: project analysis service", () => {
+	const repository = {
+		getIndex: async () => projectIndex,
+		clearCache: () => {},
+	};
+
 	it("exposes store names and runtime key resolution", async () => {
-		const repository = {
-			getIndex: async () => projectIndex,
-			clearCache: () => {},
-		};
 		const service = createProjectAnalysisService(repository);
 
 		const storeNames = await service.getStoreNames("/workspace");
@@ -291,5 +292,44 @@ describe("project domain: project analysis service", () => {
 
 		const byRuntimeNameWithDollar = await service.findStoreByRuntimeKey("/workspace", "$cart");
 		expect(byRuntimeNameWithDollar?.id).toBe(storeCart);
+	});
+
+	it("getStoreNeighbors returns edges alongside stores", async () => {
+		const service = createProjectAnalysisService(repository);
+		const totalStore = projectIndex.stores.find(s => s.id === storeTotal)!;
+
+		const neighbors = await service.getStoreNeighbors("/workspace", totalStore);
+
+		expect(neighbors.derivesFrom).toHaveLength(1);
+		expect(neighbors.derivesFrom[0].id).toBe(storeCount);
+		expect(neighbors.derivesFromEdges).toHaveLength(1);
+		expect(neighbors.derivesFromEdges[0].type).toBe("derives_from");
+		expect(neighbors.derivesFromEdges[0].from).toBe(storeTotal);
+		expect(neighbors.derivesFromEdges[0].to).toBe(storeCount);
+
+		const countStore = projectIndex.stores.find(s => s.id === storeCount)!;
+		const countNeighbors = await service.getStoreNeighbors("/workspace", countStore);
+
+		expect(countNeighbors.dependents).toHaveLength(1);
+		expect(countNeighbors.dependentsEdges).toHaveLength(1);
+		expect(countNeighbors.dependentsEdges[0].from).toBe(storeTotal);
+		expect(countNeighbors.dependentsEdges[0].to).toBe(storeCount);
+	});
+
+	it("resolveStoreByKey returns full resolution metadata", async () => {
+		const service = createProjectAnalysisService(repository);
+
+		const byId = await service.resolveStoreByKey("/workspace", storeTotal);
+		expect(byId).not.toBeNull();
+		expect(byId!.by).toBe("id");
+		expect(byId!.store.id).toBe(storeTotal);
+
+		const byName = await service.resolveStoreByKey("/workspace", "$cart");
+		expect(byName).not.toBeNull();
+		expect(byName!.by).toBe("name");
+		expect(byName!.store.id).toBe(storeCart);
+
+		const notFound = await service.resolveStoreByKey("/workspace", "$nonexistent");
+		expect(notFound).toBeNull();
 	});
 });

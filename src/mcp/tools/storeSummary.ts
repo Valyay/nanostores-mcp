@@ -107,46 +107,34 @@ export function registerStoreSummaryTool(
 			const key = storeId ? decodeURIComponent(storeId) : name!;
 
 			try {
-				// Use project service to find the store
-				const store = await projectService.getStoreByKey(rootPath, key, file);
+				const resolution = await projectService.resolveStoreByKey(rootPath, key, file);
 
-				// TODO: This not-found path returns text-only without structuredContent,
-				// which violates the declared outputSchema (StoreSummaryOutputSchema).
-				// MCP SDK v1.23+ enforces output schema compliance and rejects this
-				// response with -32602 "Output validation error". The error path below
-				// has the same issue. Both must return structuredContent to comply.
-				if (!store) {
-					return {
-						isError: true,
-						content: [
-							{
-								type: "text",
-								text: "Store not found.\n\n" + `Root: ${rootPath}\n` + `Requested: ${key}`,
-							},
-						],
-					};
+				if (!resolution) {
+					throw new McpError(
+						ErrorCode.InvalidParams,
+						`Store not found. Root: ${rootPath}, Requested: ${key}`,
+					);
 				}
 
-				// Get neighbors using service
-				const { subscribers, derivesFrom, dependents } = await projectService.getStoreNeighbors(
-					rootPath,
-					store,
-				);
+				const { store, by: resolutionBy } = resolution;
 
-				// TODO: resolutionBy is hardcoded to "name" — should be "id" when
-				// storeId was provided. Affects both structuredContent and text output.
+				const { subscribers, derivesFrom, derivesFromEdges, dependents, dependentsEdges } =
+					await projectService.getStoreNeighbors(rootPath, store);
+
 				const structuredContent = buildStoreStructuredContent({
 					store,
 					requestedKey: key,
-					resolutionBy: "name",
+					resolutionBy,
 					subscribers,
 					derivesFromStores: derivesFrom,
+					derivesFromEdges,
 					dependentsStores: dependents,
+					dependentsEdges,
 				});
 
 				const summaryText = buildStoreSummaryText({
 					store,
-					resolutionBy: "name",
+					resolutionBy,
 					resolutionRequested: key,
 					subscribers,
 					derivesFromStores: derivesFrom,
@@ -169,18 +157,12 @@ export function registerStoreSummaryTool(
 					],
 				};
 			} catch (error) {
-				// TODO: Same outputSchema violation as the not-found path above —
-				// missing structuredContent causes MCP SDK -32602 rejection.
+				if (error instanceof McpError) throw error;
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
-				return {
-					isError: true,
-					content: [
-						{
-							type: "text",
-							text: "Failed to get store summary.\n\n" + `Root: ${rootPath}\n` + `Error: ${msg}`,
-						},
-					],
-				};
+				throw new McpError(
+					ErrorCode.InternalError,
+					`Failed to get store summary. Root: ${rootPath}, Error: ${msg}`,
+				);
 			}
 		},
 	);
