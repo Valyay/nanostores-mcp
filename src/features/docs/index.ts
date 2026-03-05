@@ -1,10 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DocsService } from "../../domain/index.js";
-import {
-	registerDocsIndexResource,
-	registerDocsPageResource,
-	registerDocsSearchResource,
-} from "../../mcp/resources/docs.js";
+import { registerDocsIndexResource, registerDocsPageResource } from "../../mcp/resources/docs.js";
 import { registerDocsSearchTool, registerDocsForStoreTool } from "../../mcp/tools/docs.js";
 import { registerDocsHowToPrompt } from "../../mcp/prompts/docsHowTo.js";
 
@@ -17,7 +13,6 @@ export function registerDocsFeatures(server: McpServer, docsService: DocsService
 	// Resources
 	registerDocsIndexResource(server, docsService);
 	registerDocsPageResource(server, docsService);
-	registerDocsSearchResource(server, docsService);
 
 	// Tools
 	registerDocsSearchTool(server, docsService);
