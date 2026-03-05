@@ -46,7 +46,8 @@ export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeS
 		{
 			title: "Ping Nanostores MCP server",
 			description:
-				"Sanity check: verifies the MCP server is responding. Also reports logger bridge status.",
+				"Use this when you need to verify the MCP server is alive or check " +
+				"whether the runtime logger bridge is connected.",
 			inputSchema: PingInputSchema,
 			outputSchema: PingOutputSchema,
 			annotations: {

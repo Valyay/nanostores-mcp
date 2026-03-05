@@ -34,7 +34,8 @@ export function registerDocsSearchTool(server: McpServer, docsService: DocsServi
 		{
 			title: "Search Nanostores documentation",
 			description:
-				"Search through Nanostores documentation for relevant information. Returns snippets and page references.",
+				"Use this when you need to look up Nanostores API usage, patterns, or best practices. " +
+				"Returns matching documentation snippets and page references.",
 			inputSchema: DocsSearchInputSchema,
 			outputSchema: DocsSearchOutputSchema,
 			annotations: {
@@ -145,7 +146,8 @@ export function registerDocsForStoreTool(server: McpServer, docsService: DocsSer
 		{
 			title: "Find docs for store",
 			description:
-				"Find relevant Nanostores documentation for a specific store based on its type and usage patterns.",
+				"Use this when you have a specific store and want documentation relevant to its type " +
+				"(atom, map, computed, etc.) and usage patterns.",
 			inputSchema: DocsForStoreInputSchema,
 			outputSchema: DocsForStoreOutputSchema,
 			annotations: {

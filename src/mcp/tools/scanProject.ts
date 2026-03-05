@@ -157,7 +157,9 @@ export function registerScanProjectTool(
 		{
 			title: "Scan project for Nanostores usage",
 			description:
-				"Scans the project for nanostores stores, subscribers (components/hooks) and simple store-to-store dependencies.",
+				"Use this when you need a full picture of nanostores usage in the project. " +
+				"Returns all stores, subscribers (components/hooks), and store-to-store dependencies. " +
+				"Call this first before drilling into individual stores.",
 			inputSchema: ScanProjectInputSchema,
 			outputSchema: ScanProjectOutputSchema,
 			annotations: {

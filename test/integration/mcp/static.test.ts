@@ -222,9 +222,9 @@ describe("Tools", () => {
 		it("returns isError for unknown store name", async () => {
 			const ctx = await setup();
 			try {
-				await expect(ctx.callTool("nanostores_store_summary", { name: "$nonExistentStore" })).rejects.toThrow(
-					/store not found/i,
-				);
+				await expect(
+					ctx.callTool("nanostores_store_summary", { name: "$nonExistentStore" }),
+				).rejects.toThrow(/store not found/i);
 			} finally {
 				await ctx.cleanup();
 			}

@@ -86,7 +86,9 @@ export function registerStoreSummaryTool(
 		{
 			title: "Summarize a Nanostores store",
 			description:
-				"Finds a Nanostores store by id or name and returns its details: kind, file, subscribers and derived relations.",
+				"Use this when you need details about a specific store — its kind, file location, " +
+				"subscribers, and derived relations. Accepts store id or name. " +
+				"Run nanostores_scan_project first if you don't know the store id.",
 			inputSchema: StoreSummaryInputSchema,
 			outputSchema: StoreSummaryOutputSchema,
 			annotations: {

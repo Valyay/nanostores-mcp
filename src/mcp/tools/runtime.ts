@@ -226,7 +226,9 @@ export function registerStoreActivityTool(
 		{
 			title: "Get store runtime activity",
 			description:
-				"Retrieve runtime activity data for a specific nanostores store: recent events, change frequency, action calls, errors.",
+				"Use this when debugging a specific store's runtime behavior — why it updates too often, " +
+				"what actions trigger changes, or whether it emits errors. " +
+				"Returns recent events, change frequency, action calls, and errors.",
 			inputSchema: StoreActivityInputSchema,
 			outputSchema: StoreActivityOutputSchema,
 			annotations: {
@@ -311,7 +313,9 @@ export function registerFindNoisyStoresTool(
 		{
 			title: "Find noisy stores",
 			description:
-				"Identify nanostores stores with the highest activity: frequent changes, many action calls. Useful for finding performance bottlenecks.",
+				"Use this when investigating performance issues or excessive re-renders. " +
+				"Returns stores ranked by activity — frequent changes, many action calls — " +
+				"to pinpoint bottlenecks.",
 			inputSchema: FindNoisyStoresInputSchema,
 			outputSchema: FindNoisyStoresOutputSchema,
 			annotations: {
@@ -388,7 +392,8 @@ export function registerRuntimeOverviewTool(
 		{
 			title: "Get runtime overview",
 			description:
-				"Get overall health report of nanostores runtime: active stores, error-prone stores, unused stores, activity patterns.",
+				"Use this when you want a high-level health check of the running app's state management. " +
+				"Returns active stores, error-prone stores, unused stores, and activity patterns.",
 			inputSchema: RuntimeOverviewInputSchema,
 			outputSchema: RuntimeOverviewOutputSchema,
 			annotations: {
