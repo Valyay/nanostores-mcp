@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { URIS } from "../uris.js";
+import { storeNotFoundMessage } from "../shared/consts.js";
 import { buildStoreSummaryText, buildStoreStructuredContent } from "../shared/storeSummary.js";
 
 const StoreSummaryInputSchema = z.object({
@@ -114,7 +115,7 @@ export function registerStoreSummaryTool(
 				if (!resolution) {
 					throw new McpError(
 						ErrorCode.InvalidParams,
-						`Store not found. Root: ${rootPath}, Requested: ${key}`,
+						storeNotFoundMessage(key, rootPath),
 					);
 				}
 

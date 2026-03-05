@@ -6,6 +6,7 @@ import type {
 	StoreRuntimeStats,
 } from "../../domain/index.js";
 import { toToon } from "../../shared/toon.js";
+import { RUNTIME_STATIC_UNAVAILABLE_MESSAGE } from "../shared/consts.js";
 import { URIS } from "../uris.js";
 
 export function parseEventsFilter(searchParams: URLSearchParams): LoggerEventFilter {
@@ -226,7 +227,7 @@ export function registerRuntimeStoreResource(
 					},
 					note: hasStaticData
 						? "This profile combines static AST analysis with runtime logger data"
-						: "This profile contains only runtime data. Static analysis is unavailable (missing projectRoot or store not found in project scan)",
+						: RUNTIME_STATIC_UNAVAILABLE_MESSAGE,
 				},
 			};
 

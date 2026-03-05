@@ -2,6 +2,7 @@ import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/serv
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { URIS } from "../uris.js";
+import { storeNotFoundMessage } from "../shared/consts.js";
 import { buildStoreSummaryText, buildStoreStructuredContent } from "../shared/storeSummary.js";
 
 /**
@@ -62,7 +63,7 @@ export function registerStoreResource(
 							{
 								uri: uri.href,
 								mimeType: "text/plain",
-								text: `Store not found.\n\n` + `Requested key: ${rawKey}\n` + `Root: ${rootPath}`,
+								text: storeNotFoundMessage(rawKey, rootPath),
 							},
 						],
 					};

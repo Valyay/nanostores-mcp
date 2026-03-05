@@ -117,7 +117,7 @@ export function registerDocsPageResource(server: McpServer, docsService: DocsSer
 						{
 							uri: uri.href,
 							mimeType: "text/plain",
-							text: `Page not found: ${pageId}\n\nUse nanostores://docs to see available pages.`,
+							text: `Page not found: ${pageId}\n\nUse the nanostores://docs resource to see available pages, or check the page ID for typos.`,
 						},
 					],
 				};

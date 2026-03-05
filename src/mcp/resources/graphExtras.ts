@@ -3,6 +3,7 @@ import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { buildGraphOutline, buildIdDictionary, buildStoreSubgraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
+import { storeNotFoundMessage } from "../shared/consts.js";
 import { URIS } from "../uris.js";
 
 export function registerGraphOutlineResource(
@@ -128,7 +129,7 @@ export function registerStoreSubgraphResource(
 								uri: uri.href,
 								mimeType: "text/plain",
 								text:
-									"Store not found.\n\n" + `Requested key: ${storeParam}\n` + `Root: ${rootPath}`,
+									storeNotFoundMessage(storeParam, rootPath),
 							},
 						],
 					};
