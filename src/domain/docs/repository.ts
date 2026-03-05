@@ -242,7 +242,48 @@ async function buildIndex(state: DocsRepositoryState): Promise<DocsIndex> {
 }
 
 /**
- * Simple search implementation (TF-IDF-like)
+ * Count word-boundary matches (whole words) and substring-only matches separately.
+ * Whole-word matches are weighted higher to prevent "atom" inside "createAtom"
+ * from scoring the same as the standalone word "atom".
+ */
+function countMatches(text: string, escapedTerm: string): { word: number; substring: number } {
+	const allMatches = (text.match(new RegExp(escapedTerm, "g")) || []).length;
+	if (allMatches === 0) return { word: 0, substring: 0 };
+
+	const wordMatches = (text.match(new RegExp(`\\b${escapedTerm}\\b`, "g")) || []).length;
+	return { word: wordMatches, substring: allMatches - wordMatches };
+}
+
+/**
+ * Compute IDF (Inverse Document Frequency) for each query term.
+ * Rare terms get higher weight; ubiquitous terms get lower weight.
+ */
+function computeIdf(
+	terms: string[],
+	chunks: DocChunk[],
+): Map<string, number> {
+	const idf = new Map<string, number>();
+	const totalChunks = chunks.length;
+	if (totalChunks === 0) return idf;
+
+	for (const term of terms) {
+		const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		let docCount = 0;
+		for (const chunk of chunks) {
+			if (chunk.text.toLowerCase().includes(term)) {
+				docCount++;
+			}
+		}
+		// Standard IDF with smoothing to avoid division by zero and log(1)=0
+		idf.set(escaped, Math.log((totalChunks + 1) / (docCount + 1)) + 1);
+	}
+
+	return idf;
+}
+
+/**
+ * Search implementation with word-boundary matching, IDF weighting,
+ * and document length normalization.
  */
 function searchChunks(
 	index: DocsIndex,
@@ -252,7 +293,7 @@ function searchChunks(
 	const queryTerms = query
 		.toLowerCase()
 		.split(/\s+/)
-		.filter(t => t.length > 2);
+		.filter(t => t.length > 1);
 
 	let chunks = index.chunks;
 
@@ -269,8 +310,17 @@ function searchChunks(
 		chunks = chunks.filter(c => options.pageIds!.includes(c.pageId));
 	}
 
+	// Precompute IDF over the full corpus (not the filtered subset)
+	// so that tag/pageId filters don't inflate IDF scores
+	const idf = computeIdf(queryTerms, index.chunks);
+
 	// Score chunks
 	const hits: DocsSearchHit[] = [];
+
+	// Word-boundary match weight vs substring-only match weight
+	const WORD_MATCH_WEIGHT = 3;
+	const SUBSTRING_MATCH_WEIGHT = 0.5;
+	const TITLE_MULTIPLIER = 5;
 
 	for (const chunk of chunks) {
 		const page = index.pages.find(p => p.id === chunk.pageId);
@@ -280,17 +330,29 @@ function searchChunks(
 		const titleLower = page.title.toLowerCase();
 		let score = 0;
 
-		// Count term matches
 		for (const term of queryTerms) {
 			const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-			const textMatches = (textLower.match(new RegExp(escaped, "g")) || []).length;
-			const titleMatches = (titleLower.match(new RegExp(escaped, "g")) || []).length;
+			const termIdf = idf.get(escaped) || 1;
 
-			score += textMatches * 1;
-			score += titleMatches * 3; // Title matches are more important
+			const textHits = countMatches(textLower, escaped);
+			const titleHits = countMatches(titleLower, escaped);
+
+			const textScore =
+				textHits.word * WORD_MATCH_WEIGHT + textHits.substring * SUBSTRING_MATCH_WEIGHT;
+			const titleScore =
+				titleHits.word * WORD_MATCH_WEIGHT + titleHits.substring * SUBSTRING_MATCH_WEIGHT;
+			const termScore = textScore + titleScore * TITLE_MULTIPLIER;
+
+			score += termScore * termIdf;
 		}
 
-		// Apply base score hint
+		// Normalize by document length to prevent long chunks from dominating
+		const wordCount = textLower.split(/\s+/).length;
+		if (wordCount > 0) {
+			score /= Math.sqrt(wordCount);
+		}
+
+		// Apply base score hint (heading level weight)
 		score *= chunk.scoreHint || 1;
 
 		if (score > 0) {

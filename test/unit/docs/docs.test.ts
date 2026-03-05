@@ -51,14 +51,14 @@ describe("docs domain: repository and service", () => {
 		}
 	});
 
-	it("returns empty results for empty or very short query terms", async () => {
+	it("returns empty results for empty or single-char query terms", async () => {
 		const source = createFsDocsSource({ rootDir: docsRoot });
 		const repository = createDocsRepository(source, { maxChunkLength: 200 });
 
 		const empty = await repository.search("");
 		expect(empty.hits.length).toBe(0);
 
-		// All terms < 3 chars are filtered out
+		// Single-char terms are filtered out
 		const shortTerms = await repository.search("a b");
 		expect(shortTerms.hits.length).toBe(0);
 	});
@@ -155,5 +155,110 @@ describe("docs domain: edge cases", () => {
 		expect(index.pages[1].title).toBe("Atom");
 		// IDs derived from path must differ
 		expect(index.pages[0].id).not.toBe(index.pages[1].id);
+	});
+});
+
+describe("docs domain: search scoring", () => {
+	function createMockSource(files: Record<string, string>): DocsSource {
+		return {
+			async listFiles(): Promise<string[]> {
+				return Object.keys(files);
+			},
+			async readFile(filePath: string): Promise<string> {
+				return files[filePath];
+			},
+		};
+	}
+
+	it("ranks whole-word matches higher than substring matches", async () => {
+		const source = createMockSource({
+			"standalone.md": "# Atom\n\nThe atom store holds a single value.",
+			"compound.md": "# Factories\n\nUse createAtom and atomFamily for dynamic stores.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+
+		const result = await repository.search("atom");
+		expect(result.hits.length).toBe(2);
+		// "standalone.md" has whole-word "atom" occurrences → should rank first
+		expect(result.hits[0].page.id).toBe("standalone");
+	});
+
+	it("boosts title matches over body matches", async () => {
+		const source = createMockSource({
+			"titled.md": "# Computed Stores\n\nDerived values from other stores.",
+			"body.md": "# Overview\n\nYou can create computed stores with computed().",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+
+		const result = await repository.search("computed");
+		expect(result.hits.length).toBe(2);
+		// Page with "computed" in the title should rank first
+		expect(result.hits[0].page.id).toBe("titled");
+	});
+
+	it("weights rare terms higher than ubiquitous terms via IDF", async () => {
+		const source = createMockSource({
+			"common.md": "# Store Guide\n\nEvery store has a value. Store store store.",
+			"rare.md": "# Lifecycle\n\nThe onMount hook runs once per store.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+
+		// "store" appears in both docs (low IDF), "onMount" only in one (high IDF)
+		const result = await repository.search("onMount");
+		expect(result.hits.length).toBe(1);
+		expect(result.hits[0].page.id).toBe("rare");
+	});
+
+	it("normalizes by document length so short focused chunks beat long noisy ones", async () => {
+		const source = createMockSource({
+			"short.md": "# Atom API\n\natom creates a store.",
+			"long.md":
+				"# Guide\n\n" +
+				"This is a very long introduction. ".repeat(30) +
+				"You can also use atom here.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 5000 });
+
+		const result = await repository.search("atom");
+		expect(result.hits.length).toBe(2);
+		// Short doc with concentrated "atom" usage should rank first
+		expect(result.hits[0].page.id).toBe("short");
+	});
+
+	it("accepts 2-char query terms and they contribute to score", async () => {
+		const source = createMockSource({
+			"guide.md": "# Map Store\n\nUse map to store key-value pairs.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+
+		const withTwoChar = await repository.search("map to");
+		const withoutTwoChar = await repository.search("map");
+		expect(withTwoChar.hits.length).toBe(1);
+		expect(withoutTwoChar.hits.length).toBe(1);
+		// Adding "to" (2 chars) should increase the score beyond "map" alone
+		expect(withTwoChar.hits[0].score).toBeGreaterThan(withoutTwoChar.hits[0].score);
+	});
+
+	it("computes IDF over full corpus even when tags filter is applied", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nThe atom store holds a single value. atom(0)",
+			"guide/map.md": "# Map Guide\n\nThe map store is for objects. map({})",
+			"api/logger.md": "# Logger\n\nThe logger streams atom changes for debugging.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+
+		const unfiltered = await repository.search("atom");
+		const filtered = await repository.search("atom", { tags: ["atom"] });
+
+		expect(unfiltered.hits.length).toBeGreaterThan(0);
+		expect(filtered.hits.length).toBeGreaterThan(0);
+
+		// Find a chunk that appears in both result sets and verify identical scores
+		const filteredTopChunkId = filtered.hits[0].chunk.id;
+		const sameChunkInUnfiltered = unfiltered.hits.find(
+			h => h.chunk.id === filteredTopChunkId,
+		);
+		expect(sameChunkInUnfiltered).toBeDefined();
+		expect(filtered.hits[0].score).toBeCloseTo(sameChunkInUnfiltered!.score, 5);
 	});
 });
