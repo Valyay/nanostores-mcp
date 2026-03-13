@@ -18,7 +18,5 @@ export const URIS = {
 
 	runtimeEvents: "nanostores://runtime/events",
 	runtimeStats: "nanostores://runtime/stats",
-	runtimeStatsToon: "nanostores://runtime/stats-toon",
-	runtimeEventsAggToon: "nanostores://runtime/events-agg-toon",
 	runtimeStoreTemplate: "nanostores://runtime/store/{key}",
 } as const;

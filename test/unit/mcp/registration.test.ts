@@ -3,7 +3,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerStaticFeatures } from "../../../src/features/static/index.ts";
 import { registerRuntimeFeatures } from "../../../src/features/runtime/index.ts";
 import { registerDocsFeatures } from "../../../src/features/docs/index.ts";
-import { toToon } from "../../../src/shared/toon.ts";
 import type { ProjectAnalysisService, RuntimeAnalysisService } from "../../../src/domain/index.ts";
 
 function createMockProjectService(): ProjectAnalysisService {
@@ -65,30 +64,5 @@ describe("MCP feature registration", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
 
 		expect(() => registerDocsFeatures(server, null)).not.toThrow();
-	});
-});
-
-describe("TOON encoding", () => {
-	it("encodes simple data to a non-empty string", () => {
-		const result = toToon({ stores: [{ name: "$count", kind: "atom" }] });
-
-		expect(typeof result).toBe("string");
-		expect(result.length).toBeGreaterThan(0);
-	});
-
-	it("encodes an empty array", () => {
-		const result = toToon({ stores: [] });
-
-		expect(typeof result).toBe("string");
-		expect(result.length).toBeGreaterThan(0);
-	});
-
-	it("handles nested objects", () => {
-		const data = {
-			summary: { total: 5, active: 3 },
-			stores: [{ name: "$a", stats: { changes: 10, errors: 0 } }],
-		};
-		const result = toToon(data);
-		expect(typeof result).toBe("string");
 	});
 });

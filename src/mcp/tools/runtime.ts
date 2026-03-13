@@ -1,7 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { encode as toToon } from "@toon-format/toon";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
 import type { StoreRuntimeStats, LoggerStatsSnapshot } from "../../domain/runtime/types.js";
+import {
+	buildStaticHints,
+	computeMaxChangesPerSecond,
+	getLastChangeMsAgo,
+	getStoreEventCount,
+	pickExampleEventType,
+} from "../shared/runtimeHelpers.js";
 
 // ── Reusable Zod schemas matching domain/runtime/types.ts ────────────────────
 
@@ -300,6 +308,10 @@ export function registerStoreActivityTool(
 const FindNoisyStoresInputSchema = z.object({
 	limit: z.number().optional().default(5).describe("Number of stores to return"),
 	windowMs: z.number().optional().describe("Time window in milliseconds (from now back)"),
+	compact: z
+		.boolean()
+		.optional()
+		.describe("Return TOON-encoded compact table for lower token cost"),
 });
 
 const FindNoisyStoresOutputSchema = z.object({
@@ -330,7 +342,7 @@ export function registerFindNoisyStoresTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ limit, windowMs }) => {
+		async ({ limit, windowMs, compact }) => {
 			try {
 				const noisyStores = runtimeService.getNoisyStores(limit);
 
@@ -347,6 +359,33 @@ export function registerFindNoisyStoresTool(
 					stores: filteredStores,
 					summary,
 				};
+
+				if (compact) {
+					const now = Date.now();
+					const rows = await Promise.all(
+						filteredStores.map(async store => {
+							const changeEvents = runtimeService.getEvents({
+								storeName: store.storeName,
+								kinds: ["change"],
+							});
+
+							return {
+								id: store.storeId ?? store.storeName,
+								events: getStoreEventCount(store),
+								changes: store.changes,
+								errors: store.actionsErrored,
+								maxChangesPerSecond: computeMaxChangesPerSecond(changeEvents),
+								lastEventMsAgo: Math.max(0, now - store.lastSeen),
+								exampleEventType: pickExampleEventType(store),
+							};
+						}),
+					);
+
+					return {
+						content: [{ type: "text" as const, text: toToon({ storeAgg: rows }) }],
+						structuredContent: output,
+					};
+				}
 
 				return {
 					content: [
@@ -379,6 +418,10 @@ export function registerFindNoisyStoresTool(
 
 const RuntimeOverviewInputSchema = z.object({
 	windowMs: z.number().optional().describe("Time window in milliseconds (from now back)"),
+	compact: z
+		.boolean()
+		.optional()
+		.describe("Return TOON-encoded compact table for lower token cost"),
 });
 
 const RuntimeOverviewOutputSchema = z.object({
@@ -412,7 +455,7 @@ export function registerRuntimeOverviewTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ windowMs }) => {
+		async ({ windowMs, compact }) => {
 			try {
 				const stats = runtimeService.getStats();
 				const noisyStores = runtimeService.getNoisyStores(5);
@@ -442,6 +485,30 @@ export function registerRuntimeOverviewTool(
 					errorProneStores,
 					unmountedStores,
 				};
+
+				if (compact) {
+					const now = Date.now();
+					const staticHints = await buildStaticHints(runtimeService, stats.stores);
+
+					const rows = stats.stores.map(store => {
+						const hints = staticHints.get(store.storeName) ?? {};
+						return {
+							id: hints.id ?? store.storeId,
+							name: store.storeName,
+							kind: hints.kind,
+							file: hints.file,
+							mounts: store.mounts,
+							changes: store.changes,
+							errors: store.actionsErrored,
+							lastChangeMsAgo: getLastChangeMsAgo(store, now),
+						};
+					});
+
+					return {
+						content: [{ type: "text" as const, text: toToon({ stores: rows }) }],
+						structuredContent: output,
+					};
+				}
 
 				return {
 					content: [

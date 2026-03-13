@@ -261,16 +261,30 @@ describe("Resources", () => {
 		}
 	});
 
-	it("runtime stats-toon resource returns TOON-encoded data", async () => {
+	it("runtime_overview compact mode returns TOON-encoded data", async () => {
 		const ctx = await setup();
 		try {
-			const result = await ctx.readResource("nanostores://runtime/stats-toon");
+			const result = await ctx.callTool("nanostores_runtime_overview", { compact: true });
 
-			const toonContent = result.contents.find(c => c.mimeType === "text/toon");
-			expect(toonContent?.text).toBeDefined();
 			// TOON output should mention store names
-			expect(toonContent!.text!).toContain("$counter");
-			expect(toonContent!.text!).toContain("$user");
+			expect(result.text).toContain("$counter");
+			expect(result.text).toContain("$user");
+			// structuredContent must still be present (MCP SDK requirement)
+			expect(result.structuredContent).toBeDefined();
+		} finally {
+			await ctx.cleanup();
+		}
+	});
+
+	it("find_noisy_stores compact mode returns TOON-encoded data", async () => {
+		const ctx = await setup();
+		try {
+			const result = await ctx.callTool("nanostores_find_noisy_stores", { compact: true });
+
+			// TOON output should contain store identifiers
+			expect(result.text.length).toBeGreaterThan(0);
+			// structuredContent must still be present (MCP SDK requirement)
+			expect(result.structuredContent).toBeDefined();
 		} finally {
 			await ctx.cleanup();
 		}
