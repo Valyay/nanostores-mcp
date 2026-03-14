@@ -212,6 +212,12 @@ const StoreActivityInputSchema = z.object({
 		.string()
 		.optional()
 		.describe("Project root path to link runtime data with static analysis"),
+	kinds: z
+		.array(z.enum(["mount", "unmount", "change", "action-start", "action-end", "action-error"]))
+		.min(1)
+		.optional()
+		.describe("Filter events by kind(s)"),
+	actionName: z.string().optional().describe("Filter events by action name"),
 });
 
 const StoreActivityOutputSchema = z.object({
@@ -236,7 +242,8 @@ export function registerStoreActivityTool(
 			description:
 				"Use this when debugging a specific store's runtime behavior — why it updates too often, " +
 				"what actions trigger changes, or whether it emits errors. " +
-				"Returns recent events, change frequency, action calls, and errors.",
+				"Returns recent events, change frequency, action calls, and errors. " +
+				"Supports filtering by event kind (kinds) and action name (actionName).",
 			inputSchema: StoreActivityInputSchema,
 			outputSchema: StoreActivityOutputSchema,
 			annotations: {
@@ -245,7 +252,7 @@ export function registerStoreActivityTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ storeName, limit, windowMs, projectRoot }) => {
+		async ({ storeName, limit, windowMs, projectRoot, kinds, actionName }) => {
 			try {
 				const sinceTs = windowMs ? Date.now() - windowMs : undefined;
 
@@ -253,6 +260,8 @@ export function registerStoreActivityTool(
 					storeName,
 					limit,
 					sinceTs,
+					kinds,
+					actionName,
 				});
 
 				let stats = null;

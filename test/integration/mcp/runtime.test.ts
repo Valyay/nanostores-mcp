@@ -177,6 +177,20 @@ describe("Tools", () => {
 				await ctx.cleanup();
 			}
 		});
+
+		it("compact mode returns TOON-encoded data", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_find_noisy_stores", { compact: true });
+
+				// TOON output should contain store identifiers
+				expect(result.text.length).toBeGreaterThan(0);
+				// structuredContent must still be present (MCP SDK requirement)
+				expect(result.structuredContent).toBeDefined();
+			} finally {
+				await ctx.cleanup();
+			}
+		});
 	});
 
 	describe("nanostores_runtime_overview", () => {
@@ -202,92 +216,57 @@ describe("Tools", () => {
 				await ctx.cleanup();
 			}
 		});
-	});
-});
 
-// ===========================================================================
-// Resources
-// ===========================================================================
+		it("compact mode returns TOON-encoded data", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_runtime_overview", { compact: true });
 
-describe("Resources", () => {
-	it("listResources includes runtime resource templates", async () => {
-		const ctx = await setup();
-		try {
-			const templates = await ctx.client.listResourceTemplates();
-			const uriTemplates = templates.resourceTemplates.map(t => t.uriTemplate);
-
-			expect(uriTemplates.some(u => u.includes("runtime"))).toBe(true);
-		} finally {
-			await ctx.cleanup();
-		}
+				// TOON output should mention store names
+				expect(result.text).toContain("$counter");
+				expect(result.text).toContain("$user");
+				// structuredContent must still be present (MCP SDK requirement)
+				expect(result.structuredContent).toBeDefined();
+			} finally {
+				await ctx.cleanup();
+			}
+		});
 	});
 
-	it("runtime stats resource returns JSON with store metrics", async () => {
-		const ctx = await setup();
-		try {
-			const result = await ctx.readResource("nanostores://runtime/stats");
+	describe("nanostores_store_activity filters", () => {
+		it("filters events by kinds", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_store_activity", {
+					kinds: ["change"],
+				});
+				const sc = result.structuredContent as {
+					events: Array<{ kind: string }>;
+				};
 
-			expect(result.contents.length).toBeGreaterThanOrEqual(1);
-			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
-			expect(jsonContent?.text).toBeDefined();
+				expect(sc.events.length).toBeGreaterThan(0);
+				expect(sc.events.every(e => e.kind === "change")).toBe(true);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
 
-			const data = JSON.parse(jsonContent!.text!) as {
-				summary: { totalStores: number; totalEvents: number };
-				allStores: Array<{ storeName: string }>;
-			};
-			expect(data.summary.totalStores).toBe(2);
-			expect(data.summary.totalEvents).toBe(10);
-		} finally {
-			await ctx.cleanup();
-		}
-	});
+		it("filters events by actionName", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_store_activity", {
+					actionName: "fetchUser",
+				});
+				const sc = result.structuredContent as {
+					events: Array<{ kind: string; actionName?: string }>;
+				};
 
-	it("runtime events resource returns all events", async () => {
-		const ctx = await setup();
-		try {
-			const result = await ctx.readResource("nanostores://runtime/events");
-
-			const jsonContent = result.contents.find(c => c.mimeType === "application/json");
-			expect(jsonContent?.text).toBeDefined();
-
-			const data = JSON.parse(jsonContent!.text!) as {
-				events: Array<{ storeName: string; kind: string }>;
-				stats: { totalEvents: number };
-			};
-			expect(data.events).toHaveLength(10);
-			expect(data.stats.totalEvents).toBe(10);
-		} finally {
-			await ctx.cleanup();
-		}
-	});
-
-	it("runtime_overview compact mode returns TOON-encoded data", async () => {
-		const ctx = await setup();
-		try {
-			const result = await ctx.callTool("nanostores_runtime_overview", { compact: true });
-
-			// TOON output should mention store names
-			expect(result.text).toContain("$counter");
-			expect(result.text).toContain("$user");
-			// structuredContent must still be present (MCP SDK requirement)
-			expect(result.structuredContent).toBeDefined();
-		} finally {
-			await ctx.cleanup();
-		}
-	});
-
-	it("find_noisy_stores compact mode returns TOON-encoded data", async () => {
-		const ctx = await setup();
-		try {
-			const result = await ctx.callTool("nanostores_find_noisy_stores", { compact: true });
-
-			// TOON output should contain store identifiers
-			expect(result.text.length).toBeGreaterThan(0);
-			// structuredContent must still be present (MCP SDK requirement)
-			expect(result.structuredContent).toBeDefined();
-		} finally {
-			await ctx.cleanup();
-		}
+				expect(sc.events.length).toBeGreaterThan(0);
+				expect(sc.events.every(e => e.actionName === "fetchUser")).toBe(true);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
 	});
 });
 
@@ -309,7 +288,7 @@ describe("Prompts", () => {
 		}
 	});
 
-	it("debug-store prompt returns user message referencing runtime store resource", async () => {
+	it("debug-store prompt references nanostores_store_activity tool", async () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.getPrompt({
@@ -323,13 +302,14 @@ describe("Prompts", () => {
 			const content = result.messages[0].content as { type: string; text: string };
 			expect(content.type).toBe("text");
 			expect(content.text).toContain("$counter");
-			expect(content.text).toContain("nanostores://runtime/store/");
+			expect(content.text).toContain("nanostores_store_activity");
+			expect(content.text).not.toContain("nanostores://runtime/store/");
 		} finally {
 			await ctx.cleanup();
 		}
 	});
 
-	it("debug-project-activity prompt returns user message referencing runtime resources", async () => {
+	it("debug-project-activity prompt references runtime tools instead of resource URIs", async () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.getPrompt({
@@ -342,8 +322,10 @@ describe("Prompts", () => {
 
 			const content = result.messages[0].content as { type: string; text: string };
 			expect(content.type).toBe("text");
-			expect(content.text).toContain("nanostores://runtime/stats");
-			expect(content.text).toContain("nanostores://runtime/events");
+			expect(content.text).toContain("nanostores_runtime_overview");
+			expect(content.text).toContain("nanostores_store_activity");
+			expect(content.text).not.toContain("nanostores://runtime/stats");
+			expect(content.text).not.toContain("nanostores://runtime/events");
 		} finally {
 			await ctx.cleanup();
 		}

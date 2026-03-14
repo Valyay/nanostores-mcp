@@ -15,8 +15,4 @@ export const URIS = {
 	docsIndex: "nanostores://docs",
 	docsPageTemplate: "nanostores://docs/page/{id}",
 	docsPage: (id: string): string => `nanostores://docs/page/${encodeURIComponent(id)}`,
-
-	runtimeEvents: "nanostores://runtime/events",
-	runtimeStats: "nanostores://runtime/stats",
-	runtimeStoreTemplate: "nanostores://runtime/store/{key}",
 } as const;

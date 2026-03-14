@@ -10,11 +10,6 @@ export function storeNotFoundMessage(key: string, rootPath: string): string {
 	);
 }
 
-export const RUNTIME_STATIC_UNAVAILABLE_MESSAGE =
-	"This profile contains only runtime data. Static analysis is unavailable " +
-	"(missing projectRoot or store not found in project scan). " +
-	"Run nanostores_scan_project to enable static analysis.";
-
 export const DOCS_DISABLED_MESSAGE = `Nanostores documentation was not found automatically.
 
 The server looks for the \`nanostores\` package in your project's node_modules.
