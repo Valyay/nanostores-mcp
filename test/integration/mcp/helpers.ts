@@ -146,7 +146,7 @@ export async function setupRuntimeMcp(): Promise<RuntimeTestMcpContext> {
 export async function setupDocsMcp(): Promise<TestMcpContext> {
 	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
 	// null docsService — tests the "docs disabled" path
-	registerDocsFeatures(server, null);
+	registerDocsFeatures(server, () => null);
 
 	return connectMcp(server);
 }

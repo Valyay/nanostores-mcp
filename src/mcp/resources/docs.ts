@@ -9,7 +9,7 @@ import { URIS } from "../uris.js";
  */
 export function registerDocsIndexResource(
 	server: McpServer,
-	docsService: DocsService | null,
+	getDocsService: () => DocsService | null,
 ): void {
 	server.registerResource(
 		"docs-index",
@@ -22,6 +22,7 @@ export function registerDocsIndexResource(
 				"Index of Nanostores documentation pages and chunks. Lists all available topics and tags.",
 		},
 		async uri => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					contents: [
@@ -77,7 +78,7 @@ ${index.pages
 /**
  * Register nanostores://docs/page/{id} - specific documentation page
  */
-export function registerDocsPageResource(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsPageResource(server: McpServer, getDocsService: () => DocsService | null): void {
 	server.registerResource(
 		"docs-page",
 		new ResourceTemplate(URIS.docsPageTemplate, {
@@ -88,6 +89,7 @@ export function registerDocsPageResource(server: McpServer, docsService: DocsSer
 			description: "Full content of a specific documentation page with metadata and chunks.",
 		},
 		async (uri, { id }) => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					contents: [

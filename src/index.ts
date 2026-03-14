@@ -13,10 +13,14 @@ export type { NanostoresServer } from "./server.js";
  * Fetch workspace roots from the MCP client and apply them to settings.
  * Best-effort: errors are silently ignored since client roots are optional.
  */
-async function fetchAndApplyClientRoots(mcpServer: McpServer): Promise<void> {
+async function fetchAndApplyClientRoots(
+	mcpServer: McpServer,
+	onRootsChanged?: () => void,
+): Promise<void> {
 	try {
 		const result = await mcpServer.server.listRoots();
 		setClientRoots(result.roots);
+		onRootsChanged?.();
 	} catch {
 		// Client roots are best-effort — env vars or cwd will be used instead
 	}
@@ -47,13 +51,13 @@ export async function main(): Promise<void> {
 		const capabilities = app.server.server.getClientCapabilities();
 		if (!capabilities?.roots) return;
 
-		void fetchAndApplyClientRoots(app.server);
+		void fetchAndApplyClientRoots(app.server, app.reinitializeDocs);
 
 		if (capabilities.roots.listChanged) {
 			app.server.server.setNotificationHandler(
 				RootsListChangedNotificationSchema,
 				async () => {
-					await fetchAndApplyClientRoots(app.server);
+					await fetchAndApplyClientRoots(app.server, app.reinitializeDocs);
 				},
 			);
 		}

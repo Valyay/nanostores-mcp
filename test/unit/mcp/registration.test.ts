@@ -63,6 +63,6 @@ describe("MCP feature registration", () => {
 	it("registers docs features without errors (with null service)", () => {
 		const server = new McpServer({ name: "test-server", version: "0.0.0" });
 
-		expect(() => registerDocsFeatures(server, null)).not.toThrow();
+		expect(() => registerDocsFeatures(server, () => null)).not.toThrow();
 	});
 });

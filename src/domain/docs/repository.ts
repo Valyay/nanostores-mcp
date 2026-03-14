@@ -258,10 +258,7 @@ function countMatches(text: string, escapedTerm: string): { word: number; substr
  * Compute IDF (Inverse Document Frequency) for each query term.
  * Rare terms get higher weight; ubiquitous terms get lower weight.
  */
-function computeIdf(
-	terms: string[],
-	chunks: DocChunk[],
-): Map<string, number> {
+function computeIdf(terms: string[], chunks: DocChunk[]): Map<string, number> {
 	const idf = new Map<string, number>();
 	const totalChunks = chunks.length;
 	if (totalChunks === 0) return idf;

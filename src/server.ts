@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { DocsService } from "./domain/index.js";
 import {
 	createProjectAnalysisService,
 	createProjectIndexRepository,
@@ -27,6 +28,7 @@ export interface NanostoresServer {
 	server: McpServer;
 	loggerBridge: LoggerBridgeServer;
 	shutdown: () => Promise<void>;
+	reinitializeDocs: () => void;
 }
 
 /**
@@ -81,18 +83,31 @@ export function buildNanostoresServer(): NanostoresServer {
 		},
 	);
 
-	// Documentation infrastructure (auto-detect or env override)
-	const { source: docsSource } = detectNanostoresDocsSource({
-		workspaceRoots: getWorkspaceRootPaths(),
-		envDocsRoot: envConfig.NANOSTORES_DOCS_ROOT,
-		envPatterns: envConfig.NANOSTORES_DOCS_PATTERNS,
-	});
+	// Documentation infrastructure — lazy, re-detects when workspace roots change
+	let docsService: DocsService | null = null;
+	let docsInitialized = false;
 
-	const docsRepository = docsSource
-		? createDocsRepository(docsSource, { cacheTtlMs: 5 * 60 * 1000 })
-		: undefined;
+	function initializeDocs(): void {
+		const { source: docsSource } = detectNanostoresDocsSource({
+			workspaceRoots: getWorkspaceRootPaths(),
+			envDocsRoot: envConfig.NANOSTORES_DOCS_ROOT,
+			envPatterns: envConfig.NANOSTORES_DOCS_PATTERNS,
+		});
 
-	const docsService = docsRepository ? createDocsService(docsRepository) : null;
+		const docsRepository = docsSource
+			? createDocsRepository(docsSource, { cacheTtlMs: 5 * 60 * 1000 })
+			: undefined;
+
+		docsService = docsRepository ? createDocsService(docsRepository) : null;
+		docsInitialized = true;
+	}
+
+	function getDocsService(): DocsService | null {
+		if (!docsInitialized) {
+			initializeDocs();
+		}
+		return docsService;
+	}
 
 	// MCP server
 	const server = new McpServer(
@@ -109,7 +124,7 @@ export function buildNanostoresServer(): NanostoresServer {
 				resources: { listChanged: true },
 				prompts: {},
 			},
-			instructions: buildInstructions(envConfig.NANOSTORES_MCP_LOGGER_ENABLED, !!docsService),
+			instructions: buildInstructions(envConfig.NANOSTORES_MCP_LOGGER_ENABLED, !!getDocsService()),
 		},
 	);
 
@@ -147,12 +162,12 @@ export function buildNanostoresServer(): NanostoresServer {
 	if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
 		registerRuntimeFeatures(server, runtimeAnalysisService, suggestStoreNames);
 	}
-	registerDocsFeatures(server, docsService);
+	registerDocsFeatures(server, getDocsService);
 
 	// Shutdown helper
 	async function shutdown(): Promise<void> {
 		await Promise.allSettled([server.close(), loggerBridge.stop()]);
 	}
 
-	return { server, loggerBridge, shutdown };
+	return { server, loggerBridge, shutdown, reinitializeDocs: initializeDocs };
 }

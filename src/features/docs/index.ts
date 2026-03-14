@@ -11,19 +11,23 @@ import { registerDocsHowToPrompt } from "../../mcp/prompts/docsHowTo.js";
 
 /**
  * Registers all documentation features (docs index, search, tools, prompts).
+ * Accepts a getter so docs can be lazily initialized after client roots arrive.
  * Features are always registered; when docsService is null, each handler
  * returns a "docs disabled" message instead.
  */
-export function registerDocsFeatures(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsFeatures(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	// Resources
-	registerDocsIndexResource(server, docsService);
-	registerDocsPageResource(server, docsService);
+	registerDocsIndexResource(server, getDocsService);
+	registerDocsPageResource(server, getDocsService);
 
 	// Tools
-	registerDocsSearchTool(server, docsService);
-	registerDocsForStoreTool(server, docsService);
-	registerDocsReadPageTool(server, docsService);
-	registerDocsIndexTool(server, docsService);
+	registerDocsSearchTool(server, getDocsService);
+	registerDocsForStoreTool(server, getDocsService);
+	registerDocsReadPageTool(server, getDocsService);
+	registerDocsIndexTool(server, getDocsService);
 
 	// Prompts
 	registerDocsHowToPrompt(server);

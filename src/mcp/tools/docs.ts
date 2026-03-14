@@ -25,7 +25,7 @@ const DocsReadPageOutputSchema = z.object({
  * Tool: nanostores_docs_read_page
  * Read the full content of a documentation page
  */
-export function registerDocsReadPageTool(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsReadPageTool(server: McpServer, getDocsService: () => DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_read_page",
 		{
@@ -42,6 +42,7 @@ export function registerDocsReadPageTool(server: McpServer, docsService: DocsSer
 			},
 		},
 		async ({ pageId }) => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					content: [{ type: "text", text: DOCS_DISABLED_MESSAGE }],
@@ -126,7 +127,7 @@ const DocsIndexOutputSchema = z.object({
  * Tool: nanostores_docs_index
  * List all documentation pages and tags
  */
-export function registerDocsIndexTool(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsIndexTool(server: McpServer, getDocsService: () => DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_index",
 		{
@@ -143,6 +144,7 @@ export function registerDocsIndexTool(server: McpServer, docsService: DocsServic
 			},
 		},
 		async () => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					content: [{ type: "text", text: DOCS_DISABLED_MESSAGE }],
@@ -225,7 +227,7 @@ const DocsSearchOutputSchema = z.object({
  * Tool: nanostores_docs_search
  * Search Nanostores documentation
  */
-export function registerDocsSearchTool(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsSearchTool(server: McpServer, getDocsService: () => DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_search",
 		{
@@ -242,6 +244,7 @@ export function registerDocsSearchTool(server: McpServer, docsService: DocsServi
 			},
 		},
 		async ({ query, limit, tags }) => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					content: [
@@ -337,7 +340,7 @@ const DocsForStoreOutputSchema = z.object({
  * Tool: nanostores_docs_for_store
  * Find relevant documentation for a specific store
  */
-export function registerDocsForStoreTool(server: McpServer, docsService: DocsService | null): void {
+export function registerDocsForStoreTool(server: McpServer, getDocsService: () => DocsService | null): void {
 	server.registerTool(
 		"nanostores_docs_for_store",
 		{
@@ -354,6 +357,7 @@ export function registerDocsForStoreTool(server: McpServer, docsService: DocsSer
 			},
 		},
 		async ({ storeName, kindHint }) => {
+			const docsService = getDocsService();
 			if (!docsService) {
 				return {
 					content: [

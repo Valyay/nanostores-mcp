@@ -255,9 +255,7 @@ describe("docs domain: search scoring", () => {
 
 		// Find a chunk that appears in both result sets and verify identical scores
 		const filteredTopChunkId = filtered.hits[0].chunk.id;
-		const sameChunkInUnfiltered = unfiltered.hits.find(
-			h => h.chunk.id === filteredTopChunkId,
-		);
+		const sameChunkInUnfiltered = unfiltered.hits.find(h => h.chunk.id === filteredTopChunkId);
 		expect(sameChunkInUnfiltered).toBeDefined();
 		expect(filtered.hits[0].score).toBeCloseTo(sameChunkInUnfiltered!.score, 5);
 	});
