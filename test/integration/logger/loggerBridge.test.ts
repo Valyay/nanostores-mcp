@@ -93,6 +93,34 @@ describe("logger bridge integration", () => {
 		expect(store.getEvents().length).toBe(2);
 	});
 
+	it("accepts action-end and action-error without actionName", async () => {
+		const store = await startBridge();
+		const events = [
+			makeEvent("action-start", "$user", { actionId: "a1", actionName: "fetchUser" }),
+			makeEvent("action-end", "$user", { actionId: "a1" }),
+			makeEvent("action-error", "$user", { actionId: "a2", errorMessage: "fail" }),
+		];
+		const res = await post(port, "/nanostores-logger", JSON.stringify({ events }));
+		const json = JSON.parse(res.body);
+
+		expect(res.status).toBe(200);
+		expect(json.received).toBe(3);
+		expect(store.getEvents().length).toBe(3);
+	});
+
+	it("rejects action-start without actionName", async () => {
+		const store = await startBridge();
+		const events = [
+			makeEvent("action-start", "$user", { actionId: "a1" }),
+		];
+		const res = await post(port, "/nanostores-logger", JSON.stringify({ events }));
+		const json = JSON.parse(res.body);
+
+		expect(res.status).toBe(200);
+		expect(json.received).toBe(0);
+		expect(store.getEvents().length).toBe(0);
+	});
+
 	it("rejects non-array events field with 400", async () => {
 		await startBridge();
 		const res = await post(port, "/nanostores-logger", JSON.stringify({ events: "not-array" }));

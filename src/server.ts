@@ -125,14 +125,17 @@ export function buildNanostoresServer(): McpServer {
 	}
 	registerDocsFeatures(server, docsService);
 
+	activeServer = server;
 	return server;
 }
 
-// Cleanup on exit
-process.on("SIGINT", () => {
-	void loggerBridge.stop().then(() => process.exit(0));
-});
+// Track server instance for graceful shutdown
+let activeServer: McpServer | null = null;
 
-process.on("SIGTERM", () => {
-	void loggerBridge.stop().then(() => process.exit(0));
-});
+async function gracefulShutdown(): Promise<void> {
+	await Promise.allSettled([activeServer?.close(), loggerBridge.stop()]);
+	process.exit(0);
+}
+
+process.on("SIGINT", () => void gracefulShutdown());
+process.on("SIGTERM", () => void gracefulShutdown());

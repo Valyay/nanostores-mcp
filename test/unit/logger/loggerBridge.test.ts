@@ -17,15 +17,13 @@ function createMockActionEvents(storeName: string) {
 			storeName,
 			timestamp: Date.now(),
 			actionId,
-			actionName: "testAction",
 		},
 		{
 			kind: "action-error",
 			storeName,
 			timestamp: Date.now(),
 			actionId,
-			actionName: "testAction",
-			error: "test error",
+			errorMessage: "test error",
 		},
 	];
 }
@@ -44,6 +42,9 @@ function isValidEvent(event: unknown): boolean {
 
 	if (e.kind === "action-start" || e.kind === "action-end" || e.kind === "action-error") {
 		if (typeof e.actionId !== "string") return false;
+	}
+
+	if (e.kind === "action-start") {
 		if (typeof e.actionName !== "string") return false;
 	}
 
@@ -113,5 +114,39 @@ describe("loggerBridge validation", () => {
 		for (const event of invalidEvents) {
 			expect(isValidEvent(event)).toBe(false);
 		}
+	});
+
+	it("accepts action-end and action-error without actionName", () => {
+		const actionId = nanoid();
+
+		expect(
+			isValidEvent({
+				kind: "action-end",
+				storeName: "test",
+				timestamp: Date.now(),
+				actionId,
+			}),
+		).toBe(true);
+
+		expect(
+			isValidEvent({
+				kind: "action-error",
+				storeName: "test",
+				timestamp: Date.now(),
+				actionId,
+				errorMessage: "fail",
+			}),
+		).toBe(true);
+	});
+
+	it("rejects action-start without actionName", () => {
+		expect(
+			isValidEvent({
+				kind: "action-start",
+				storeName: "test",
+				timestamp: Date.now(),
+				actionId: nanoid(),
+			}),
+		).toBe(false);
 	});
 });
