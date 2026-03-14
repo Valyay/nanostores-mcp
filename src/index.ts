@@ -7,6 +7,7 @@ import { setClientRoots } from "./config/settings.js";
 
 // Re-export server builder for programmatic usage
 export { buildNanostoresServer } from "./server.js";
+export type { NanostoresServer } from "./server.js";
 
 /**
  * Fetch workspace roots from the MCP client and apply them to settings.
@@ -26,23 +27,40 @@ async function fetchAndApplyClientRoots(mcpServer: McpServer): Promise<void> {
  * Can be called from CLI or imported programmatically.
  */
 export async function main(): Promise<void> {
-	const mcpServer = buildNanostoresServer();
+	const app = buildNanostoresServer();
 
-	mcpServer.server.oninitialized = (): void => {
-		const capabilities = mcpServer.server.getClientCapabilities();
+	// Start logger bridge if enabled (best-effort, non-blocking)
+	app.loggerBridge.start().catch((err: unknown) => {
+		const message = err instanceof Error ? err.message : String(err);
+		process.stderr.write(`[nanostores-mcp] Logger bridge failed to start: ${message}\n`);
+	});
+
+	// Graceful shutdown on signals
+	const onShutdown = (): void => {
+		void app.shutdown().then(() => process.exit(0));
+	};
+	process.on("SIGINT", onShutdown);
+	process.on("SIGTERM", onShutdown);
+
+	// Client roots integration
+	app.server.server.oninitialized = (): void => {
+		const capabilities = app.server.server.getClientCapabilities();
 		if (!capabilities?.roots) return;
 
-		void fetchAndApplyClientRoots(mcpServer);
+		void fetchAndApplyClientRoots(app.server);
 
 		if (capabilities.roots.listChanged) {
-			mcpServer.server.setNotificationHandler(RootsListChangedNotificationSchema, async () => {
-				await fetchAndApplyClientRoots(mcpServer);
-			});
+			app.server.server.setNotificationHandler(
+				RootsListChangedNotificationSchema,
+				async () => {
+					await fetchAndApplyClientRoots(app.server);
+				},
+			);
 		}
 	};
 
 	const transport = new StdioServerTransport();
-	await mcpServer.connect(transport);
+	await app.server.connect(transport);
 }
 
 // Auto-start when run directly (not imported)
