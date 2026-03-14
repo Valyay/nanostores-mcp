@@ -4,10 +4,6 @@
  */
 export const URIS = {
 	graph: "nanostores://graph",
-	graphOutline: "nanostores://graph/outline",
-	storeSubgraphBase: "nanostores://graph/store-subgraph",
-	storeSubgraph: (storeId: string, radius = 2): string =>
-		`nanostores://graph/store-subgraph?store=${encodeURIComponent(storeId)}&radius=${radius}`,
 
 	storeTemplate: "nanostores://store/{key}",
 	storeById: (id: string): string => `nanostores://store/${encodeURIComponent(id)}`,

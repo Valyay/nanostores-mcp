@@ -4,12 +4,12 @@ import type { SuggestStoreNamesFn } from "../../mcp/shared/storeAutocomplete.js"
 import { registerScanProjectTool } from "../../mcp/tools/scanProject.js";
 import { registerStoreSummaryTool } from "../../mcp/tools/storeSummary.js";
 import { registerClearCacheTool } from "../../mcp/tools/clearCache.js";
+import {
+	registerProjectOutlineTool,
+	registerStoreSubgraphTool,
+} from "../../mcp/tools/graphExtras.js";
 import { registerStoreResource } from "../../mcp/resources/store.js";
 import { registerGraphResource } from "../../mcp/resources/graph.js";
-import {
-	registerGraphOutlineResource,
-	registerStoreSubgraphResource,
-} from "../../mcp/resources/graphExtras.js";
 import { registerExplainProjectPrompt } from "../../mcp/prompts/explainProject.js";
 import { registerExplainStorePrompt } from "../../mcp/prompts/explainStore.js";
 
@@ -26,12 +26,12 @@ export function registerStaticFeatures(
 	registerScanProjectTool(server, projectService);
 	registerStoreSummaryTool(server, projectService);
 	registerClearCacheTool(server, projectService, resetAutocompleteCache);
+	registerProjectOutlineTool(server, projectService);
+	registerStoreSubgraphTool(server, projectService);
 
 	// Resources
 	registerStoreResource(server, projectService);
 	registerGraphResource(server, projectService);
-	registerGraphOutlineResource(server, projectService);
-	registerStoreSubgraphResource(server, projectService);
 
 	// Prompts
 	registerExplainProjectPrompt(server);

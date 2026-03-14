@@ -239,6 +239,90 @@ describe("Tools", () => {
 			}
 		});
 	});
+
+	describe("nanostores_project_outline", () => {
+		it("returns kind distribution, top dirs, and hubs", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_project_outline", {});
+				const sc = result.structuredContent as {
+					rootDir: string;
+					totals: { stores: number; filesWithStores: number };
+					storeKinds: Record<string, number>;
+					topDirs: Array<{ dir: string; stores: number }>;
+					hubs: Array<{ name: string; score: number }>;
+				};
+
+				expect(sc.totals.stores).toBeGreaterThan(0);
+				expect(sc.totals.filesWithStores).toBeGreaterThan(0);
+				expect(Object.keys(sc.storeKinds).length).toBeGreaterThan(0);
+				expect(sc.topDirs.length).toBeGreaterThan(0);
+
+				expect(result.text).toContain("Store kinds:");
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+	});
+
+	describe("nanostores_store_subgraph", () => {
+		it("returns BFS-expanded subgraph for a store", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_store_subgraph", {
+					name: "$cart",
+					radius: 2,
+				});
+				const sc = result.structuredContent as {
+					centerStoreId: string;
+					radius: number;
+					nodes: Array<{ id: string; type: string }>;
+					edges: Array<{ from: string; to: string; type: string }>;
+					summary: { nodes: number; edges: number };
+				};
+
+				expect(sc.centerStoreId).toContain("$cart");
+				expect(sc.radius).toBe(2);
+				expect(sc.nodes.length).toBeGreaterThan(0);
+				expect(sc.edges.length).toBeGreaterThan(0);
+				expect(sc.summary.nodes).toBe(sc.nodes.length);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("returns smaller subgraph with radius 0", async () => {
+			const ctx = await setup();
+			try {
+				const r0 = await ctx.callTool("nanostores_store_subgraph", {
+					name: "$cart",
+					radius: 0,
+				});
+				const r2 = await ctx.callTool("nanostores_store_subgraph", {
+					name: "$cart",
+					radius: 2,
+				});
+
+				const sc0 = r0.structuredContent as { nodes: unknown[] };
+				const sc2 = r2.structuredContent as { nodes: unknown[] };
+
+				expect(sc0.nodes.length).toBeLessThanOrEqual(sc2.nodes.length);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("throws when neither storeId nor name is provided", async () => {
+			const ctx = await setup();
+			try {
+				await expect(ctx.callTool("nanostores_store_subgraph", {})).rejects.toThrow(
+					/storeId|name/i,
+				);
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+	});
 });
 
 // ===========================================================================
@@ -246,20 +330,19 @@ describe("Tools", () => {
 // ===========================================================================
 
 describe("Resources", () => {
-	it("listResources includes static graph resources", async () => {
+	it("listResources includes graph resource", async () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listResources();
 			const uris = result.resources.map(r => r.uri);
 
 			expect(uris).toContain("nanostores://graph");
-			expect(uris).toContain("nanostores://graph/outline");
 		} finally {
 			await ctx.cleanup();
 		}
 	});
 
-	it("listResourceTemplates includes store and store-subgraph templates", async () => {
+	it("listResourceTemplates includes store template", async () => {
 		const ctx = await setup();
 		try {
 			const result = await ctx.client.listResourceTemplates();

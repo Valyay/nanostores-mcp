@@ -1,6 +1,7 @@
 import { ResourceTemplate, type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DocsService } from "../../domain/index.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
+import { aggregateTags } from "../shared/docsHelpers.js";
 import { URIS } from "../uris.js";
 
 /**
@@ -35,17 +36,8 @@ export function registerDocsIndexResource(
 
 			const index = await docsService.getIndex();
 
-			// Group pages by tags
-			const tagCounts = new Map<string, number>();
-			for (const page of index.pages) {
-				for (const tag of page.tags) {
-					tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-				}
-			}
-
-			const tagsList = Array.from(tagCounts.entries())
-				.sort((a, b) => b[1] - a[1])
-				.map(([tag, count]) => `- ${tag}: ${count} pages`)
+			const tagsList = aggregateTags(index.pages)
+				.map(({ tag, count }) => `- ${tag}: ${count} pages`)
 				.join("\n");
 
 			const summary = `Nanostores Documentation Index
@@ -158,4 +150,3 @@ ${fullText}
 		},
 	);
 }
-

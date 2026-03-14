@@ -254,38 +254,34 @@ export const $counter = createAtom("counter", 0);
 **Static Analysis**
 
 - `nanostores://graph` - Full dependency graph (text format)
-- `nanostores://graph/mermaid` - Dependency graph as Mermaid diagram
 - `nanostores://store/{key}` - Store details (by name or id)
-
-**Runtime Monitoring**
-
-- `nanostores://runtime/events` - Recent logger events stream
-- `nanostores://runtime/stats` - Aggregated statistics across all stores
-- `nanostores://runtime/store/{key}` - Combined runtime + static analysis for specific store
 
 **Documentation** (if `NANOSTORES_DOCS_ROOT` configured)
 
-- `nanostores://docs/index` - Documentation index with all pages and tags
-- `nanostores://docs/page/{pageId}` - Full content of documentation page
-- `nanostores://docs/search?q={query}` - Search results for documentation query
+- `nanostores://docs` - Documentation index with all pages and tags
+- `nanostores://docs/page/{id}` - Full content of documentation page
 
 ### MCP Tools
 
 **Static Analysis**
 
-- `scan_project` - Scan project for all nanostores, subscribers, and dependencies
-- `store_summary` - Get detailed summary of stores in a specific file
+- `nanostores_scan_project` - Scan project for all nanostores, subscribers, and dependencies
+- `nanostores_store_summary` - Get detailed summary of a specific store
+- `nanostores_project_outline` - High-level overview: store kinds, top directories, hub stores
+- `nanostores_store_subgraph` - BFS-expanded dependency neighborhood of a store
 
 **Runtime Monitoring**
 
 - `nanostores_runtime_overview` - Overall health report with statistics for all stores
-- `nanostores_store_activity` - Activity timeline and events for a specific store
+- `nanostores_store_activity` - Activity timeline and events for a specific store (supports kinds/actionName filters)
 - `nanostores_find_noisy_stores` - Identify stores with high change frequency or error rates
 
-**Documentation** (if configured)
+**Documentation**
 
-- `nanostores_docs_search` - Search nanostores documentation by keyword
-- `nanostores_docs_for_store` - Find relevant documentation for a specific store type
+- `nanostores_docs_search` - Search documentation by query
+- `nanostores_docs_for_store` - Find docs relevant to a specific store kind
+- `nanostores_docs_index` - List all documentation pages and tags
+- `nanostores_docs_read_page` - Read full content of a documentation page
 
 **Utilities**
 

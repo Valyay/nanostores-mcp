@@ -60,6 +60,48 @@ describe("Tools", () => {
 			}
 		});
 	});
+
+	describe("nanostores_docs_read_page", () => {
+		it("returns disabled message when docs service is null", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_docs_read_page", {
+					pageId: "guide/atom",
+				});
+				const sc = result.structuredContent as {
+					title: string;
+					tags: string[];
+					content: string;
+				};
+
+				expect(sc.tags).toEqual([]);
+				expect(sc.content).toContain("documentation was not found");
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+	});
+
+	describe("nanostores_docs_index", () => {
+		it("returns empty index with disabled message when docs service is null", async () => {
+			const ctx = await setup();
+			try {
+				const result = await ctx.callTool("nanostores_docs_index", {});
+				const sc = result.structuredContent as {
+					pages: unknown[];
+					tagAggregation: unknown[];
+					builtAt: number;
+				};
+
+				expect(sc.pages).toEqual([]);
+				expect(sc.tagAggregation).toEqual([]);
+				expect(sc.builtAt).toBe(0);
+				expect(result.text).toContain("documentation was not found");
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+	});
 });
 
 // ===========================================================================

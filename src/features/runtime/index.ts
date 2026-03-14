@@ -7,11 +7,6 @@ import {
 	registerRuntimeOverviewTool,
 } from "../../mcp/tools/runtime.js";
 import {
-	registerRuntimeEventsResource,
-	registerRuntimeStatsResource,
-	registerRuntimeStoreResource,
-} from "../../mcp/resources/runtime.js";
-import {
 	registerDebugStorePrompt,
 	registerDebugProjectActivityPrompt,
 } from "../../mcp/prompts/debugRuntime.js";
@@ -29,11 +24,6 @@ export function registerRuntimeFeatures(
 	registerStoreActivityTool(server, runtimeService);
 	registerFindNoisyStoresTool(server, runtimeService);
 	registerRuntimeOverviewTool(server, runtimeService);
-
-	// Resources
-	registerRuntimeEventsResource(server, runtimeService);
-	registerRuntimeStatsResource(server, runtimeService);
-	registerRuntimeStoreResource(server, runtimeService);
 
 	// Prompts
 	registerDebugStorePrompt(server, suggestStoreNames);
