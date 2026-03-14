@@ -29,6 +29,7 @@ interface LoggerBridgeState {
 	config: LoggerBridgeConfig;
 	eventStore: LoggerEventStore;
 	startError: string | null;
+	onEventsReceived?: () => void;
 }
 
 /**
@@ -50,9 +51,6 @@ function isValidEvent(event: unknown): event is NanostoresLoggerEvent {
 
 	if (e.kind === "action-start" || e.kind === "action-end" || e.kind === "action-error") {
 		if (typeof e.actionId !== "string") return false;
-	}
-
-	if (e.kind === "action-start") {
 		if (typeof e.actionName !== "string") return false;
 	}
 
@@ -111,6 +109,14 @@ function handleLoggerEvents(
 			// Validate and add events
 			const validEvents = validateEvents(payload.events);
 			state.eventStore.addMany(validEvents);
+
+			if (validEvents.length > 0) {
+				try {
+					state.onEventsReceived?.();
+				} catch {
+					// Notification is best-effort; don't fail the HTTP response
+				}
+			}
 
 			res.writeHead(200, { "Content-Type": "application/json" });
 			res.end(
@@ -199,9 +205,13 @@ function handleRequest(
  * HTTP bridge server for receiving logger events from client applications
  * Listens only on localhost for security
  */
+export interface LoggerBridgeOptions extends Partial<LoggerBridgeConfig> {
+	onEventsReceived?: () => void;
+}
+
 export function createLoggerBridge(
 	eventStore: LoggerEventStore,
-	config: Partial<LoggerBridgeConfig> = {},
+	config: LoggerBridgeOptions = {},
 ): LoggerBridgeServer {
 	const fullConfig: LoggerBridgeConfig = {
 		host: config.host || "127.0.0.1",
@@ -215,6 +225,7 @@ export function createLoggerBridge(
 		config: fullConfig,
 		eventStore,
 		startError: null,
+		onEventsReceived: config.onEventsReceived,
 	};
 
 	return {

@@ -107,8 +107,8 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 	const { push: pushToBuffer, flush } = createBufferedSender(sendEvents, batchMs);
 	const filterEvent = createEventFilter(options.maskEvent);
 
-	// State for tracking active actions
-	const activeActionIds = new Set<string>();
+	// State for tracking active actions (actionId → actionName)
+	const activeActions = new Map<string, string>();
 
 	// Pure function for adding event
 	const pushEvent = (event: NanostoresLoggerEvent): void => {
@@ -148,7 +148,7 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 
 		actionStart: (actionName: string): string => {
 			const actionId = nanoid();
-			activeActionIds.add(actionId);
+			activeActions.set(actionId, actionName);
 
 			pushEvent({
 				kind: "action-start",
@@ -163,27 +163,31 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 		},
 
 		actionEnd: (actionId: string): void => {
-			if (!activeActionIds.has(actionId)) return;
-			activeActionIds.delete(actionId);
+			const actionName = activeActions.get(actionId);
+			if (actionName === undefined) return;
+			activeActions.delete(actionId);
 
 			pushEvent({
 				kind: "action-end",
 				storeName,
 				timestamp: Date.now(),
 				actionId,
+				actionName,
 				projectRoot,
 			});
 		},
 
 		actionError: (actionId: string, error: unknown): void => {
-			if (!activeActionIds.has(actionId)) return;
-			activeActionIds.delete(actionId);
+			const actionName = activeActions.get(actionId);
+			if (actionName === undefined) return;
+			activeActions.delete(actionId);
 
 			pushEvent({
 				kind: "action-error",
 				storeName,
 				timestamp: Date.now(),
 				actionId,
+				actionName,
 				errorMessage: error instanceof Error ? error.message : String(error),
 				projectRoot,
 			});

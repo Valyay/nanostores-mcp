@@ -22,6 +22,9 @@ import packageJson from "../package.json" with { type: "json" };
 const SERVER_NAME = "nanostores-mcp";
 const SERVER_VERSION = (packageJson as { version: string }).version;
 
+// Track server instance for notifications and graceful shutdown
+let activeServer: McpServer | null = null;
+
 // Domain services - project analysis
 const projectIndexRepository = createProjectIndexRepository();
 const projectAnalysisService = createProjectAnalysisService(projectIndexRepository);
@@ -33,6 +36,9 @@ const loggerBridge = createLoggerBridge(loggerEventStore, {
 	host: envConfig.NANOSTORES_MCP_LOGGER_HOST,
 	port: envConfig.NANOSTORES_MCP_LOGGER_PORT,
 	enabled: envConfig.NANOSTORES_MCP_LOGGER_ENABLED,
+	onEventsReceived: () => {
+		activeServer?.sendResourceListChanged();
+	},
 });
 
 const runtimeAnalysisService = createRuntimeAnalysisService(
@@ -106,7 +112,7 @@ export function buildNanostoresServer(): McpServer {
 			capabilities: {
 				logging: {},
 				tools: {},
-				resources: {},
+				resources: { listChanged: true },
 				prompts: {},
 			},
 			instructions: buildInstructions(),
@@ -117,8 +123,18 @@ export function buildNanostoresServer(): McpServer {
 	const { suggestStoreNames, resetCache: resetAutocompleteCache } =
 		createStoreAutocomplete(projectAnalysisService);
 
+	const notifyResourcesChanged = (): void => {
+		server.sendResourceListChanged();
+	};
+
 	// Register feature modules with domain services
-	registerStaticFeatures(server, projectAnalysisService, suggestStoreNames, resetAutocompleteCache);
+	registerStaticFeatures(
+		server,
+		projectAnalysisService,
+		suggestStoreNames,
+		resetAutocompleteCache,
+		notifyResourcesChanged,
+	);
 	registerPingTool(server, loggerBridge);
 	if (envConfig.NANOSTORES_MCP_LOGGER_ENABLED) {
 		registerRuntimeFeatures(server, runtimeAnalysisService, suggestStoreNames);
@@ -128,9 +144,6 @@ export function buildNanostoresServer(): McpServer {
 	activeServer = server;
 	return server;
 }
-
-// Track server instance for graceful shutdown
-let activeServer: McpServer | null = null;
 
 async function gracefulShutdown(): Promise<void> {
 	await Promise.allSettled([activeServer?.close(), loggerBridge.stop()]);

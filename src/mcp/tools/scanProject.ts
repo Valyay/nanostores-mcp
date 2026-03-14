@@ -151,6 +151,7 @@ export function buildScanProjectResponse(
 export function registerScanProjectTool(
 	server: McpServer,
 	projectService: ProjectAnalysisService,
+	onResourcesChanged?: () => void,
 ): void {
 	server.registerTool(
 		"nanostores_scan_project",
@@ -176,6 +177,7 @@ export function registerScanProjectTool(
 					force,
 					onProgress,
 				});
+				onResourcesChanged?.();
 				return buildScanProjectResponse(result);
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;

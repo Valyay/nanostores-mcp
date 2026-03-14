@@ -14,6 +14,7 @@ export function registerClearCacheTool(
 	server: McpServer,
 	projectService: ProjectAnalysisService,
 	resetAutocompleteCache: () => void,
+	onResourcesChanged?: () => void,
 ): void {
 	server.registerTool(
 		"nanostores_clear_cache",
@@ -38,6 +39,7 @@ export function registerClearCacheTool(
 				projectService.clearCache();
 			}
 			resetAutocompleteCache();
+			onResourcesChanged?.();
 
 			const scope = rootUri ? `root: ${rootUri}` : "all roots";
 			return {

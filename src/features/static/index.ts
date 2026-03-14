@@ -21,11 +21,12 @@ export function registerStaticFeatures(
 	projectService: ProjectAnalysisService,
 	suggestStoreNames: SuggestStoreNamesFn,
 	resetAutocompleteCache: () => void,
+	onResourcesChanged?: () => void,
 ): void {
 	// Tools
-	registerScanProjectTool(server, projectService);
+	registerScanProjectTool(server, projectService, onResourcesChanged);
 	registerStoreSummaryTool(server, projectService);
-	registerClearCacheTool(server, projectService, resetAutocompleteCache);
+	registerClearCacheTool(server, projectService, resetAutocompleteCache, onResourcesChanged);
 	registerProjectOutlineTool(server, projectService);
 	registerStoreSubgraphTool(server, projectService);
 
