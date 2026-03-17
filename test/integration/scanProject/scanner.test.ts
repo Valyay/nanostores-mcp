@@ -62,6 +62,12 @@ describe("scanner domain: scanProject", () => {
 		await expect(scanProject(filePath)).rejects.toThrow(/not a directory/i);
 	});
 
+	it("throws when options.files contains a path outside the project root", async () => {
+		await expect(
+			scanProject(projectRoot, { files: ["/outside/project/secret.ts"] }),
+		).rejects.toThrow(/outside project root/i);
+	});
+
 	it("returns empty index for an empty directory", async () => {
 		const emptyDir = path.join(projectRoot, "empty-subdir");
 		await fs.mkdir(emptyDir, { recursive: true });

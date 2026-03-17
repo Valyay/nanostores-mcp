@@ -27,7 +27,7 @@ export function registerClearCacheTool(
 			inputSchema: ClearCacheInputSchema,
 			annotations: {
 				readOnlyHint: false,
-				destructiveHint: true,
+				destructiveHint: false,
 				idempotentHint: true,
 				openWorldHint: false,
 			},

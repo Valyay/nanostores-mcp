@@ -15,6 +15,13 @@ import { resolveDerivedRelations } from "./relations.js";
 import { extractScriptsFromSvelteSfc, extractScriptsFromVueSfc } from "./sfc.js";
 
 /**
+ * Internal extension of ScanOptions that carries pre-discovered files.
+ * Not exported — callers use ScanOptions; files is set only by ProjectIndexRepository
+ * to avoid a redundant discoverSourceFiles() call after freshness checking.
+ */
+type ScanProjectOptions = ScanOptions & { files?: string[] };
+
+/**
  * Scan a project and build a nanostores index:
  * - stores
  * - subscribers (components/hooks/effects that read stores)
@@ -27,12 +34,12 @@ import { extractScriptsFromSvelteSfc, extractScriptsFromVueSfc } from "./sfc.js"
  */
 export async function scanProject(
 	rootDir: string,
-	options: ScanOptions = {},
+	options: ScanProjectOptions = {},
 ): Promise<ProjectIndex> {
 	const { onProgress, moduleConfig } = options;
-	const absRoot = realpathSafe(
-		path.isAbsolute(rootDir) ? rootDir : path.resolve(process.cwd(), rootDir),
-	);
+	// realpathSafe calls normalizeFsPath = path.resolve internally, so relative
+	// paths are resolved against process.cwd() without an explicit isAbsolute guard.
+	const absRoot = realpathSafe(rootDir);
 
 	onProgress?.(0, 4, `Validating workspace root: ${absRoot}`);
 
@@ -60,7 +67,22 @@ export async function scanProject(
 			throw err;
 		}
 
-		const files = await discoverSourceFiles(absRoot);
+		if (options.files !== undefined) {
+			// Use path.relative so the check is platform-safe: globby returns forward-slash
+			// paths on all platforms while path.sep / realpathSafe use OS-native separators.
+			// path.relative normalises both sides before computing the relationship.
+			const invalid = options.files.find(f => {
+				const rel = path.relative(absRoot, f);
+				return rel.startsWith("..") || path.isAbsolute(rel);
+			});
+			if (invalid) {
+				throw new Error(
+					`Pre-discovered file lies outside project root "${absRoot}": ${invalid}`,
+				);
+			}
+		}
+
+		const files = options.files ?? (await discoverSourceFiles(absRoot));
 
 		onProgress?.(1, 4, `Found ${files.length} candidate source files`);
 
