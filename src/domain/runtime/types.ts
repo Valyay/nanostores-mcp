@@ -148,6 +148,8 @@ export interface LoggerStatsSnapshot {
  */
 export interface LoggerEventFilter {
 	storeName?: string;
+	/** When provided together with storeName, uses composite key lookup to avoid multi-root collisions */
+	projectRoot?: string;
 	storeId?: string;
 	kinds?: NanostoresLoggerEvent["kind"][];
 	sinceTs?: number;
@@ -170,7 +172,8 @@ export interface LoggerEventStore {
 	addMany(events: NanostoresLoggerEvent[]): void;
 	getEvents(filter?: LoggerEventFilter): NanostoresLoggerEvent[];
 	getStats(): LoggerStatsSnapshot;
-	getStoreStats(storeName: string): StoreRuntimeStats | undefined;
+	/** When projectRoot is provided, uses composite key lookup; otherwise scans all entries (ambiguous in multi-root) */
+	getStoreStats(storeName: string, projectRoot?: string): StoreRuntimeStats | undefined;
 	clear(): void;
 	getNoisyStores(limit?: number): StoreRuntimeStats[];
 	getUnmountedStores(): StoreRuntimeStats[];

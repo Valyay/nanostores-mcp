@@ -60,7 +60,7 @@ export type { DocPage, DocsSearchResult } from "./docs/types.js";
 
 export type { RuntimeAnalysisService, LoggerEventStore } from "./runtime/types.js";
 export { createRuntimeAnalysisService } from "./runtime/service.js";
-export { createLoggerEventStore } from "./runtime/eventStore.js";
+export { createLoggerEventStore, makeStoreKey } from "./runtime/eventStore.js";
 
 // Re-export commonly used runtime types
 export type {

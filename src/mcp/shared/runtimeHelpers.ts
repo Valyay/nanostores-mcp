@@ -3,6 +3,7 @@ import type {
 	NanostoresLoggerEvent,
 	StoreRuntimeStats,
 } from "../../domain/index.js";
+import { makeStoreKey } from "../../domain/index.js";
 
 /**
  * Sum of all event-type counters for a single store.
@@ -78,11 +79,11 @@ export async function buildStaticHints(
 	const entries = await Promise.all(
 		stores.map(async store => {
 			if (!store.projectRoot) {
-				return [store.storeName, {}] as const;
+				return [makeStoreKey(store.projectRoot, store.storeName), {}] as const;
 			}
 			const profile = await runtimeService.getStoreProfile(store.storeName, store.projectRoot);
 			return [
-				store.storeName,
+				makeStoreKey(store.projectRoot, store.storeName),
 				{
 					id: profile?.id,
 					kind: profile?.kind,

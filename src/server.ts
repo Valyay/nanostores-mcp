@@ -35,10 +35,7 @@ export interface NanostoresServer {
  * Build the server instructions string sent to LLM clients during initialization.
  * Conditionally includes sections for enabled features to avoid mentioning disabled tools.
  */
-function buildInstructions(
-	loggerEnabled: boolean,
-	docsEnabled: boolean,
-): string {
+function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string {
 	const lines = [
 		"Analyzes Nanostores state management via layered approach:",
 		"1. Static analysis: nanostores_scan_project discovers stores and dependency graph; nanostores_store_summary inspects individual stores.",

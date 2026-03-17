@@ -129,6 +129,64 @@ describe("runtime/eventStore", () => {
 		expect(all[4].timestamp).toBe(10);
 	});
 
+	it("isolates same-named stores from different project roots", () => {
+		const store = createLoggerEventStore(100);
+
+		store.add(createEvent("change", "$user", 1, { projectRoot: "/project-a" }));
+		store.add(createEvent("change", "$user", 2, { projectRoot: "/project-a" }));
+		store.add(createEvent("mount", "$user", 3, { projectRoot: "/project-b" }));
+		store.add(createEvent("change", "$cart", 4, { projectRoot: "/project-b" }));
+
+		// Per-root stats must not bleed across roots
+		const statsA = store.getStoreStats("$user", "/project-a");
+		const statsB = store.getStoreStats("$user", "/project-b");
+		expect(statsA?.changes).toBe(2);
+		expect(statsA?.mounts).toBe(0);
+		expect(statsB?.changes).toBe(0);
+		expect(statsB?.mounts).toBe(1);
+
+		// Per-root event slices must not bleed
+		const eventsA = store.getEvents({ storeName: "$user", projectRoot: "/project-a" });
+		const eventsB = store.getEvents({ storeName: "$user", projectRoot: "/project-b" });
+		expect(eventsA.length).toBe(2);
+		expect(eventsA.every(e => e.projectRoot === "/project-a")).toBe(true);
+		expect(eventsB.length).toBe(1);
+		expect(eventsB[0].kind).toBe("mount");
+
+		// getStats() must list both $user entries separately
+		const snapshot = store.getStats();
+		const userEntries = snapshot.stores.filter(s => s.storeName === "$user");
+		expect(userEntries.length).toBe(2);
+		expect(userEntries.map(s => s.projectRoot).sort()).toEqual(["/project-a", "/project-b"]);
+	});
+
+	it("rootless events fall back into root-scoped queries (backward-compat)", () => {
+		const store = createLoggerEventStore(100);
+
+		// Rootless event — sent without projectRoot (project-agnostic client)
+		store.add(createEvent("change", "$shared", 1));
+		// Root-scoped event
+		store.add(createEvent("mount", "$shared", 2, { projectRoot: "/project-a" }));
+
+		// getStoreStats with projectRoot: exact match first, then rootless fallback
+		const statsExact = store.getStoreStats("$shared", "/project-a");
+		expect(statsExact?.mounts).toBe(1);
+
+		// getStoreStats without projectRoot: returns first match (rootless bucket)
+		const statsAny = store.getStoreStats("$shared");
+		expect(statsAny).toBeDefined();
+
+		// getEvents with projectRoot: should include rootless events via fallback
+		const events = store.getEvents({ storeName: "$shared", projectRoot: "/project-a" });
+		// exact bucket has 1 event (mount); rootless bucket is fallback only when exact is empty
+		expect(events.length).toBeGreaterThan(0);
+
+		// getEvents without projectRoot: merges all buckets, sorted by timestamp
+		const all = store.getEvents({ storeName: "$shared" });
+		expect(all.length).toBe(2);
+		expect(all[0].timestamp).toBeLessThan(all[1].timestamp);
+	});
+
 	it("clears events and stats", () => {
 		const store = createLoggerEventStore(10);
 		store.add(createEvent("change", "$a", 1));

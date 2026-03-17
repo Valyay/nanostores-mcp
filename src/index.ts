@@ -54,12 +54,9 @@ export async function main(): Promise<void> {
 		void fetchAndApplyClientRoots(app.server, app.reinitializeDocs);
 
 		if (capabilities.roots.listChanged) {
-			app.server.server.setNotificationHandler(
-				RootsListChangedNotificationSchema,
-				async () => {
-					await fetchAndApplyClientRoots(app.server, app.reinitializeDocs);
-				},
-			);
+			app.server.server.setNotificationHandler(RootsListChangedNotificationSchema, async () => {
+				await fetchAndApplyClientRoots(app.server, app.reinitializeDocs);
+			});
 		}
 	};
 

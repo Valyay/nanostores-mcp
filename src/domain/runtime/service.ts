@@ -64,9 +64,10 @@ export function createRuntimeAnalysisService(
 		const now = Date.now();
 		const metrics = calculateMetrics(stats, now);
 
-		// Get recent events
+		// Get recent events — pass projectRoot to avoid cross-root mixing
 		const recentEvents = eventStore.getEvents({
 			storeName,
+			projectRoot: projectRootOverride || stats.projectRoot,
 			limit: recentEventsLimit,
 		});
 
@@ -112,7 +113,7 @@ export function createRuntimeAnalysisService(
 			storeName: string,
 			projectRoot?: string,
 		): Promise<EnhancedStoreProfile | null> {
-			const stats = eventStore.getStoreStats(storeName);
+			const stats = eventStore.getStoreStats(storeName, projectRoot);
 			if (!stats) {
 				return null;
 			}

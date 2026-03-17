@@ -78,7 +78,10 @@ ${index.pages
 /**
  * Register nanostores://docs/page/{id} - specific documentation page
  */
-export function registerDocsPageResource(server: McpServer, getDocsService: () => DocsService | null): void {
+export function registerDocsPageResource(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	server.registerResource(
 		"docs-page",
 		new ResourceTemplate(URIS.docsPageTemplate, {

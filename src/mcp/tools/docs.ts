@@ -25,7 +25,10 @@ const DocsReadPageOutputSchema = z.object({
  * Tool: nanostores_docs_read_page
  * Read the full content of a documentation page
  */
-export function registerDocsReadPageTool(server: McpServer, getDocsService: () => DocsService | null): void {
+export function registerDocsReadPageTool(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	server.registerTool(
 		"nanostores_docs_read_page",
 		{
@@ -127,7 +130,10 @@ const DocsIndexOutputSchema = z.object({
  * Tool: nanostores_docs_index
  * List all documentation pages and tags
  */
-export function registerDocsIndexTool(server: McpServer, getDocsService: () => DocsService | null): void {
+export function registerDocsIndexTool(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	server.registerTool(
 		"nanostores_docs_index",
 		{
@@ -227,7 +233,10 @@ const DocsSearchOutputSchema = z.object({
  * Tool: nanostores_docs_search
  * Search Nanostores documentation
  */
-export function registerDocsSearchTool(server: McpServer, getDocsService: () => DocsService | null): void {
+export function registerDocsSearchTool(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	server.registerTool(
 		"nanostores_docs_search",
 		{
@@ -340,7 +349,10 @@ const DocsForStoreOutputSchema = z.object({
  * Tool: nanostores_docs_for_store
  * Find relevant documentation for a specific store
  */
-export function registerDocsForStoreTool(server: McpServer, getDocsService: () => DocsService | null): void {
+export function registerDocsForStoreTool(
+	server: McpServer,
+	getDocsService: () => DocsService | null,
+): void {
 	server.registerTool(
 		"nanostores_docs_for_store",
 		{

@@ -15,14 +15,25 @@ describe("runtime/service", () => {
 	it("enriches profiles with static data when available", async () => {
 		const eventStore = createLoggerEventStore(10);
 		const now = 10_000;
-		eventStore.add({ kind: "change", storeName: "$count", timestamp: now - 2000 });
-		eventStore.add({ kind: "change", storeName: "$count", timestamp: now - 1000 });
+		eventStore.add({
+			kind: "change",
+			storeName: "$count",
+			timestamp: now - 2000,
+			projectRoot: "/root",
+		});
+		eventStore.add({
+			kind: "change",
+			storeName: "$count",
+			timestamp: now - 1000,
+			projectRoot: "/root",
+		});
 		eventStore.add({
 			kind: "action-error",
 			storeName: "$count",
 			timestamp: now - 500,
 			actionId: "a1",
 			actionName: "inc",
+			projectRoot: "/root",
 		});
 
 		const projectService = {
@@ -44,7 +55,7 @@ describe("runtime/service", () => {
 
 	it("returns profiles without static data when lookup fails", async () => {
 		const eventStore = createLoggerEventStore(5);
-		eventStore.add({ kind: "change", storeName: "$ghost", timestamp: 1000 });
+		eventStore.add({ kind: "change", storeName: "$ghost", timestamp: 1000, projectRoot: "/root" });
 
 		const projectService = {
 			findStoreByRuntimeKey: vi.fn(async () => {

@@ -10,6 +10,15 @@ import type {
 export type { LoggerEventStore };
 
 /**
+ * Composite key for per-store maps to prevent collisions when multiple project roots
+ * share the same store name (e.g. $user in /app/project1 and /app/project2).
+ * Null byte (\0) is used as a separator — it cannot appear in file paths or JS identifiers.
+ */
+export function makeStoreKey(projectRoot: string | undefined, storeName: string): string {
+	return `${projectRoot ?? ""}\0${storeName}`;
+}
+
+/**
  * Internal state for runtime repository (LoggerEventStore)
  */
 interface LoggerEventStoreState {
@@ -25,7 +34,8 @@ interface LoggerEventStoreState {
  * Update statistics for an event
  */
 function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent): void {
-	const stats = state.stats.get(event.storeName) || {
+	const key = makeStoreKey(event.projectRoot, event.storeName);
+	const stats = state.stats.get(key) || {
 		storeName: event.storeName,
 		storeId: event.storeId,
 		projectRoot: event.projectRoot,
@@ -70,7 +80,7 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 			break;
 	}
 
-	state.stats.set(event.storeName, stats);
+	state.stats.set(key, stats);
 }
 
 /**
@@ -101,13 +111,14 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 				state.allEvents.shift();
 			}
 
-			// Add to per-store buffer
-			const storeEvents = state.eventsByStore.get(event.storeName) || [];
+			// Add to per-store buffer (keyed by composite projectRoot+storeName)
+			const storeKey = makeStoreKey(event.projectRoot, event.storeName);
+			const storeEvents = state.eventsByStore.get(storeKey) || [];
 			storeEvents.push(event);
 			if (storeEvents.length > 1000) {
 				storeEvents.shift();
 			}
-			state.eventsByStore.set(event.storeName, storeEvents);
+			state.eventsByStore.set(storeKey, storeEvents);
 
 			// Update statistics
 			updateStats(state, event);
@@ -130,7 +141,28 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 
 			// Start with the right subset
 			if (filter?.storeName) {
-				events = state.eventsByStore.get(filter.storeName) || [];
+				if (filter.projectRoot !== undefined) {
+					// Try exact composite-key first; fall back to rootless (project-agnostic) events.
+					// Use `!== undefined` not `?.length` — an empty bucket is valid and must not
+					// silently fall through to rootless events (which belong to a different root).
+					const exact = state.eventsByStore.get(makeStoreKey(filter.projectRoot, filter.storeName));
+					events =
+						exact !== undefined
+							? exact
+							: (state.eventsByStore.get(makeStoreKey(undefined, filter.storeName)) ?? []);
+				} else {
+					// No projectRoot: merge events from all roots for this store name.
+					// O(total composite keys) — acceptable for dev-tool scale (≤ ~2000 keys).
+					// If multi-root scale grows, add a secondary Map<storeName, compositeKey[]> index.
+					const suffix = `\0${filter.storeName}`;
+					const collected: NanostoresLoggerEvent[] = [];
+					for (const [key, evs] of state.eventsByStore) {
+						if (key.endsWith(suffix)) {
+							collected.push(...evs);
+						}
+					}
+					events = collected.sort((a, b) => a.timestamp - b.timestamp);
+				}
 			} else {
 				events = state.allEvents;
 			}
@@ -138,6 +170,14 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 			// Apply filters
 			if (filter) {
 				events = events.filter(event => {
+					// Rootless events (no projectRoot) are project-agnostic — never filtered out by projectRoot
+					if (
+						filter.projectRoot !== undefined &&
+						event.projectRoot !== undefined &&
+						event.projectRoot !== filter.projectRoot
+					) {
+						return false;
+					}
 					if (filter.kinds && !filter.kinds.includes(event.kind)) {
 						return false;
 					}
@@ -176,7 +216,10 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 		},
 
 		/**
-		 * Get statistics snapshot
+		 * Get statistics snapshot.
+		 * NOTE: In multi-root setups, stores.storeName is NOT unique — the same
+		 * storeName may appear once per root. Callers that build Map<storeName, …>
+		 * or display storeName without a root label should use makeStoreKey().
 		 */
 		getStats(): LoggerStatsSnapshot {
 			return {
@@ -188,10 +231,25 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 		},
 
 		/**
-		 * Get stats for a specific store
+		 * Get stats for a specific store.
+		 * With projectRoot: tries exact composite-key first, then falls back to rootless
+		 *   entry (events sent without projectRoot are treated as project-agnostic).
+		 * Without projectRoot: scans all entries for first match (ambiguous in multi-root).
 		 */
-		getStoreStats(storeName: string): StoreRuntimeStats | undefined {
-			return state.stats.get(storeName);
+		getStoreStats(storeName: string, projectRoot?: string): StoreRuntimeStats | undefined {
+			if (projectRoot !== undefined) {
+				return (
+					state.stats.get(makeStoreKey(projectRoot, storeName)) ??
+					state.stats.get(makeStoreKey(undefined, storeName))
+				);
+			}
+			// No projectRoot: scan all entries for first match (single-root compat)
+			for (const [key, stats] of state.stats) {
+				if (key.endsWith(`\0${storeName}`)) {
+					return stats;
+				}
+			}
+			return undefined;
 		},
 
 		/**

@@ -1,5 +1,6 @@
 import http from "node:http";
 import type { NanostoresLoggerEvent, LoggerEventStore } from "../domain/index.js";
+import { resolveWorkspaceRoot } from "../config/settings.js";
 
 interface LoggerBridgeConfig {
 	host: string;
@@ -58,6 +59,20 @@ function isValidEvent(event: unknown): event is NanostoresLoggerEvent {
 }
 
 /**
+ * Strip projectRoot from an event if it is outside the configured workspace roots.
+ * Rootless events (no projectRoot) pass through unchanged.
+ */
+function sanitizeProjectRoot(event: NanostoresLoggerEvent): NanostoresLoggerEvent {
+	if (!event.projectRoot) return event;
+	try {
+		resolveWorkspaceRoot(event.projectRoot);
+		return event;
+	} catch {
+		return { ...event, projectRoot: undefined };
+	}
+}
+
+/**
  * Validate and sanitize incoming events
  */
 function validateEvents(events: unknown[]): NanostoresLoggerEvent[] {
@@ -67,7 +82,7 @@ function validateEvents(events: unknown[]): NanostoresLoggerEvent[] {
 		if (!isValidEvent(event)) {
 			continue;
 		}
-		validated.push(event as NanostoresLoggerEvent);
+		validated.push(sanitizeProjectRoot(event as NanostoresLoggerEvent));
 	}
 
 	return validated;

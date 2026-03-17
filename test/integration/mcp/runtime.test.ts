@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, afterEach } from "vitest";
+import { pathToFileURL } from "node:url";
 import { setupRuntimeMcp, type RuntimeTestMcpContext } from "./helpers.ts";
 import type { NanostoresLoggerEvent } from "../../../src/domain/index.ts";
+import { setClientRoots, resetForTesting } from "../../../src/config/settings.ts";
 
 // ---------------------------------------------------------------------------
 // Seed data — deterministic events for all runtime tests
@@ -229,6 +231,62 @@ describe("Tools", () => {
 				expect(result.structuredContent).toBeDefined();
 			} finally {
 				await ctx.cleanup();
+			}
+		});
+	});
+
+	describe("nanostores_store_activity: path validation", () => {
+		afterEach(() => {
+			resetForTesting();
+		});
+
+		it("rejects projectRoot outside configured workspace roots", async () => {
+			const ctx = await setup();
+			setClientRoots([{ uri: pathToFileURL(process.cwd()).href, name: "test-project" }]);
+			try {
+				await expect(
+					ctx.callTool("nanostores_store_activity", {
+						storeName: "$counter",
+						projectRoot: "/etc",
+					}),
+				).rejects.toThrow();
+			} finally {
+				await ctx.cleanup();
+			}
+		});
+
+		it("bridge strips projectRoot outside configured workspace roots", async () => {
+			setClientRoots([{ uri: pathToFileURL(process.cwd()).href, name: "test-project" }]);
+			const eventStore = (
+				await import("../../../src/domain/runtime/eventStore.ts")
+			).createLoggerEventStore(100);
+			const bridge = (await import("../../../src/logger/loggerBridge.ts")).createLoggerBridge(
+				eventStore,
+				{
+					enabled: true,
+					port: 39981,
+				},
+			);
+			await bridge.start();
+			try {
+				const res = await fetch("http://127.0.0.1:39981/nanostores-logger", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						events: [
+							{ kind: "mount", storeName: "$bridged", timestamp: Date.now(), projectRoot: "/etc" },
+						],
+					}),
+				});
+				expect(res.ok).toBe(true);
+
+				// Event stored, but projectRoot must have been stripped by sanitizeProjectRoot
+				const stats = eventStore.getStats();
+				const stored = stats.stores.find(s => s.storeName === "$bridged");
+				expect(stored).toBeDefined();
+				expect(stored!.projectRoot).toBeUndefined();
+			} finally {
+				await bridge.stop();
 			}
 		});
 	});

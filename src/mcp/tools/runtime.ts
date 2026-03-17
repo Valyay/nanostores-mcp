@@ -2,7 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { encode as toToon } from "@toon-format/toon";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
+import { makeStoreKey } from "../../domain/index.js";
 import type { StoreRuntimeStats, LoggerStatsSnapshot } from "../../domain/runtime/types.js";
+import { resolveWorkspaceRoot } from "../../config/settings.js";
 import {
 	buildStaticHints,
 	computeMaxChangesPerSecond,
@@ -140,6 +142,8 @@ export function buildNoisyStoresSummary(
 	return summary;
 }
 
+// TODO: In multi-root, storeName is not unique across roots. Summary lines like
+// "$user: 80 changes" may appear twice with no root label. Add projectRoot context.
 export function buildRuntimeOverviewSummary(args: {
 	stats: LoggerStatsSnapshot;
 	noisyStores: StoreRuntimeStats[];
@@ -255,9 +259,11 @@ export function registerStoreActivityTool(
 		async ({ storeName, limit, windowMs, projectRoot, kinds, actionName }) => {
 			try {
 				const sinceTs = windowMs ? Date.now() - windowMs : undefined;
+				const resolvedRoot = projectRoot ? resolveWorkspaceRoot(projectRoot) : undefined;
 
 				const events = runtimeService.getEvents({
 					storeName,
+					projectRoot: resolvedRoot,
 					limit,
 					sinceTs,
 					kinds,
@@ -267,7 +273,7 @@ export function registerStoreActivityTool(
 				let stats = null;
 				let hasStaticData = false;
 				if (storeName) {
-					const profile = await runtimeService.getStoreProfile(storeName, projectRoot);
+					const profile = await runtimeService.getStoreProfile(storeName, resolvedRoot);
 					stats = profile?.stats ?? null;
 					hasStaticData = !!(profile?.id || profile?.kind || profile?.file);
 				} else {
@@ -375,6 +381,7 @@ export function registerFindNoisyStoresTool(
 						filteredStores.map(async store => {
 							const changeEvents = runtimeService.getEvents({
 								storeName: store.storeName,
+								projectRoot: store.projectRoot,
 								kinds: ["change"],
 							});
 
@@ -500,7 +507,7 @@ export function registerRuntimeOverviewTool(
 					const staticHints = await buildStaticHints(runtimeService, stats.stores);
 
 					const rows = stats.stores.map(store => {
-						const hints = staticHints.get(store.storeName) ?? {};
+						const hints = staticHints.get(makeStoreKey(store.projectRoot, store.storeName)) ?? {};
 						return {
 							id: hints.id ?? store.storeId,
 							name: store.storeName,
