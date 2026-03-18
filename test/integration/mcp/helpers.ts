@@ -6,6 +6,9 @@ import {
 	createProjectAnalysisService,
 	createLoggerEventStore,
 	createRuntimeAnalysisService,
+	createDocsRepository,
+	createDocsService,
+	createFsDocsSource,
 } from "../../../src/domain/index.ts";
 import type { LoggerEventStore } from "../../../src/domain/index.ts";
 import { createStoreAutocomplete } from "../../../src/mcp/shared/storeAutocomplete.ts";
@@ -147,6 +150,17 @@ export async function setupDocsMcp(): Promise<TestMcpContext> {
 	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
 	// null docsService — tests the "docs disabled" path
 	registerDocsFeatures(server, () => null);
+
+	return connectMcp(server);
+}
+
+export async function setupDocsMcpWithDocs(docsRoot: string): Promise<TestMcpContext> {
+	const source = createFsDocsSource({ rootDir: docsRoot });
+	const repository = createDocsRepository(source, { maxChunkLength: 1200 });
+	const docsService = createDocsService(repository);
+
+	const server = new McpServer({ name: "nanostores-mcp-test", version: "0.0.1" });
+	registerDocsFeatures(server, () => docsService);
 
 	return connectMcp(server);
 }

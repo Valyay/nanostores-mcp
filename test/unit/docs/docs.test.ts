@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -9,6 +9,17 @@ import {
 } from "../../../src/domain/index.ts";
 import type { DocsSource } from "../../../src/domain/docs/sourceFs.ts";
 import { createDocsFixture } from "../../helpers/fixtures.ts";
+
+function createMockSource(files: Record<string, string>): DocsSource {
+	return {
+		async listFiles(): Promise<string[]> {
+			return Object.keys(files);
+		},
+		async readFile(filePath: string): Promise<string> {
+			return files[filePath];
+		},
+	};
+}
 
 let docsRoot = "";
 
@@ -158,18 +169,329 @@ describe("docs domain: edge cases", () => {
 	});
 });
 
-describe("docs domain: search scoring", () => {
-	function createMockSource(files: Record<string, string>): DocsSource {
-		return {
+describe("docs domain: service layer", () => {
+	it("findForStore returns pages matching atom tags", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0) to create a store.",
+			"guide/map.md": "# Map Guide\n\nUse map({}) for objects.",
+			"guide/overview.md": "# Overview\n\nNanostores is a state management library.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("atom");
+		expect(pages.length).toBeGreaterThan(0);
+		expect(pages.every(p => p.tags.some(t => ["atom", "core"].includes(t)))).toBe(true);
+	});
+
+	it("findForStore returns pages matching map tags", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0) to create.",
+			"guide/map.md": "# Map Guide\n\nUse map({}) for objects.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("map");
+		expect(pages.length).toBeGreaterThan(0);
+		expect(pages.some(p => p.tags.includes("map"))).toBe(true);
+	});
+
+	it("findForStore returns pages matching computed tags", async () => {
+		const source = createMockSource({
+			"guide/computed.md": "# Computed\n\nUse computed() for derived values.",
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0).",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("computed");
+		expect(pages.some(p => p.tags.includes("computed"))).toBe(true);
+	});
+
+	it("findForStore maps persistentAtom to persistent+atom tags", async () => {
+		const source = createMockSource({
+			"api/persistent.md":
+				"# Persistent Stores\n\nUse persistentAtom and persistentMap for persistence. atom(0)",
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0).",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("persistentAtom");
+		expect(pages.some(p => p.tags.includes("persistent"))).toBe(true);
+	});
+
+	it("findForStore maps persistentMap to persistent+map tags", async () => {
+		const source = createMockSource({
+			"api/persistent.md":
+				"# Persistent Stores\n\nUse persistentAtom and persistentMap for persistence. map({})",
+			"guide/map.md": "# Map Guide\n\nUse map({}) for objects.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("persistentMap");
+		expect(pages.some(p => p.tags.includes("persistent"))).toBe(true);
+	});
+
+	it("findForStore maps atomFamily to atom+family+core tags", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0) for single values.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("atomFamily");
+		// Should return pages tagged with atom or core
+		expect(pages.length).toBeGreaterThan(0);
+		expect(pages.every(p => p.tags.some(t => ["atom", "family", "core"].includes(t)))).toBe(true);
+	});
+
+	it("findForStore maps mapTemplate to map+template+core tags", async () => {
+		const source = createMockSource({
+			"guide/map.md": "# Map Guide\n\nUse map({}) for objects.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("mapTemplate");
+		expect(pages.length).toBeGreaterThan(0);
+	});
+
+	it("findForStore maps computedTemplate to computed+template+core tags", async () => {
+		const source = createMockSource({
+			"computed.md": "# Computed\n\nUse computed() for derived values.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("computedTemplate");
+		expect(pages.length).toBeGreaterThan(0);
+		expect(pages.some(p => p.tags.includes("computed"))).toBe(true);
+	});
+
+	it("findForStore maps unknown kind to core tag", async () => {
+		const source = createMockSource({
+			// No path or content keywords → extractTags defaults to ["core"]
+			"overview.md": "# Overview\n\nNanostores is a state management library.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("unknown");
+		expect(pages.length).toBeGreaterThan(0);
+		expect(pages.every(p => p.tags.includes("core"))).toBe(true);
+	});
+
+	it("findForStore sorts pages by number of matching tags descending", async () => {
+		// persistentAtom kind → relevant tags ["persistent", "atom"]
+		const source = createMockSource({
+			// Has both "persistent" and "atom" tags → matches 2 relevant tags
+			"persist-atom.md":
+				"# Persistent Atom\n\nUse persistentAtom to create a persistent atom(0) store.",
+			// Has only "atom" tag → matches 1 relevant tag
+			"atom.md": "# Atom Guide\n\nUse atom(0) for single values.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const pages = await service.findForStore("persistentAtom");
+		expect(pages.length).toBe(2);
+		// persist-atom.md matches 2 tags, atom.md matches 1 → persist-atom first
+		expect(pages[0].tags).toContain("persistent");
+		expect(pages[0].tags).toContain("atom");
+	});
+
+	it("getPage returns null for non-existent page ID", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nContent.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const page = await service.getPage("non-existent");
+		expect(page).toBeNull();
+	});
+
+	it("getPageChunks returns empty array for non-existent page ID", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nContent.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const chunks = await service.getPageChunks("non-existent");
+		expect(chunks).toEqual([]);
+	});
+
+	it("getTags returns deduplicated and sorted tags", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0) to create a store.",
+			"api/persistent.md": "# Persistent\n\nUse persistentAtom for persistence. atom(0)",
+			"logger.md": "# Logger\n\n@nanostores/logger streams changes.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const tags = await service.getTags();
+		// Should be sorted alphabetically
+		const sorted = [...tags].sort();
+		expect(tags).toEqual(sorted);
+		// No duplicates
+		expect(new Set(tags).size).toBe(tags.length);
+	});
+
+	it("search delegates to repository", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nUse atom(0) to create a store.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const result = await service.search("atom");
+		expect(result.query).toBe("atom");
+		expect(result.hits.length).toBeGreaterThan(0);
+	});
+
+	it("getIndex delegates to repository", async () => {
+		const source = createMockSource({
+			"guide/atom.md": "# Atom Guide\n\nContent.",
+		});
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const service = createDocsService(repository);
+
+		const index = await service.getIndex();
+		expect(index.pages.length).toBe(1);
+		expect(index.builtAt).toBeGreaterThan(0);
+	});
+});
+
+describe("docs domain: repository cache", () => {
+	it("returns cached index within TTL", async () => {
+		let readCount = 0;
+		const source: DocsSource = {
 			async listFiles(): Promise<string[]> {
-				return Object.keys(files);
+				return ["doc.md"];
 			},
-			async readFile(filePath: string): Promise<string> {
-				return files[filePath];
+			async readFile(): Promise<string> {
+				readCount++;
+				return `# Doc ${readCount}\n\nContent ${readCount}.`;
 			},
 		};
-	}
 
+		const repository = createDocsRepository(source, {
+			maxChunkLength: 2000,
+			cacheTtlMs: 60_000,
+		});
+
+		const first = await repository.getIndex();
+		const second = await repository.getIndex();
+
+		// Same object returned from cache
+		expect(first).toBe(second);
+		// readFile called only once (during first build)
+		expect(readCount).toBe(1);
+	});
+
+	it("rebuilds index after TTL expires", async () => {
+		vi.useFakeTimers();
+		try {
+			let readCount = 0;
+			const source: DocsSource = {
+				async listFiles(): Promise<string[]> {
+					return ["doc.md"];
+				},
+				async readFile(): Promise<string> {
+					readCount++;
+					return `# Doc ${readCount}\n\nContent ${readCount}.`;
+				},
+			};
+
+			const repository = createDocsRepository(source, {
+				maxChunkLength: 2000,
+				cacheTtlMs: 1000,
+			});
+
+			const first = await repository.getIndex();
+			expect(readCount).toBe(1);
+
+			// Advance past TTL
+			vi.advanceTimersByTime(1001);
+
+			const second = await repository.getIndex();
+			// Cache expired — index was rebuilt from source
+			expect(readCount).toBe(2);
+			expect(first).not.toBe(second);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("respects cacheTtlMs: 0 as immediate expiry", async () => {
+		vi.useFakeTimers();
+		try {
+			let readCount = 0;
+			const source: DocsSource = {
+				async listFiles(): Promise<string[]> {
+					return ["doc.md"];
+				},
+				async readFile(): Promise<string> {
+					readCount++;
+					return `# Doc ${readCount}\n\nContent ${readCount}.`;
+				},
+			};
+
+			// cacheTtlMs: 0 should mean "never cache" (fixed via || → ??)
+			const repository = createDocsRepository(source, {
+				maxChunkLength: 2000,
+				cacheTtlMs: 0,
+			});
+
+			await repository.getIndex();
+			// Advance by 1ms so Date.now() differs
+			vi.advanceTimersByTime(1);
+			await repository.getIndex();
+
+			// Both calls should build the index
+			expect(readCount).toBe(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("getPageById returns undefined for non-existent page", async () => {
+		const source: DocsSource = {
+			async listFiles(): Promise<string[]> {
+				return ["doc.md"];
+			},
+			async readFile(): Promise<string> {
+				return "# Doc\n\nContent.";
+			},
+		};
+
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const page = await repository.getPageById("does-not-exist");
+		expect(page).toBeUndefined();
+	});
+
+	it("getChunksByPageId returns empty array for non-existent page", async () => {
+		const source: DocsSource = {
+			async listFiles(): Promise<string[]> {
+				return ["doc.md"];
+			},
+			async readFile(): Promise<string> {
+				return "# Doc\n\nContent.";
+			},
+		};
+
+		const repository = createDocsRepository(source, { maxChunkLength: 2000 });
+		const chunks = await repository.getChunksByPageId("does-not-exist");
+		expect(chunks).toEqual([]);
+	});
+});
+
+describe("docs domain: search scoring", () => {
 	it("ranks whole-word matches higher than substring matches", async () => {
 		const source = createMockSource({
 			"standalone.md": "# Atom\n\nThe atom store holds a single value.",
