@@ -21,8 +21,11 @@ async function fetchAndApplyClientRoots(
 		const result = await mcpServer.server.listRoots();
 		setClientRoots(result.roots);
 		onRootsChanged?.();
-	} catch {
+	} catch (err) {
 		// Client roots are best-effort — env vars or cwd will be used instead
+		process.stderr.write(
+			`[nanostores-mcp] Failed to fetch client roots: ${err instanceof Error ? err.message : String(err)}\n`,
+		);
 	}
 }
 

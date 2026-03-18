@@ -38,15 +38,33 @@ const formatValue = (value: unknown): string => {
 
 // Factory for creating event sending function
 const createEventSender = (url: string) => {
+	let lastWarnedAt = 0;
+	const WARN_THROTTLE_MS = 10_000;
+
 	return async (events: NanostoresLoggerEvent[]): Promise<void> => {
 		try {
-			await fetch(url, {
+			const response = await fetch(url, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ events }),
 			});
-		} catch {
-			// Silently ignore sending errors to avoid breaking the main application
+			if (!response.ok) {
+				warnThrottled(
+					`[nanostores-mcp] Logger bridge returned ${response.status}: ${response.statusText}`,
+				);
+			}
+		} catch (err) {
+			warnThrottled(
+				`[nanostores-mcp] Cannot reach logger bridge at ${url}: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+
+		function warnThrottled(msg: string): void {
+			const now = Date.now();
+			if (now - lastWarnedAt < WARN_THROTTLE_MS) return;
+			lastWarnedAt = now;
+			// eslint-disable-next-line no-console -- client-side DX: warn developers about broken logger connection
+			console.warn(msg);
 		}
 	};
 };

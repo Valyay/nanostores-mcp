@@ -133,8 +133,11 @@ export function buildNanostoresServer(): NanostoresServer {
 		onEventsReceived: () => {
 			try {
 				server.sendResourceListChanged();
-			} catch {
+			} catch (err) {
 				// Best-effort: server may not be connected yet
+				process.stderr.write(
+					`[nanostores-mcp] sendResourceListChanged failed: ${err instanceof Error ? err.message : String(err)}\n`,
+				);
 			}
 		},
 	});

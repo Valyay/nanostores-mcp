@@ -340,6 +340,116 @@ describe("action ID tracking logic", () => {
 	});
 });
 
+describe("createEventSender: error visibility", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	/** Mirrors createEventSender with warn-throttle logic */
+	function createEventSender(
+		url: string,
+		fetchFn: typeof fetch,
+	): (events: NanostoresLoggerEvent[]) => Promise<void> {
+		let lastWarnedAt = 0;
+		const WARN_THROTTLE_MS = 10_000;
+
+		return async (events: NanostoresLoggerEvent[]): Promise<void> => {
+			try {
+				const response = await fetchFn(url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ events }),
+				});
+				if (!response.ok) {
+					warnThrottled(
+						`[nanostores-mcp] Logger bridge returned ${response.status}: ${response.statusText}`,
+					);
+				}
+			} catch (err) {
+				warnThrottled(
+					`[nanostores-mcp] Cannot reach logger bridge at ${url}: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
+
+			function warnThrottled(msg: string): void {
+				const now = Date.now();
+				if (now - lastWarnedAt < WARN_THROTTLE_MS) return;
+				lastWarnedAt = now;
+				console.warn(msg);
+			}
+		};
+	}
+
+	it("warns on network error", async () => {
+		const fetchFn = vi.fn().mockRejectedValue(new Error("Connection refused"));
+		const send = createEventSender("http://127.0.0.1:3999/nanostores-logger", fetchFn);
+
+		await send([{ kind: "mount", storeName: "$a", timestamp: 1 }]);
+
+		expect(console.warn).toHaveBeenCalledOnce();
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining("Cannot reach logger bridge"),
+		);
+		expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("Connection refused"));
+	});
+
+	it("warns on non-ok HTTP response", async () => {
+		const fetchFn = vi
+			.fn()
+			.mockResolvedValue({ ok: false, status: 413, statusText: "Payload Too Large" });
+		const send = createEventSender("http://127.0.0.1:3999/nanostores-logger", fetchFn);
+
+		await send([{ kind: "mount", storeName: "$a", timestamp: 1 }]);
+
+		expect(console.warn).toHaveBeenCalledOnce();
+		expect(console.warn).toHaveBeenCalledWith(
+			expect.stringContaining("Logger bridge returned 413"),
+		);
+	});
+
+	it("does not warn on successful response", async () => {
+		const fetchFn = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+		const send = createEventSender("http://127.0.0.1:3999/nanostores-logger", fetchFn);
+
+		await send([{ kind: "mount", storeName: "$a", timestamp: 1 }]);
+
+		expect(console.warn).not.toHaveBeenCalled();
+	});
+
+	it("throttles repeated warnings to 1 per 10 seconds", async () => {
+		const fetchFn = vi.fn().mockRejectedValue(new Error("Connection refused"));
+		const send = createEventSender("http://127.0.0.1:3999/nanostores-logger", fetchFn);
+
+		// First call — warns
+		await send([{ kind: "mount", storeName: "$a", timestamp: 1 }]);
+		expect(console.warn).toHaveBeenCalledTimes(1);
+
+		// Second call within 10s — throttled
+		vi.advanceTimersByTime(5_000);
+		await send([{ kind: "mount", storeName: "$b", timestamp: 2 }]);
+		expect(console.warn).toHaveBeenCalledTimes(1);
+
+		// After 10s — warns again
+		vi.advanceTimersByTime(5_001);
+		await send([{ kind: "mount", storeName: "$c", timestamp: 3 }]);
+		expect(console.warn).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not throw — errors are swallowed after warning", async () => {
+		const fetchFn = vi.fn().mockRejectedValue(new Error("boom"));
+		const send = createEventSender("http://127.0.0.1:3999/nanostores-logger", fetchFn);
+
+		// Must not throw
+		await expect(send([{ kind: "mount", storeName: "$a", timestamp: 1 }])).resolves.toBeUndefined();
+	});
+});
+
 describe("initMcpLogger / getMcpLogger public API", () => {
 	beforeEach(() => {
 		vi.resetModules();
