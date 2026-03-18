@@ -17,7 +17,7 @@ async function setup(): Promise<TestMcpContext> {
 
 describe("Tools", () => {
 	describe("nanostores_docs_search", () => {
-		it("returns empty results with disabled message", async () => {
+		it("returns empty results with disabled message for query", async () => {
 			const ctx = await setup();
 			try {
 				const result = await ctx.callTool("nanostores_docs_search", {
@@ -35,67 +35,20 @@ describe("Tools", () => {
 				await ctx.cleanup();
 			}
 		});
-	});
 
-	describe("nanostores_docs_for_store", () => {
-		it("returns empty relevant docs with disabled message", async () => {
+		it("returns empty results with disabled message for storeKind", async () => {
 			const ctx = await setup();
 			try {
-				const result = await ctx.callTool("nanostores_docs_for_store", {
-					storeName: "$counter",
-					kindHint: "atom",
+				const result = await ctx.callTool("nanostores_docs_search", {
+					storeKind: "atom",
 				});
 				const sc = result.structuredContent as {
-					storeName: string;
-					kind: string;
-					relevantDocs: unknown[];
+					storeKind: string;
+					results: unknown[];
 				};
 
-				expect(sc.storeName).toBe("$counter");
-				expect(sc.kind).toBe("atom");
-				expect(sc.relevantDocs).toEqual([]);
-				expect(result.text).toContain("documentation was not found");
-			} finally {
-				await ctx.cleanup();
-			}
-		});
-	});
-
-	describe("nanostores_docs_read_page", () => {
-		it("returns disabled message when docs service is null", async () => {
-			const ctx = await setup();
-			try {
-				const result = await ctx.callTool("nanostores_docs_read_page", {
-					pageId: "guide/atom",
-				});
-				const sc = result.structuredContent as {
-					title: string;
-					tags: string[];
-					content: string;
-				};
-
-				expect(sc.tags).toEqual([]);
-				expect(sc.content).toContain("documentation was not found");
-			} finally {
-				await ctx.cleanup();
-			}
-		});
-	});
-
-	describe("nanostores_docs_index", () => {
-		it("returns empty index with disabled message when docs service is null", async () => {
-			const ctx = await setup();
-			try {
-				const result = await ctx.callTool("nanostores_docs_index", {});
-				const sc = result.structuredContent as {
-					pages: unknown[];
-					tagAggregation: unknown[];
-					builtAt: number;
-				};
-
-				expect(sc.pages).toEqual([]);
-				expect(sc.tagAggregation).toEqual([]);
-				expect(sc.builtAt).toBe(0);
+				expect(sc.storeKind).toBe("atom");
+				expect(sc.results).toEqual([]);
 				expect(result.text).toContain("documentation was not found");
 			} finally {
 				await ctx.cleanup();

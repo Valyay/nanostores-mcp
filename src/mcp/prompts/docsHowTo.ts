@@ -34,7 +34,7 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 				"You are running inside an MCP client.",
 				"For this task, you have access to the following tools and resources provided by this server:",
 				"",
-				"- `nanostores_docs_search` — search over Nanostores documentation (guides, API references, best practices).",
+				"- `nanostores_docs_search` — search Nanostores docs by topic (query) or store kind (storeKind: atom, map, computed, etc.).",
 				`- ${URIS.docsIndex} — docs index listing all available documentation pages and tags. Useful to browse topics before searching.`,
 				`- ${URIS.docsPageTemplate} — resources that expose full documentation pages by id.`,
 				"",
