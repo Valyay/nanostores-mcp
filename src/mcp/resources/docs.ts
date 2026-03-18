@@ -105,7 +105,7 @@ export function registerDocsPageResource(
 				};
 			}
 
-			const pageId = id as string;
+			const pageId = decodeURIComponent(id as string);
 			const page = await docsService.getPage(pageId);
 
 			if (!page) {

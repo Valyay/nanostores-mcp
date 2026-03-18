@@ -384,8 +384,8 @@ export function createDocsRepository(
 	const state: DocsRepositoryState = {
 		source,
 		options: {
-			maxChunkLength: options?.maxChunkLength || 1200,
-			cacheTtlMs: options?.cacheTtlMs || 60_000 * 5, // 5 minutes
+			maxChunkLength: options?.maxChunkLength ?? 1200,
+			cacheTtlMs: options?.cacheTtlMs ?? 60_000 * 5, // 5 minutes
 		},
 		cachedIndex: null,
 		lastBuildTime: 0,
