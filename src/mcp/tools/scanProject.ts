@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { createMcpProgressCallback } from "../shared/progress.js";
+import { URIS } from "../uris.js";
 
 const ScanProjectInputSchema = z.object({
 	// file:// URI or path inside workspace; if not specified - first root is taken
@@ -178,7 +179,10 @@ export function registerScanProjectTool(
 					onProgress,
 				});
 				onResourcesChanged?.();
-				return buildScanProjectResponse(result);
+				return {
+					...buildScanProjectResponse(result),
+					resourceLinks: [{ uri: URIS.graph }],
+				};
 			} catch (error) {
 				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
 				return {
