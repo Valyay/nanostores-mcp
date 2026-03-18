@@ -99,7 +99,7 @@ Add to your MCP client config (e.g., Claude Desktop):
 | Variable                        | Default     | Description                                   |
 | ------------------------------- | ----------- | --------------------------------------------- |
 | `NANOSTORES_MCP_ROOT`           | cwd         | Project root path                             |
-| `NANOSTORES_MCP_ROOTS`          | —           | Comma-separated roots for multi-project setup |
+| `NANOSTORES_MCP_ROOTS`          | —           | Platform-delimited roots (`:` on Unix, `;` on Windows) for multi-project setup |
 | `NANOSTORES_MCP_LOGGER_ENABLED` | `false`     | Enable runtime event collection               |
 | `NANOSTORES_MCP_LOGGER_PORT`    | `3999`      | HTTP port for logger bridge                   |
 | `NANOSTORES_MCP_LOGGER_HOST`    | `127.0.0.1` | Host to bind (loopback only)                  |
@@ -194,11 +194,11 @@ Use `nanostores://docs/page/{id}` resource to read the full content of pages ret
 
 | Prompt                              | Description                                                |
 | ----------------------------------- | ---------------------------------------------------------- |
-| `nanostores/explain-project`        | AI-guided explanation of your project's store architecture |
-| `nanostores/explain-store`          | Deep dive into a specific store's implementation and usage |
-| `nanostores/debug-store`            | Comprehensive analysis combining static + runtime data     |
-| `nanostores/debug-project-activity` | Project-wide performance analysis and optimization         |
-| `nanostores/docs-how-to`            | Step-by-step guidance for Nanostores tasks, backed by docs |
+| `explain-project`        | AI-guided explanation of your project's store architecture |
+| `explain-store`          | Deep dive into a specific store's implementation and usage |
+| `debug-store`            | Comprehensive analysis combining static + runtime data     |
+| `debug-project-activity` | Project-wide performance analysis and optimization         |
+| `docs-how-to`            | Step-by-step guidance for Nanostores tasks, backed by docs |
 
 ## Runtime Monitoring
 

@@ -308,7 +308,7 @@ export function registerStoreActivityTool(
 							text:
 								`Failed to get store activity.` +
 								(storeName
-									? ` Verify the store name "${storeName}" is correct (use nanostores_list_stores to check available stores).`
+									? ` Verify the store name "${storeName}" is correct (use nanostores_scan_project to check available stores).`
 									: ``) +
 								` Ensure the app is running with @nanostores/logger and events are being sent to the logger bridge.` +
 								`\n\nError: ${msg}`,
