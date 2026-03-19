@@ -187,6 +187,85 @@ describe("runtime/eventStore", () => {
 		expect(all[0].timestamp).toBeLessThan(all[1].timestamp);
 	});
 
+	it("calculates action duration from start/end pairs", () => {
+		const store = createLoggerEventStore(10);
+		store.add(createEvent("action-start", "$a", 100, { actionId: "1", actionName: "fetch" }));
+		store.add(createEvent("action-end", "$a", 150, { actionId: "1" }));
+
+		const stats = store.getStoreStats("$a");
+		expect(stats?.totalActionDurationMs).toBe(50);
+		expect(stats?.minActionDurationMs).toBe(50);
+		expect(stats?.maxActionDurationMs).toBe(50);
+	});
+
+	it("calculates avg, min, max across multiple actions", () => {
+		const store = createLoggerEventStore(20);
+		// Action 1: 50ms
+		store.add(createEvent("action-start", "$a", 100, { actionId: "1", actionName: "fast" }));
+		store.add(createEvent("action-end", "$a", 150, { actionId: "1" }));
+		// Action 2: 200ms
+		store.add(createEvent("action-start", "$a", 200, { actionId: "2", actionName: "slow" }));
+		store.add(createEvent("action-end", "$a", 400, { actionId: "2" }));
+		// Action 3: 10ms
+		store.add(createEvent("action-start", "$a", 500, { actionId: "3", actionName: "quick" }));
+		store.add(createEvent("action-end", "$a", 510, { actionId: "3" }));
+
+		const stats = store.getStoreStats("$a")!;
+		expect(stats.totalActionDurationMs).toBe(260); // 50 + 200 + 10
+		expect(stats.minActionDurationMs).toBe(10);
+		expect(stats.maxActionDurationMs).toBe(200);
+		expect(stats.actionsCompleted).toBe(3);
+		// avg = 260 / 3 ≈ 86.67
+	});
+
+	it("tracks duration for errored actions (total and max, but not min)", () => {
+		const store = createLoggerEventStore(20);
+		// Completed action: 50ms
+		store.add(createEvent("action-start", "$a", 100, { actionId: "1", actionName: "ok" }));
+		store.add(createEvent("action-end", "$a", 150, { actionId: "1" }));
+		// Errored action: 5ms (fast failure — should not drag down min)
+		store.add(createEvent("action-start", "$a", 200, { actionId: "2", actionName: "fail" }));
+		store.add(createEvent("action-error", "$a", 205, { actionId: "2", actionName: "fail" }));
+
+		const stats = store.getStoreStats("$a")!;
+		expect(stats.totalActionDurationMs).toBe(55); // 50 + 5
+		expect(stats.maxActionDurationMs).toBe(50); // max across both
+		expect(stats.minActionDurationMs).toBe(50); // only from completed, not the 5ms error
+		expect(stats.actionsErrored).toBe(1);
+		expect(stats.actionsCompleted).toBe(1);
+	});
+
+	it("does not update duration for orphan action-start (no end)", () => {
+		const store = createLoggerEventStore(10);
+		store.add(createEvent("action-start", "$a", 100, { actionId: "1", actionName: "hang" }));
+
+		const stats = store.getStoreStats("$a")!;
+		expect(stats.totalActionDurationMs).toBe(0);
+		expect(stats.actionsStarted).toBe(1);
+		expect(stats.actionsCompleted).toBe(0);
+	});
+
+	it("does not compute duration for action-end without matching start", () => {
+		const store = createLoggerEventStore(10);
+		store.add(createEvent("action-end", "$a", 200, { actionId: "orphan" }));
+
+		const stats = store.getStoreStats("$a")!;
+		expect(stats.totalActionDurationMs).toBe(0);
+		expect(stats.actionsCompleted).toBe(1);
+	});
+
+	it("clear() resets action duration tracking", () => {
+		const store = createLoggerEventStore(10);
+		store.add(createEvent("action-start", "$a", 100, { actionId: "1", actionName: "x" }));
+		store.add(createEvent("action-end", "$a", 150, { actionId: "1" }));
+		store.clear();
+
+		// After clear, start a new action — the old in-flight state should be gone
+		store.add(createEvent("action-end", "$a", 200, { actionId: "1" }));
+		const stats = store.getStoreStats("$a")!;
+		expect(stats.totalActionDurationMs).toBe(0);
+	});
+
 	it("clears events and stats", () => {
 		const store = createLoggerEventStore(10);
 		store.add(createEvent("change", "$a", 1));

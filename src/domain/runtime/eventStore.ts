@@ -25,6 +25,8 @@ interface LoggerEventStoreState {
 	allEvents: NanostoresLoggerEvent[];
 	eventsByStore: Map<string, NanostoresLoggerEvent[]>;
 	stats: Map<string, StoreRuntimeStats>;
+	/** Tracks in-flight action start timestamps: actionId → timestamp */
+	actionStartTimes: Map<string, number>;
 	maxEvents: number;
 	sessionStartedAt: number;
 	lastEventAt: number;
@@ -47,6 +49,9 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 		actionsStarted: 0,
 		actionsErrored: 0,
 		actionsCompleted: 0,
+		totalActionDurationMs: 0,
+		maxActionDurationMs: 0,
+		minActionDurationMs: 0,
 	};
 
 	stats.lastSeen = event.timestamp;
@@ -70,13 +75,35 @@ function updateStats(state: LoggerEventStoreState, event: NanostoresLoggerEvent)
 			break;
 		case "action-start":
 			stats.actionsStarted++;
+			state.actionStartTimes.set(event.actionId, event.timestamp);
 			break;
 		case "action-end":
 			stats.actionsCompleted++;
+			{
+				const startTime = state.actionStartTimes.get(event.actionId);
+				if (startTime !== undefined) {
+					const duration = event.timestamp - startTime;
+					stats.totalActionDurationMs += duration;
+					if (duration > stats.maxActionDurationMs) stats.maxActionDurationMs = duration;
+					if (duration < stats.minActionDurationMs || stats.minActionDurationMs === 0) {
+						stats.minActionDurationMs = duration;
+					}
+					state.actionStartTimes.delete(event.actionId);
+				}
+			}
 			break;
 		case "action-error":
 			stats.actionsErrored++;
 			stats.lastError = event;
+			{
+				const startTime = state.actionStartTimes.get(event.actionId);
+				if (startTime !== undefined) {
+					const duration = event.timestamp - startTime;
+					stats.totalActionDurationMs += duration;
+					if (duration > stats.maxActionDurationMs) stats.maxActionDurationMs = duration;
+					state.actionStartTimes.delete(event.actionId);
+				}
+			}
 			break;
 	}
 
@@ -93,6 +120,7 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 		allEvents: [],
 		eventsByStore: new Map(),
 		stats: new Map(),
+		actionStartTimes: new Map(),
 		maxEvents,
 		sessionStartedAt: Date.now(),
 		lastEventAt: Date.now(),
@@ -259,6 +287,7 @@ export function createLoggerEventStore(maxEvents: number = 5000): LoggerEventSto
 			state.allEvents = [];
 			state.eventsByStore.clear();
 			state.stats.clear();
+			state.actionStartTimes.clear();
 			state.sessionStartedAt = Date.now();
 			state.lastEventAt = state.sessionStartedAt;
 		},

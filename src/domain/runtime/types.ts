@@ -87,6 +87,12 @@ export interface StoreRuntimeStats {
 	actionsStarted: number;
 	actionsErrored: number;
 	actionsCompleted: number;
+	/** Total duration of all resolved actions (completed + errored) in ms */
+	totalActionDurationMs: number;
+	/** Longest single action duration in ms */
+	maxActionDurationMs: number;
+	/** Shortest single action duration in ms */
+	minActionDurationMs: number;
 	lastChange?: ChangeEvent;
 	lastError?: ActionErrorEvent;
 }

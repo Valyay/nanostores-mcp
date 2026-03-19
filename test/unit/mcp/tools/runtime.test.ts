@@ -20,6 +20,9 @@ function makeStats(overrides: Partial<StoreRuntimeStats> = {}): StoreRuntimeStat
 		actionsStarted: 5,
 		actionsErrored: 0,
 		actionsCompleted: 5,
+		totalActionDurationMs: 0,
+		maxActionDurationMs: 0,
+		minActionDurationMs: 0,
 		...overrides,
 	};
 }
@@ -72,6 +75,25 @@ describe("store_activity tool: summary building", () => {
 		expect(summary).toContain("Total events: 42");
 	});
 
+	it("includes action duration line when actionsCompleted > 0", () => {
+		const stats = makeStats({
+			actionsCompleted: 4,
+			totalActionDurationMs: 200,
+			minActionDurationMs: 10,
+			maxActionDurationMs: 100,
+		});
+
+		const summary = buildStoreActivitySummary("$counter", stats, false, 0);
+
+		expect(summary).toContain("Action duration: avg 50ms, min 10ms, max 100ms");
+	});
+
+	it("omits action duration line when actionsCompleted is 0", () => {
+		const stats = makeStats({ actionsCompleted: 0 });
+		const summary = buildStoreActivitySummary("$counter", stats, false, 0);
+		expect(summary).not.toContain("Action duration");
+	});
+
 	it("computes sinceTs from windowMs", () => {
 		const now = 10_000;
 		const windowMs = 5_000;
@@ -107,6 +129,14 @@ describe("find_noisy_stores tool: filtering and summary", () => {
 		expect(summary).toContain("2 errors");
 	});
 
+	it("includes avg duration in noisy stores summary", () => {
+		const stores = [
+			makeStats({ storeName: "$fast", changes: 50, actionsStarted: 10, actionsCompleted: 10, totalActionDurationMs: 500 }),
+		];
+		const summary = buildNoisyStoresSummary(stores);
+		expect(summary).toContain("avg 50ms");
+	});
+
 	it("returns empty message when no active stores", () => {
 		const summary = buildNoisyStoresSummary([]);
 		expect(summary).toBe("No active stores found.");
@@ -136,6 +166,25 @@ describe("runtime_overview tool: health report", () => {
 		expect(summary).toContain("Total stores seen: 2");
 		expect(summary).toContain("$a: 80 changes");
 		expect(summary).toContain("$b: 5 errors");
+	});
+
+	it("includes avg duration for noisy stores in overview", () => {
+		const stats = makeSnapshot({
+			stores: [makeStats({ storeName: "$a" })],
+			totalEvents: 50,
+		});
+		const noisyStores = [
+			makeStats({ storeName: "$a", changes: 30, actionsStarted: 20, actionsCompleted: 15, totalActionDurationMs: 750 }),
+		];
+
+		const summary = buildRuntimeOverviewSummary({
+			stats,
+			noisyStores,
+			errorProneStores: [],
+			unmountedStores: [],
+		});
+
+		expect(summary).toContain("$a: 30 changes, 20 actions (avg 50ms)");
 	});
 
 	it("shows no-activity message when no stores", () => {

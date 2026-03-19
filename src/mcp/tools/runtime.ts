@@ -75,6 +75,9 @@ const StoreRuntimeStatsSchema = z.object({
 	actionsStarted: z.number(),
 	actionsErrored: z.number(),
 	actionsCompleted: z.number(),
+	totalActionDurationMs: z.number(),
+	maxActionDurationMs: z.number(),
+	minActionDurationMs: z.number(),
 	lastChange: ChangeEventSchema.optional(),
 	lastError: ActionErrorEventSchema.optional(),
 });
@@ -108,6 +111,10 @@ export function buildStoreActivitySummary(
 			summary += `- Actions started: ${stats.actionsStarted}\n`;
 			summary += `- Actions completed: ${stats.actionsCompleted}\n`;
 			summary += `- Actions errored: ${stats.actionsErrored}\n`;
+			if (stats.actionsCompleted > 0) {
+				const avg = Math.round(stats.totalActionDurationMs / stats.actionsCompleted);
+				summary += `- Action duration: avg ${avg}ms, min ${stats.minActionDurationMs}ms, max ${stats.maxActionDurationMs}ms\n`;
+			}
 			summary += `- Recent events: ${eventsCount}`;
 			if (stats.lastChange) {
 				summary += `\n- Last change: ${new Date(stats.lastChange.timestamp).toISOString()}`;
@@ -126,7 +133,7 @@ export function buildStoreActivitySummary(
 }
 
 export function buildNoisyStoresSummary(
-	stores: Pick<StoreRuntimeStats, "storeName" | "changes" | "actionsStarted" | "actionsErrored">[],
+	stores: Pick<StoreRuntimeStats, "storeName" | "changes" | "actionsStarted" | "actionsErrored" | "actionsCompleted" | "totalActionDurationMs">[],
 ): string {
 	if (stores.length === 0) {
 		return "No active stores found.";
@@ -134,7 +141,13 @@ export function buildNoisyStoresSummary(
 	let summary = `Top ${stores.length} most active stores:\n\n`;
 	for (const store of stores) {
 		const activity = store.changes + store.actionsStarted;
-		summary += `\u2022 ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} actions)\n`;
+		let line = `\u2022 ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} actions`;
+		if (store.actionsCompleted > 0) {
+			const avg = Math.round(store.totalActionDurationMs / store.actionsCompleted);
+			line += `, avg ${avg}ms`;
+		}
+		line += ")\n";
+		summary += line;
 		if (store.actionsErrored > 0) {
 			summary += `  \u26A0\uFE0F  ${store.actionsErrored} errors\n`;
 		}
@@ -168,7 +181,12 @@ export function buildRuntimeOverviewSummary(args: {
 	if (noisyStores.length > 0) {
 		summary += `\uD83D\uDD25 Top 5 most active stores:\n`;
 		for (const store of noisyStores) {
-			summary += `  \u2022 ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} actions\n`;
+			let line = `  \u2022 ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} actions`;
+			if (store.actionsCompleted > 0) {
+				const avg = Math.round(store.totalActionDurationMs / store.actionsCompleted);
+				line += ` (avg ${avg}ms)`;
+			}
+			summary += line + "\n";
 		}
 		summary += "\n";
 	}
