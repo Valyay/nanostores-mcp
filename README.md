@@ -78,14 +78,119 @@ npx nanostores-mcp
 
 ## Configuration
 
-Add to your MCP client config (e.g., Claude Desktop):
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
 	"mcpServers": {
 		"nanostores": {
 			"command": "npx",
-			"args": ["nanostores-mcp"],
+			"args": ["-y", "nanostores-mcp"],
+			"env": {
+				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
+			}
+		}
+	}
+}
+```
+
+### VS Code
+
+Requires **GitHub Copilot** extension (VS Code 1.99+). Create `.vscode/mcp.json` in your project:
+
+```json
+{
+	"servers": {
+		"nanostores": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["-y", "nanostores-mcp"],
+			"env": {
+				"NANOSTORES_MCP_ROOT": "${workspaceFolder}"
+			}
+		}
+	}
+}
+```
+
+Tools are available in Copilot's **Agent mode** (select "Agent" in the Copilot Chat dropdown).
+
+### Cursor
+
+Create `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` for global):
+
+```json
+{
+	"mcpServers": {
+		"nanostores": {
+			"command": "npx",
+			"args": ["-y", "nanostores-mcp"],
+			"env": {
+				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
+			}
+		}
+	}
+}
+```
+
+### Zed
+
+Add to your Zed `settings.json`:
+
+```json
+{
+	"context_servers": {
+		"nanostores": {
+			"command": "npx",
+			"args": ["-y", "nanostores-mcp"],
+			"env": {
+				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
+			}
+		}
+	}
+}
+```
+
+The server appears in Zed's **Agent Panel** settings.
+
+### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+	"mcpServers": {
+		"nanostores": {
+			"command": "npx",
+			"args": ["-y", "nanostores-mcp"],
+			"env": {
+				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
+			}
+		}
+	}
+}
+```
+
+You can also open this file from the MCP icon in the Cascade panel → "Configure".
+
+### Claude Code
+
+Add via CLI:
+
+```bash
+claude mcp add --transport stdio nanostores -- npx -y nanostores-mcp
+```
+
+Or create `.mcp.json` in your project root (shared with the team):
+
+```json
+{
+	"mcpServers": {
+		"nanostores": {
+			"command": "npx",
+			"args": ["-y", "nanostores-mcp"],
 			"env": {
 				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
 			}
@@ -210,18 +315,12 @@ For runtime analysis, integrate the MCP Logger client into your application.
 npm install nanostores-mcp
 ```
 
+Add `NANOSTORES_MCP_LOGGER_ENABLED` to your MCP server config (see [Configuration](#configuration) for your editor's format):
+
 ```json
-{
-	"mcpServers": {
-		"nanostores": {
-			"command": "npx",
-			"args": ["nanostores-mcp"],
-			"env": {
-				"NANOSTORES_MCP_ROOT": "/path/to/your/project",
-				"NANOSTORES_MCP_LOGGER_ENABLED": "true"
-			}
-		}
-	}
+"env": {
+	"NANOSTORES_MCP_ROOT": "/path/to/your/project",
+	"NANOSTORES_MCP_LOGGER_ENABLED": "true"
 }
 ```
 
@@ -341,7 +440,7 @@ Ask your AI assistant natural language questions:
            ▼
 ┌──────────────────────┐
 │    LLM Client        │
-│  (Claude Desktop)    │
+│ (Claude, VS Code, …) │
 └──────────────────────┘
 ```
 
