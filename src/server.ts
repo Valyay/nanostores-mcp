@@ -38,18 +38,26 @@ export interface NanostoresServer {
 function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string {
 	const lines = [
 		"Analyzes Nanostores state management via layered approach:",
-		"1. Static analysis: nanostores_scan_project discovers stores and dependency graph; nanostores_store_summary inspects individual stores.",
+		"1. Static analysis:",
+		"   - nanostores_scan_project — discovers stores and dependency graph",
+		"   - nanostores_store_summary — inspects individual stores",
+		"   - nanostores_project_outline — quick high-level overview",
+		"   - nanostores_store_subgraph — impact analysis around a specific store",
 	];
 
 	if (loggerEnabled) {
 		lines.push(
-			"2. Runtime monitoring (active): nanostores_runtime_overview for health, nanostores_store_activity for per-store events, nanostores_find_noisy_stores for performance hotspots.",
+			"2. Runtime monitoring (active):",
+			"   - nanostores_runtime_overview — health overview",
+			"   - nanostores_store_activity — per-store events",
+			"   - nanostores_find_noisy_stores — performance hotspots",
 		);
 	}
 
 	if (docsEnabled) {
 		lines.push(
-			`${loggerEnabled ? "3" : "2"}. Documentation: nanostores_docs_search for guides and API references.`,
+			`${loggerEnabled ? "3" : "2"}. Documentation:`,
+			"   - nanostores_docs_search — guides and API references",
 		);
 	}
 

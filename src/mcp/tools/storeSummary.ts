@@ -11,6 +11,10 @@ const StoreSummaryInputSchema = z.object({
 	storeId: z.string().describe("Exact store id. If provided, takes priority.").optional(),
 	name: z.string().describe("Store name. Used if storeId is not provided.").optional(),
 	file: z.string().describe("Optional relative file path to disambiguate store name.").optional(),
+	rootUri: z
+		.string()
+		.optional()
+		.describe("Project root URI or path for multi-root setups; defaults to first root."),
 });
 
 const StoreSummaryOutputSchema = z.object({
@@ -98,7 +102,7 @@ export function registerStoreSummaryTool(
 				openWorldHint: false,
 			},
 		},
-		async ({ storeId, name, file }) => {
+		async ({ storeId, name, file, rootUri }) => {
 			if (!storeId && !name) {
 				throw new McpError(
 					ErrorCode.InvalidParams,
@@ -106,7 +110,7 @@ export function registerStoreSummaryTool(
 				);
 			}
 
-			const rootPath = resolveWorkspaceRoot();
+			const rootPath = resolveWorkspaceRoot(rootUri);
 			const key = storeId ? decodeURIComponent(storeId) : name!;
 
 			try {
