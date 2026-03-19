@@ -35,7 +35,7 @@ export interface NanostoresServer {
  * Build the server instructions string sent to LLM clients during initialization.
  * Conditionally includes sections for enabled features to avoid mentioning disabled tools.
  */
-function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string {
+export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string {
 	const lines = [
 		"Analyzes Nanostores state management via layered approach:",
 		"1. Static analysis:",
@@ -51,6 +51,7 @@ function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string
 			"   - nanostores_runtime_overview — health overview",
 			"   - nanostores_store_activity — per-store events",
 			"   - nanostores_find_noisy_stores — performance hotspots",
+			"   - nanostores_runtime_coverage — static vs runtime store comparison",
 		);
 	}
 
@@ -58,6 +59,20 @@ function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean): string
 		lines.push(
 			`${loggerEnabled ? "3" : "2"}. Documentation:`,
 			"   - nanostores_docs_search — guides and API references",
+		);
+	}
+
+	lines.push(
+		"Diagnostic workflow after scanning:",
+		"- Check computed chain depth via derives_from edges; chains above ~3 levels may cause cascade amplification.",
+		"- Identify fan-in hotspots: computed stores depending on ~4+ stores multiply update cost.",
+		"- Stores in static graph but never used by any subscriber may indicate dead code.",
+	);
+
+	if (loggerEnabled) {
+		lines.push(
+			"- Compare runtime change counts between leaf computed and root sources; a higher ratio may indicate cascade amplification worth investigating.",
+			"- Stores in static graph but absent from runtime may be dead code or missing instrumentation — consider nanostores_runtime_coverage to check.",
 		);
 	}
 
