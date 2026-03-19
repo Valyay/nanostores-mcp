@@ -3,7 +3,7 @@ import { z } from "zod";
 import { encode as toToon } from "@toon-format/toon";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
 import { makeStoreKey } from "../../domain/index.js";
-import type { StoreRuntimeStats, LoggerStatsSnapshot } from "../../domain/runtime/types.js";
+import type { StoreRuntimeStats, LoggerStatsSnapshot, CoverageReport } from "../../domain/runtime/types.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import {
 	buildStaticHints,
@@ -564,6 +564,148 @@ export function registerRuntimeOverviewTool(
 								`Failed to get runtime overview.` +
 								` Check that the logger bridge is receiving events on port NANOSTORES_MCP_LOGGER_PORT (default 3999).` +
 								` Ensure the app is running with @nanostores/logger integration.` +
+								`\n\nError: ${msg}`,
+						},
+					],
+				};
+			}
+		},
+	);
+}
+
+// ── Coverage summary builder (exported for testing) ──────────────────────────
+
+export function buildCoverageSummary(report: CoverageReport): string {
+	const pct =
+		report.staticStoreCount > 0
+			? Math.round((report.coveredCount / report.staticStoreCount) * 100)
+			: 0;
+
+	let summary = "=== Runtime Coverage Report ===\n\n";
+	summary += `Static stores: ${report.staticStoreCount} | Runtime stores: ${report.runtimeStoreCount} | Covered: ${report.coveredCount} (${pct}%)\n\n`;
+
+	// Coverage by kind
+	const kinds = Object.entries(report.coverageByKind);
+	if (kinds.length > 0) {
+		summary += "Coverage by kind:\n";
+		for (const [kind, { total, covered }] of kinds) {
+			const kindPct = total > 0 ? Math.round((covered / total) * 100) : 0;
+			let line = `  ${kind}: ${covered}/${total} (${kindPct}%)`;
+			if (kindPct === 0 && total > 0) {
+				line += "    \u2190 likely missing logger attachment";
+			}
+			summary += line + "\n";
+		}
+		summary += "\n";
+	}
+
+	// Static-only stores
+	const staticOnly = report.stores.filter(s => s.inStaticGraph && !s.inRuntime);
+	if (staticOnly.length > 0) {
+		summary += "Static-only (no runtime events):\n";
+		for (const s of staticOnly) {
+			const details = [s.kind, s.file].filter(Boolean).join(", ");
+			summary += `  ${s.storeName}${details ? ` (${details})` : ""}\n`;
+		}
+		summary += "\n";
+	}
+
+	// Runtime-only stores
+	const runtimeOnly = report.stores.filter(s => !s.inStaticGraph && s.inRuntime);
+	if (runtimeOnly.length > 0) {
+		summary += "Runtime-only (not in static graph):\n";
+		for (const s of runtimeOnly) {
+			summary += `  ${s.storeName}\n`;
+		}
+		summary += "\n";
+	} else {
+		summary += "Runtime-only (not in static graph):\n  (none)\n";
+	}
+
+	return summary;
+}
+
+// ── Tool: nanostores_runtime_coverage ────────────────────────────────────────
+
+const RuntimeCoverageInputSchema = z.object({
+	projectRoot: z
+		.string()
+		.optional()
+		.describe("Project root path (uses first configured root if omitted)"),
+});
+
+const StoreCoverageEntrySchema = z.object({
+	storeName: z.string(),
+	storeId: z.string().optional(),
+	kind: z.string().optional(),
+	file: z.string().optional(),
+	inStaticGraph: z.boolean(),
+	inRuntime: z.boolean(),
+	runtimeChanges: z.number().optional(),
+	runtimeMounts: z.number().optional(),
+});
+
+const CoverageReportSchema = z.object({
+	projectRoot: z.string(),
+	staticStoreCount: z.number(),
+	runtimeStoreCount: z.number(),
+	coveredCount: z.number(),
+	staticOnlyCount: z.number(),
+	runtimeOnlyCount: z.number(),
+	coverageByKind: z.record(z.string(), z.object({ total: z.number(), covered: z.number() })),
+	stores: z.array(StoreCoverageEntrySchema),
+});
+
+const RuntimeCoverageOutputSchema = z.object({
+	summary: z.string(),
+	report: CoverageReportSchema,
+});
+
+/**
+ * Tool: nanostores_runtime_coverage
+ * Compare static analysis graph with runtime event data
+ */
+export function registerRuntimeCoverageTool(
+	server: McpServer,
+	runtimeService: RuntimeAnalysisService,
+): void {
+	server.registerTool(
+		"nanostores_runtime_coverage",
+		{
+			title: "Runtime coverage report",
+			description:
+				"Compare static analysis graph with runtime event data to find stores " +
+				"that are declared but never seen at runtime (dead code candidates) and runtime " +
+				"stores not found in the static graph (dynamic or unscanned stores). " +
+				"Use after running the app to verify instrumentation completeness.",
+			inputSchema: RuntimeCoverageInputSchema,
+			outputSchema: RuntimeCoverageOutputSchema,
+			annotations: {
+				readOnlyHint: true,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
+		},
+		async ({ projectRoot }) => {
+			try {
+				const resolvedRoot = resolveWorkspaceRoot(projectRoot);
+				const report = await runtimeService.getCoverageReport(resolvedRoot);
+				const summary = buildCoverageSummary(report);
+
+				return {
+					content: [{ type: "text", text: summary }],
+					structuredContent: { summary, report },
+				};
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text:
+								`Failed to generate coverage report.` +
+								` Ensure the project root is correct and the app is running with @nanostores/logger.` +
 								`\n\nError: ${msg}`,
 						},
 					],

@@ -5,6 +5,7 @@ import {
 	registerStoreActivityTool,
 	registerFindNoisyStoresTool,
 	registerRuntimeOverviewTool,
+	registerRuntimeCoverageTool,
 } from "../../mcp/tools/runtime.js";
 import {
 	registerDebugStorePrompt,
@@ -24,6 +25,7 @@ export function registerRuntimeFeatures(
 	registerStoreActivityTool(server, runtimeService);
 	registerFindNoisyStoresTool(server, runtimeService);
 	registerRuntimeOverviewTool(server, runtimeService);
+	registerRuntimeCoverageTool(server, runtimeService);
 
 	// Prompts
 	registerDebugStorePrompt(server, suggestStoreNames);

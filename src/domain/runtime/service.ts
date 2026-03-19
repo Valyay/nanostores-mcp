@@ -8,6 +8,8 @@ import type {
 	EnhancedStoreProfile,
 	RuntimeAnalysisService,
 	RuntimeAnalysisServiceOptions,
+	CoverageReport,
+	StoreCoverageEntry,
 } from "./types.js";
 
 export type { RuntimeAnalysisService, RuntimeAnalysisServiceOptions, EnhancedStoreProfile };
@@ -147,6 +149,84 @@ export function createRuntimeAnalysisService(
 
 		getUnmountedStores(): StoreRuntimeStats[] {
 			return eventStore.getUnmountedStores();
+		},
+
+		async getCoverageReport(projectRoot: string): Promise<CoverageReport> {
+			// 1. Get static stores
+			let staticStores: Array<{ id: string; file: string; kind: string; name?: string }> = [];
+			try {
+				const index = await projectService.getIndex(projectRoot);
+				staticStores = index.stores;
+			} catch {
+				// Static analysis unavailable — report will be runtime-only
+			}
+
+			// 2. Get runtime stores filtered by projectRoot
+			const allRuntimeStats = eventStore.getStats().stores;
+			const runtimeByName = new Map<string, StoreRuntimeStats>();
+			for (const s of allRuntimeStats) {
+				if (s.projectRoot === projectRoot || s.projectRoot === undefined) {
+					runtimeByName.set(s.storeName, s);
+				}
+			}
+
+			// 3. Build static map by name
+			const staticByName = new Map<string, (typeof staticStores)[0]>();
+			for (const s of staticStores) {
+				if (s.name) {
+					staticByName.set(s.name, s);
+				}
+			}
+
+			// 4. Join: union of all names from both sets
+			const allNames = new Set<string>([...staticByName.keys(), ...runtimeByName.keys()]);
+			const stores: StoreCoverageEntry[] = [];
+			const coverageByKind: Record<string, { total: number; covered: number }> = {};
+
+			for (const name of allNames) {
+				const staticStore = staticByName.get(name);
+				const runtimeStats = runtimeByName.get(name);
+				const inStaticGraph = !!staticStore;
+				const inRuntime = !!runtimeStats;
+
+				stores.push({
+					storeName: name,
+					storeId: staticStore?.id,
+					kind: staticStore?.kind as StoreCoverageEntry["kind"],
+					file: staticStore?.file,
+					inStaticGraph,
+					inRuntime,
+					runtimeChanges: runtimeStats?.changes,
+					runtimeMounts: runtimeStats?.mounts,
+				});
+
+				// Aggregate by kind (only for static stores)
+				if (staticStore) {
+					const kind = staticStore.kind;
+					if (!coverageByKind[kind]) {
+						coverageByKind[kind] = { total: 0, covered: 0 };
+					}
+					coverageByKind[kind].total++;
+					if (inRuntime) {
+						coverageByKind[kind].covered++;
+					}
+				}
+			}
+
+			const coveredCount = stores.filter(s => s.inStaticGraph && s.inRuntime).length;
+			const staticOnlyCount = stores.filter(s => s.inStaticGraph && !s.inRuntime).length;
+			const runtimeOnlyCount = stores.filter(s => !s.inStaticGraph && s.inRuntime).length;
+
+			return {
+				projectRoot,
+				staticStoreCount: staticByName.size,
+				runtimeStoreCount: runtimeByName.size,
+				coveredCount,
+				staticOnlyCount,
+				runtimeOnlyCount,
+				coverageByKind,
+				stores,
+			};
 		},
 	};
 }

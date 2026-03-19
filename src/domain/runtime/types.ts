@@ -227,6 +227,11 @@ export interface RuntimeAnalysisService {
 	 * Find unmounted stores
 	 */
 	getUnmountedStores(): StoreRuntimeStats[];
+
+	/**
+	 * Get coverage report: join static graph with runtime event store
+	 */
+	getCoverageReport(projectRoot: string): Promise<CoverageReport>;
 }
 
 /**
@@ -244,4 +249,36 @@ export interface RuntimeAnalysisServiceOptions {
 	 * Default: 20
 	 */
 	recentEventsLimit?: number;
+}
+
+// ============================================================================
+// Coverage Report Types
+// ============================================================================
+
+/**
+ * Coverage entry for a single store: whether it appears in static graph, runtime, or both
+ */
+export interface StoreCoverageEntry {
+	storeName: string;
+	storeId?: string;
+	kind?: StoreKind;
+	file?: string;
+	inStaticGraph: boolean;
+	inRuntime: boolean;
+	runtimeChanges?: number;
+	runtimeMounts?: number;
+}
+
+/**
+ * Coverage report: join of static analysis graph and runtime event store
+ */
+export interface CoverageReport {
+	projectRoot: string;
+	staticStoreCount: number;
+	runtimeStoreCount: number;
+	coveredCount: number;
+	staticOnlyCount: number;
+	runtimeOnlyCount: number;
+	coverageByKind: Record<string, { total: number; covered: number }>;
+	stores: StoreCoverageEntry[];
 }

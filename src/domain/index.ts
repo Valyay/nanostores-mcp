@@ -75,4 +75,6 @@ export type {
 	LoggerEventFilter,
 	StoreRuntimeStats,
 	EnhancedStoreProfile,
+	CoverageReport,
+	StoreCoverageEntry,
 } from "./runtime/types.js";
