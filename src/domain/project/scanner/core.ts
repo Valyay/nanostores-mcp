@@ -76,9 +76,7 @@ export async function scanProject(
 				return rel.startsWith("..") || path.isAbsolute(rel);
 			});
 			if (invalid) {
-				throw new Error(
-					`Pre-discovered file lies outside project root "${absRoot}": ${invalid}`,
-				);
+				throw new Error(`Pre-discovered file lies outside project root "${absRoot}": ${invalid}`);
 			}
 		}
 

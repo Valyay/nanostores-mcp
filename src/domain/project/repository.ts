@@ -43,9 +43,7 @@ interface ProjectIndexRepositoryState {
  * (additions/deletions/renames) so that getFilesMaxMtime is skipped in those cases.
  * runScan computes it lazily when not provided.
  */
-type FreshnessResult =
-	| { fresh: true }
-	| { fresh: false; files: string[]; maxMtime?: number };
+type FreshnessResult = { fresh: true } | { fresh: false; files: string[]; maxMtime?: number };
 
 /**
  * Resolve a root path to its canonical, symlink-resolved absolute form.
