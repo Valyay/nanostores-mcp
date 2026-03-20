@@ -496,3 +496,101 @@ describe("initMcpLogger / getMcpLogger public API", () => {
 		cleanup();
 	});
 });
+
+describe("action() compatibility with buildLogger", () => {
+	it("captures action-start, action-end events via buildLogger action handlers", async () => {
+		const { atom } = await import("nanostores");
+		const { action } = await import("@nanostores/logger");
+
+		const events: NanostoresLoggerEvent[] = [];
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+		const mod = await import("../../../src/client/mcpLogger.ts");
+		mod.initMcpLogger({ enabled: true, batchMs: 50 });
+
+		const $store = atom(0);
+		const increment = action($store, "increment", ($s, amount: number) => {
+			$s.set($s.get() + amount);
+			return $s.get();
+		});
+
+		mod.attachMcpLogger($store, "$testAction");
+
+		// Subscribe to activate the store
+		const unsub = $store.subscribe(() => {});
+
+		// Call the action
+		const result = increment(5);
+		expect(result).toBe(5);
+
+		// Wait for batch flush
+		await new Promise(r => setTimeout(r, 100));
+
+		// Check captured events
+		const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+		const calls = fetchMock.mock.calls;
+
+		const allEvents: NanostoresLoggerEvent[] = [];
+		for (const call of calls) {
+			const body = JSON.parse(call[1]?.body as string);
+			allEvents.push(...body.events);
+		}
+
+		const actionStarts = allEvents.filter(e => e.kind === "action-start" && e.storeName === "$testAction");
+		const actionEnds = allEvents.filter(e => e.kind === "action-end" && e.storeName === "$testAction");
+
+		expect(actionStarts.length).toBeGreaterThanOrEqual(1);
+		expect(actionEnds.length).toBeGreaterThanOrEqual(1);
+		expect(actionStarts[0].actionName).toBe("increment");
+		expect(actionEnds[0].actionName).toBe("increment");
+		// actionId should be a string (converted from number)
+		expect(typeof actionStarts[0].actionId).toBe("string");
+		expect(actionStarts[0].actionId).toBe(actionEnds[0].actionId);
+
+		unsub();
+		globalThis.fetch = originalFetch;
+	});
+
+	it("captures action-error events for failed async actions", async () => {
+		const { atom } = await import("nanostores");
+		const { action } = await import("@nanostores/logger");
+
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+
+		const mod = await import("../../../src/client/mcpLogger.ts");
+		mod.initMcpLogger({ enabled: true, batchMs: 50 });
+
+		const $store = atom(0);
+		const failingAction = action($store, "failAction", async () => {
+			throw new Error("test failure");
+		});
+
+		mod.attachMcpLogger($store, "$testError");
+		const unsub = $store.subscribe(() => {});
+
+		try {
+			await failingAction();
+		} catch {
+			// expected
+		}
+
+		await new Promise(r => setTimeout(r, 100));
+
+		const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+		const allEvents: NanostoresLoggerEvent[] = [];
+		for (const call of fetchMock.mock.calls) {
+			const body = JSON.parse(call[1]?.body as string);
+			allEvents.push(...body.events);
+		}
+
+		const actionErrors = allEvents.filter(e => e.kind === "action-error" && e.storeName === "$testError");
+		expect(actionErrors.length).toBeGreaterThanOrEqual(1);
+		expect(actionErrors[0].actionName).toBe("failAction");
+		expect(actionErrors[0].errorMessage).toBe("test failure");
+
+		unsub();
+		globalThis.fetch = originalFetch;
+	});
+});

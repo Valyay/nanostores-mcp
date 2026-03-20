@@ -15,7 +15,7 @@ your nanostores in AI assistants like Claude Desktop.
 npx nanostores-mcp
 ```
 
-Ask your AI: _"Show me the dependency graph"_ or _"Which stores are causing the most re-renders?"_
+Ask your AI: _"Analyze my store architecture"_ or _"Which stores update most frequently?"_
 
 ---
 
@@ -276,6 +276,7 @@ Call tool: nanostores_store_activity  { "storeName": "counter" }
 | `nanostores_runtime_overview`  | Overall health report with statistics for all stores               |
 | `nanostores_store_activity`    | Activity timeline for a specific store (filterable by kind/action) |
 | `nanostores_find_noisy_stores` | Identify stores with high change frequency or error rates          |
+| `nanostores_runtime_coverage`  | Compare static graph with runtime events to find coverage gaps     |
 
 **Documentation**
 
@@ -384,23 +385,23 @@ Ask your AI assistant natural language questions:
 
 **Static Analysis:**
 
-- _"Show me the dependency graph for my nanostores"_
-- _"Explain what the $cart store does"_
-- _"Which stores depend on $user?"_
-- _"List all stores in my project"_
+- _"Analyze my store architecture for potential issues"_
+- _"Which stores depend on $user and what's the impact of changing it?"_
 
 **Runtime Debugging:**
 
-- _"Which stores are causing the most re-renders?"_
-- _"Debug the $user store with both static and runtime data"_
-- _"Show me recent activity for $cart"_
-- _"Find performance bottlenecks in my stores"_
+- _"Which stores update most frequently?"_
+- _"Are there stores declared in code but never used at runtime?"_
+- _"Debug the $user store — combine static analysis with runtime behavior"_
+
+**With [Playwright MCP](https://github.com/microsoft/playwright-mcp):**
+
+- _"Open my app in the browser, interact with it, and analyze which stores cause the most recalculations"_
 
 **Documentation:**
 
 - _"How do I use computed stores?"_
-- _"Show me docs about persistent stores"_
-- _"Find docs for the atom store kind"_
+- _"Show me best practices for persistent stores"_
 
 ## Architecture
 

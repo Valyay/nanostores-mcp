@@ -1,6 +1,5 @@
 import { buildLogger } from "@nanostores/logger";
 import type { AnyStore } from "nanostores";
-import { nanoid } from "nanoid";
 import type { NanostoresLoggerEvent } from "../domain/index.js";
 
 export interface McpLoggerClientOptions {
@@ -12,17 +11,11 @@ export interface McpLoggerClientOptions {
 	maskEvent?: (event: NanostoresLoggerEvent) => NanostoresLoggerEvent | null;
 }
 
-export interface LoggerHandlers {
-	mount: () => void;
-	unmount: () => void;
-	change: (value: unknown) => void;
-	actionStart: (actionName: string) => string;
-	actionEnd: (actionId: string) => void;
-	actionError: (actionId: string, error: unknown) => void;
-}
+/** Inferred BuildLoggerEvents type from buildLogger's third parameter */
+type LoggerEvents = Parameters<typeof buildLogger>[2];
 
 interface McpLoggerClient {
-	handlersFor: (storeName: string) => LoggerHandlers;
+	handlersFor: (storeName: string) => LoggerEvents;
 	forceFlush: () => Promise<void>;
 }
 
@@ -134,8 +127,10 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 		if (filtered) pushToBuffer(filtered);
 	};
 
-	// Factory for handlers for specific store
-	const handlersFor = (storeName: string): LoggerHandlers => ({
+	// Factory for handlers for specific store.
+	// Matches BuildLoggerEvents shape from @nanostores/logger:
+	// { mount, unmount, change, action: { start, end, error } }
+	const handlersFor = (storeName: string): LoggerEvents => ({
 		mount: (): void => {
 			pushEvent({
 				kind: "mount",
@@ -154,61 +149,59 @@ function createMcpLoggerClient(options: McpLoggerClientOptions = {}): McpLoggerC
 			});
 		},
 
-		change: (value: unknown): void => {
+		change: ({ newValue, valueMessage }): void => {
 			pushEvent({
 				kind: "change",
 				storeName,
 				timestamp: Date.now(),
-				valueMessage: formatValue(value),
+				valueMessage: valueMessage ?? formatValue(newValue),
 				projectRoot,
 			});
 		},
 
-		actionStart: (actionName: string): string => {
-			const actionId = nanoid();
-			activeActions.set(actionId, actionName);
+		action: {
+			start: ({ actionId, actionName }): void => {
+				const id = String(actionId);
+				activeActions.set(id, actionName);
 
-			pushEvent({
-				kind: "action-start",
-				storeName,
-				timestamp: Date.now(),
-				actionId,
-				actionName,
-				projectRoot,
-			});
+				pushEvent({
+					kind: "action-start",
+					storeName,
+					timestamp: Date.now(),
+					actionId: id,
+					actionName,
+					projectRoot,
+				});
+			},
 
-			return actionId;
-		},
+			end: ({ actionId, actionName }): void => {
+				const id = String(actionId);
+				activeActions.delete(id);
 
-		actionEnd: (actionId: string): void => {
-			const actionName = activeActions.get(actionId);
-			if (actionName === undefined) return;
-			activeActions.delete(actionId);
+				pushEvent({
+					kind: "action-end",
+					storeName,
+					timestamp: Date.now(),
+					actionId: id,
+					actionName,
+					projectRoot,
+				});
+			},
 
-			pushEvent({
-				kind: "action-end",
-				storeName,
-				timestamp: Date.now(),
-				actionId,
-				actionName,
-				projectRoot,
-			});
-		},
+			error: ({ actionId, actionName, error }): void => {
+				const id = String(actionId);
+				activeActions.delete(id);
 
-		actionError: (actionId: string, error: unknown): void => {
-			const actionName = activeActions.get(actionId);
-			if (actionName === undefined) return;
-			activeActions.delete(actionId);
-
-			pushEvent({
-				kind: "action-error",
-				storeName,
-				timestamp: Date.now(),
-				actionId,
-				actionName,
-				errorMessage: error instanceof Error ? error.message : String(error),
-				projectRoot,
-			});
+				pushEvent({
+					kind: "action-error",
+					storeName,
+					timestamp: Date.now(),
+					actionId: id,
+					actionName,
+					errorMessage: error instanceof Error ? error.message : String(error),
+					projectRoot,
+				});
+			},
 		},
 	});
 
