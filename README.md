@@ -43,7 +43,7 @@ Understand your nanostores architecture without running your app:
 
 - **Project scanning** — find all stores, subscribers, and import/export relationships
 - **Dependency graph** — visualize how stores depend on each other (Mermaid diagrams)
-- **Store inspection** — type (atom/map/computed), location, usage patterns, related files
+- **Store inspection** — type (atom/map/computed/batched/persistentAtom/persistentMap/router), location, usage patterns, related files
 
 ### 🔥 Runtime Monitoring (Logger Integration)
 
@@ -51,7 +51,7 @@ Real-time insights into your running application:
 
 - **Live event capture** — mount/unmount, value changes, action calls from `@nanostores/logger`
 - **Performance analysis** — find noisy stores, high error rates, performance bottlenecks
-- **Activity metrics** — change frequency, action success/failure rates, mount duration
+- **Activity metrics** — change frequency, action success/failure rates, action duration
 - **Combined analysis** — merge static structure with runtime behavior for deep debugging
 
 ### 📚 Documentation Search
@@ -201,15 +201,15 @@ Or create `.mcp.json` in your project root (shared with the team):
 
 ### Environment Variables
 
-| Variable                        | Default     | Description                                   |
-| ------------------------------- | ----------- | --------------------------------------------- |
-| `NANOSTORES_MCP_ROOT`           | cwd         | Project root path                             |
+| Variable                        | Default     | Description                                                                    |
+| ------------------------------- | ----------- | ------------------------------------------------------------------------------ |
+| `NANOSTORES_MCP_ROOT`           | cwd         | Project root path                                                              |
 | `NANOSTORES_MCP_ROOTS`          | —           | Platform-delimited roots (`:` on Unix, `;` on Windows) for multi-project setup |
-| `NANOSTORES_MCP_LOGGER_ENABLED` | `false`     | Enable runtime event collection               |
-| `NANOSTORES_MCP_LOGGER_PORT`    | `3999`      | HTTP port for logger bridge                   |
-| `NANOSTORES_MCP_LOGGER_HOST`    | `127.0.0.1` | Host to bind (loopback only)                  |
-| `NANOSTORES_DOCS_ROOT`          | auto-detect | Path to documentation directory               |
-| `NANOSTORES_DOCS_PATTERNS`      | `**/*.md`   | Comma-separated glob patterns for docs        |
+| `NANOSTORES_MCP_LOGGER_ENABLED` | `false`     | Enable runtime event collection                                                |
+| `NANOSTORES_MCP_LOGGER_PORT`    | `3999`      | HTTP port for logger bridge                                                    |
+| `NANOSTORES_MCP_LOGGER_HOST`    | `127.0.0.1` | Host to bind (loopback only)                                                   |
+| `NANOSTORES_DOCS_ROOT`          | auto-detect | Path to documentation directory                                                |
+| `NANOSTORES_DOCS_PATTERNS`      | `**/*.md`   | Comma-separated glob patterns for docs                                         |
 
 ## Quick Start
 
@@ -293,13 +293,13 @@ Use `nanostores://docs/page/{id}` resource to read the full content of pages ret
 
 | Tool                     | Description                                  |
 | ------------------------ | -------------------------------------------- |
-| `ping`                   | Server health check and logger bridge status |
+| `nanostores_ping`        | Server health check and logger bridge status |
 | `nanostores_clear_cache` | Clear project index cache to force rescan    |
 
 ### MCP Prompts
 
-| Prompt                              | Description                                                |
-| ----------------------------------- | ---------------------------------------------------------- |
+| Prompt                   | Description                                                |
+| ------------------------ | ---------------------------------------------------------- |
 | `explain-project`        | AI-guided explanation of your project's store architecture |
 | `explain-store`          | Deep dive into a specific store's implementation and usage |
 | `debug-store`            | Comprehensive analysis combining static + runtime data     |
@@ -340,9 +340,9 @@ export const $user = map({ name: "", role: "guest" });
 export const $greeting = computed($user, user => `Hello, ${user.name}`);
 
 // Attach logger — each call returns a cleanup function
-attachMcpLogger($count, "count");
-attachMcpLogger($user, "user");
-attachMcpLogger($greeting, "greeting");
+attachMcpLogger($count, "$count");
+attachMcpLogger($user, "$user");
+attachMcpLogger($greeting, "$greeting");
 ```
 
 **3. Use stores normally** — events (mount, unmount, change, actions) are captured automatically and batched to the MCP server every second.
@@ -386,7 +386,7 @@ Ask your AI assistant natural language questions:
 **Static Analysis:**
 
 - _"Analyze my store architecture for potential issues"_
-- _"Which stores depend on $user and what's the impact of changing it?"_
+- _"What happens when $user changes? Show subscribers and derived stores"_
 
 **Runtime Debugging:**
 
@@ -496,9 +496,19 @@ import { initMcpLogger, attachMcpLogger } from "nanostores-mcp/mcpLogger";
 
 ## Related Projects
 
-- [nanostores](https://github.com/nanostores/nanostores) — Tiny state manager
-- [@nanostores/logger](https://github.com/nanostores/logger) — Logger for nanostores
+**Nanostores ecosystem:**
+
+- [nanostores](https://github.com/nanostores/nanostores) — Tiny state manager (atom, map, computed, batched, deepMap)
+- [@nanostores/logger](https://github.com/nanostores/logger) — Logger and action system
+- [@nanostores/persistent](https://github.com/nanostores/persistent) — Persistent stores (localStorage, sessionStorage)
+- [@nanostores/router](https://github.com/nanostores/router) — SPA router
+- [@nanostores/i18n](https://github.com/nanostores/i18n) — Internationalization
+- [@nanostores/react](https://github.com/nanostores/react), [@nanostores/vue](https://github.com/nanostores/vue), [@nanostores/preact](https://github.com/nanostores/preact), [@nanostores/solid](https://github.com/nanostores/solid), [@nanostores/lit](https://github.com/nanostores/lit) — Framework bindings
+
+**MCP:**
+
 - [Model Context Protocol](https://modelcontextprotocol.io/) — MCP specification
+- [Playwright MCP](https://github.com/microsoft/playwright-mcp) — Browser automation (works with nanostores-mcp for runtime analysis)
 
 ## License
 
