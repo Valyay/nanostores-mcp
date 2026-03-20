@@ -103,6 +103,7 @@ export function normalizeStoreKind(raw: string): StoreKind {
 		case "deepMap":
 			return raw;
 		case "batched":
+			return "batched";
 		// Ecosystem factory function names → StoreKind
 		case "createRouter":
 			return "router";
