@@ -5,6 +5,7 @@ import type { ProjectAnalysisService } from "../../domain/index.js";
 import { buildGraphOutline, buildStoreSubgraph } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { storeNotFoundMessage } from "../shared/consts.js";
+import { TOOLS } from "../uris.js";
 
 // ── nanostores_project_outline ────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ export function registerProjectOutlineTool(
 	projectService: ProjectAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_project_outline",
+		TOOLS.projectOutline,
 		{
 			title: "Get project outline",
 			description:
@@ -168,7 +169,7 @@ export function registerStoreSubgraphTool(
 	projectService: ProjectAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_store_subgraph",
+		TOOLS.storeSubgraph,
 		{
 			title: "Get store subgraph",
 			description:

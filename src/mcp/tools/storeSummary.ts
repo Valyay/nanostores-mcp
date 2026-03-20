@@ -3,7 +3,7 @@ import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
-import { URIS } from "../uris.js";
+import { TOOLS, URIS } from "../uris.js";
 import { storeNotFoundMessage } from "../shared/consts.js";
 import { buildStoreSummaryText, buildStoreStructuredContent } from "../shared/storeSummary.js";
 
@@ -87,7 +87,7 @@ export function registerStoreSummaryTool(
 	projectService: ProjectAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_store_summary",
+		TOOLS.storeSummary,
 		{
 			title: "Summarize a Nanostores store",
 			description:

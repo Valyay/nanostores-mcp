@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
+import { TOOLS } from "../uris.js";
 
 const ClearCacheInputSchema = z.object({
 	rootUri: z
@@ -17,7 +18,7 @@ export function registerClearCacheTool(
 	onResourcesChanged?: () => void,
 ): void {
 	server.registerTool(
-		"nanostores_clear_cache",
+		TOOLS.clearCache,
 		{
 			title: "Clear project analysis cache",
 			description:

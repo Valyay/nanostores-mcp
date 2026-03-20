@@ -12,6 +12,7 @@ import {
 	getStoreEventCount,
 	pickExampleEventType,
 } from "../shared/runtimeHelpers.js";
+import { TOOLS } from "../uris.js";
 
 // ── Reusable Zod schemas matching domain/runtime/types.ts ────────────────────
 
@@ -258,7 +259,7 @@ export function registerStoreActivityTool(
 	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_store_activity",
+		TOOLS.storeActivity,
 		{
 			title: "Get store runtime activity",
 			description:
@@ -360,7 +361,7 @@ export function registerFindNoisyStoresTool(
 	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_find_noisy_stores",
+		TOOLS.findNoisyStores,
 		{
 			title: "Find noisy stores",
 			description:
@@ -475,7 +476,7 @@ export function registerRuntimeOverviewTool(
 	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_runtime_overview",
+		TOOLS.runtimeOverview,
 		{
 			title: "Get runtime overview",
 			description:
@@ -670,7 +671,7 @@ export function registerRuntimeCoverageTool(
 	runtimeService: RuntimeAnalysisService,
 ): void {
 	server.registerTool(
-		"nanostores_runtime_coverage",
+		TOOLS.runtimeCoverage,
 		{
 			title: "Runtime coverage report",
 			description:

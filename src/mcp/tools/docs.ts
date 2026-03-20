@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { DocsService } from "../../domain/index.js";
 import type { StoreKind } from "../../domain/project/types.js";
 import { DOCS_DISABLED_MESSAGE } from "../shared/consts.js";
-import { URIS } from "../uris.js";
+import { TOOLS, URIS } from "../uris.js";
 
 // Typed as StoreKind[] so adding a new variant to StoreKind without updating
 // this array produces a compile-time error.
@@ -64,7 +64,7 @@ export function registerDocsSearchTool(
 	getDocsService: () => DocsService | null,
 ): void {
 	server.registerTool(
-		"nanostores_docs_search",
+		TOOLS.docsSearch,
 		{
 			title: "Search Nanostores documentation",
 			description:

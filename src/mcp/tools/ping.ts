@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { LoggerBridgeServer } from "../../logger/loggerBridge.js";
 import { z } from "zod";
+import { TOOLS } from "../uris.js";
 
 const PingInputSchema = z.object({
 	message: z.string().default("pong"),
@@ -42,7 +43,7 @@ export function buildLoggerBridgeStatusText(loggerInfo?: {
 
 export function registerPingTool(server: McpServer, loggerBridge?: LoggerBridgeServer): void {
 	server.registerTool(
-		"nanostores_ping",
+		TOOLS.ping,
 		{
 			title: "Ping Nanostores MCP server",
 			description:

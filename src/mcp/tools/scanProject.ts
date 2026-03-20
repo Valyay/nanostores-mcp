@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { createMcpProgressCallback } from "../shared/progress.js";
-import { URIS } from "../uris.js";
+import { TOOLS, URIS } from "../uris.js";
 
 const ScanProjectInputSchema = z.object({
 	// file:// URI or path inside workspace; if not specified - first root is taken
@@ -155,7 +155,7 @@ export function registerScanProjectTool(
 	onResourcesChanged?: () => void,
 ): void {
 	server.registerTool(
-		"nanostores_scan_project",
+		TOOLS.scanProject,
 		{
 			title: "Scan project for Nanostores usage",
 			description:

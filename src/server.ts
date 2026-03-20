@@ -18,6 +18,7 @@ import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
 import { registerPingTool } from "./mcp/tools/ping.js";
 import { createStoreAutocomplete } from "./mcp/shared/storeAutocomplete.js";
+import { TOOLS } from "./mcp/uris.js";
 
 import packageJson from "../package.json" with { type: "json" };
 
@@ -39,45 +40,60 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 	const lines = [
 		"Analyzes Nanostores state management via layered approach:",
 		"1. Static analysis:",
-		"   - nanostores_scan_project — discovers stores and dependency graph",
-		"   - nanostores_store_summary — inspects individual stores",
-		"   - nanostores_project_outline — quick high-level overview",
-		"   - nanostores_store_subgraph — impact analysis around a specific store",
+		`   - ${TOOLS.scanProject} — discovers stores and dependency graph`,
+		`   - ${TOOLS.storeSummary} — inspects individual stores`,
+		`   - ${TOOLS.projectOutline} — quick high-level overview`,
+		`   - ${TOOLS.storeSubgraph} — impact analysis around a specific store`,
 	];
 
 	if (loggerEnabled) {
 		lines.push(
 			"2. Runtime monitoring (active):",
-			"   - nanostores_runtime_overview — health overview",
-			"   - nanostores_store_activity — per-store events",
-			"   - nanostores_find_noisy_stores — performance hotspots",
-			"   - nanostores_runtime_coverage — static vs runtime store comparison",
+			`   - ${TOOLS.runtimeOverview} — health overview`,
+			`   - ${TOOLS.storeActivity} — per-store events`,
+			`   - ${TOOLS.findNoisyStores} — performance hotspots`,
+			`   - ${TOOLS.runtimeCoverage} — static vs runtime store comparison`,
 		);
 	}
 
 	if (docsEnabled) {
 		lines.push(
 			`${loggerEnabled ? "3" : "2"}. Documentation:`,
-			"   - nanostores_docs_search — guides and API references",
+			`   - ${TOOLS.docsSearch} — guides and API references`,
 		);
 	}
 
 	lines.push(
+		"",
 		"Diagnostic workflow after scanning:",
-		"- Check computed chain depth via derives_from edges; chains above ~3 levels may cause cascade amplification.",
-		"- Identify fan-in hotspots: computed stores depending on ~4+ stores multiply update cost.",
+		"- Check computed chain depth via derives_from edges; longer chains increase the number of recalculations per change — consider whether intermediate stores are necessary.",
+		"- Identify fan-in hotspots: computed stores depending on many other stores get recalculated once per dependency change.",
 		"- Stores in static graph but never used by any subscriber may indicate dead code.",
 	);
 
 	if (loggerEnabled) {
 		lines.push(
 			"- Compare runtime change counts between leaf computed and root sources; a higher ratio may indicate cascade amplification worth investigating.",
-			"- Stores in static graph but absent from runtime may be dead code or missing instrumentation — consider nanostores_runtime_coverage to check.",
+			`- Stores in static graph but absent from runtime may be dead code or missing instrumentation — use ${TOOLS.runtimeCoverage} to check.`,
 		);
 	}
 
 	lines.push(
-		"Start with nanostores_scan_project. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.",
+		"",
+		"When a potential issue is found:",
+		`- Use ${TOOLS.storeSummary} or ${TOOLS.storeSubgraph} on flagged stores to see their full dependency context.`,
+		"- Read the source file of the store (file and line are in scan results) to understand the computation logic and assess whether the structure is necessary.",
+	);
+
+	if (docsEnabled) {
+		lines.push(
+			`- Use ${TOOLS.docsSearch} for relevant optimization patterns (batched computed, setKey for maps, store composition).`,
+		);
+	}
+
+	lines.push(
+		"",
+		`Start with ${TOOLS.scanProject}. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.`,
 	);
 
 	return lines.join("\n");
