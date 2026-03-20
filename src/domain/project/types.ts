@@ -11,6 +11,7 @@ export type StoreKind =
 	| "atom"
 	| "map"
 	| "computed"
+	| "batched"
 	| "persistentAtom"
 	| "persistentMap"
 	| "atomFamily"
@@ -101,6 +102,7 @@ export function normalizeStoreKind(raw: string): StoreKind {
 		case "i18n":
 		case "deepMap":
 			return raw;
+		case "batched":
 		// Ecosystem factory function names → StoreKind
 		case "createRouter":
 			return "router";
@@ -120,7 +122,7 @@ export function normalizeStoreKind(raw: string): StoreKind {
  * This reduces the probability of false derives_from relations.
  */
 export function isDerivedKind(kind: StoreKind): boolean {
-	return kind === "computed" || kind === "computedTemplate";
+	return kind === "computed" || kind === "batched" || kind === "computedTemplate";
 }
 
 // ============================================================================
