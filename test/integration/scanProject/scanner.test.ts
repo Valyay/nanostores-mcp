@@ -81,7 +81,7 @@ describe("scanner domain: scanProject", () => {
 	it("detects adapter subscribers and extra file formats", async () => {
 		const index = await scanProject(projectRoot);
 
-		expect(index.filesScanned).toBe(13);
+		expect(index.filesScanned).toBe(14);
 
 		const storeNames = index.stores.map(store => store.name);
 		expect(storeNames).toContain("$mjsCount");
@@ -101,6 +101,10 @@ describe("scanner domain: scanProject", () => {
 		const litSubscriber = findSubscriber(index, "LitCounter");
 		expect(litSubscriber?.kind).toBe("component");
 		expect(litSubscriber?.storeIds).toContain(countStore!.id);
+
+		const angularSubscriber = findSubscriber(index, "AngularCounter.ngOnInit");
+		expect(angularSubscriber?.kind).toBe("component");
+		expect(angularSubscriber?.storeIds).toContain(countStore!.id);
 
 		const jsxSubscriber = findSubscriber(index, "Widget");
 		expect(jsxSubscriber?.kind).toBe("component");

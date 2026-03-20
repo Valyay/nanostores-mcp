@@ -156,6 +156,7 @@ describe("scanner domain: edge cases", () => {
 		const reactScoped = findSubscriber(index, "ReactScoped");
 		const preactWidget = findSubscriber(index, "PreactWidget");
 		const solidWidget = findSubscriber(index, "SolidWidget");
+		const angularWidget = findSubscriber(index, "AngularWidget.ngOnInit");
 
 		expect(reactUnscoped?.kind).toBe("component");
 		expect(reactUnscoped?.storeIds).toContain(frameworkStore!.id);
@@ -168,6 +169,9 @@ describe("scanner domain: edge cases", () => {
 
 		expect(solidWidget?.kind).toBe("component");
 		expect(solidWidget?.storeIds).toContain(frameworkStore!.id);
+
+		expect(angularWidget?.kind).toBe("component");
+		expect(angularWidget?.storeIds).toContain(frameworkStore!.id);
 	});
 
 	it("detects nanostores usage in .vue and .svelte single-file components", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-	collectNanostoresReactImports,
+	collectNanostoresFrameworkImports,
 	collectNanostoresStoreImports,
 } from "../../../src/domain/project/scanner/imports.ts";
 import { createSourceFile } from "../../helpers/tsMorphProject.ts";
@@ -33,12 +33,57 @@ describe("scanner/imports", () => {
 
 	it("collects useStore imports and namespaces from framework modules", () => {
 		const { sourceFile } = createSourceFile(source, "components.tsx");
-		const info = collectNanostoresReactImports(sourceFile);
+		const info = collectNanostoresFrameworkImports(sourceFile);
 
 		expect(info.useStoreFns.has("useNanoStore")).toBe(true);
 		expect(info.useStoreFns.has("useStore")).toBe(true);
 		expect(info.useStoreFns.has("useVueStore")).toBe(false);
 		expect(info.useStoreFns.has("useReactStore")).toBe(false);
-		expect(info.reactNamespaces.has("nsReact")).toBe(true);
+		expect(info.frameworkNamespaces.has("nsReact")).toBe(true);
+	});
+
+	it("collects Angular service names from constructor DI", () => {
+		const angularSource = [
+			'import { NanostoresService } from "@nanostores/angular";',
+			"",
+			"class AppComponent {",
+			"  constructor(private nanostores: NanostoresService) {}",
+			"}",
+		].join("\n");
+		const { sourceFile } = createSourceFile(angularSource, "app.component.ts");
+		const info = collectNanostoresFrameworkImports(sourceFile);
+
+		expect(info.angularServiceNames.has("nanostores")).toBe(true);
+		expect(info.angularServiceNames.size).toBe(1);
+	});
+
+	it("tracks aliased NanostoresService imports", () => {
+		const angularSource = [
+			'import { NanostoresService as NanoSvc } from "@nanostores/angular";',
+			"",
+			"class ProfileComponent {",
+			"  constructor(private stores: NanoSvc) {}",
+			"}",
+		].join("\n");
+		const { sourceFile } = createSourceFile(angularSource, "profile.component.ts");
+		const info = collectNanostoresFrameworkImports(sourceFile);
+
+		expect(info.angularServiceNames.has("stores")).toBe(true);
+	});
+
+	it("ignores constructor params without NanostoresService type", () => {
+		const angularSource = [
+			'import { NanostoresService } from "@nanostores/angular";',
+			"",
+			"class AppComponent {",
+			"  constructor(private http: HttpClient, private ns: NanostoresService) {}",
+			"}",
+		].join("\n");
+		const { sourceFile } = createSourceFile(angularSource, "app.component.ts");
+		const info = collectNanostoresFrameworkImports(sourceFile);
+
+		expect(info.angularServiceNames.has("ns")).toBe(true);
+		expect(info.angularServiceNames.has("http")).toBe(false);
+		expect(info.angularServiceNames.size).toBe(1);
 	});
 });

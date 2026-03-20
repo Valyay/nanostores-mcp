@@ -1,7 +1,7 @@
 import { CallExpression, SyntaxKind, SourceFile, Node } from "ts-morph";
 import path from "node:path";
 import type { SubscriberMatch, SubscriberKind, StoreMatch } from "../types.js";
-import type { NanostoresReactImports } from "./imports.js";
+import type { NanostoresFrameworkImports } from "./imports.js";
 import { getSymbolKey } from "./stores.js";
 import { addRelation } from "./relations.js";
 
@@ -25,11 +25,12 @@ export interface SubscriberAccumulator {
 }
 
 /**
- * Check that the call is useStore from nanostores/react:
- * - useStore(...) or useNanoStore(...)
- * - nsReact.useStore(...)
+ * Check that the call is useStore from a nanostores framework module:
+ * - useStore(...) or useNanoStore(...)         — standalone function
+ * - nsReact.useStore(...)                      — namespace import
+ * - this.nanostores.useStore(...)              — Angular DI service
  */
-export function isUseStoreCall(callExpr: CallExpression, imports: NanostoresReactImports): boolean {
+export function isUseStoreCall(callExpr: CallExpression, imports: NanostoresFrameworkImports): boolean {
 	const expr = callExpr.getExpression();
 
 	// useStore(...)
@@ -38,13 +39,33 @@ export function isUseStoreCall(callExpr: CallExpression, imports: NanostoresReac
 		return imports.useStoreFns.has(fnName);
 	}
 
-	// nsReact.useStore(...)
+	// nsReact.useStore(...) or this.nanostores.useStore(...)
 	if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
 		const propAccess = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
-		const objName = propAccess.getExpression().getText();
 		const propName = propAccess.getName();
 
-		return imports.reactNamespaces.has(objName) && propName === "useStore";
+		if (propName !== "useStore") return false;
+
+		const obj = propAccess.getExpression();
+
+		// nsReact.useStore(...)
+		if (obj.getKind() === SyntaxKind.Identifier) {
+			return imports.frameworkNamespaces.has(obj.getText());
+		}
+
+		// this.nanostores.useStore(...) — Angular DI pattern
+		if (
+			imports.angularServiceNames.size > 0 &&
+			obj.getKind() === SyntaxKind.PropertyAccessExpression
+		) {
+			const innerAccess = obj.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+			const innerObj = innerAccess.getExpression();
+			const serviceName = innerAccess.getName();
+
+			if (innerObj.getKind() === SyntaxKind.ThisKeyword) {
+				return imports.angularServiceNames.has(serviceName);
+			}
+		}
 	}
 
 	return false;
@@ -166,7 +187,7 @@ export interface SubscriberAnalysisContext {
 export function analyzeSubscribersInFile(
 	sourceFile: SourceFile,
 	absRoot: string,
-	reactImports: NanostoresReactImports,
+	frameworkImports: NanostoresFrameworkImports,
 	context: SubscriberAnalysisContext,
 ): void {
 	const absPath = sourceFile.getFilePath();
@@ -178,7 +199,7 @@ export function analyzeSubscribersInFile(
 
 	for (const callExpr of callExpressions) {
 		// Check that this is a useStore call from nanostores/react
-		if (!isUseStoreCall(callExpr, reactImports)) continue;
+		if (!isUseStoreCall(callExpr, frameworkImports)) continue;
 
 		const args = callExpr.getArguments();
 		if (!args[0] || args[0].getKind() !== SyntaxKind.Identifier) continue;

@@ -2,12 +2,12 @@
 
 exports[`scanner domain: snapshot > produces a stable store/subscriber/relation summary for the fixture project 1`] = `
 {
-  "filesScanned": 13,
-  "relationCount": 34,
+  "filesScanned": 14,
+  "relationCount": 36,
   "relationTypes": {
-    "declares": 18,
+    "declares": 19,
     "derives_from": 3,
-    "subscribes_to": 13,
+    "subscribes_to": 14,
   },
   "storeCount": 8,
   "stores": [
@@ -52,8 +52,14 @@ exports[`scanner domain: snapshot > produces a stable store/subscriber/relation 
       "name": "$mjsCount",
     },
   ],
-  "subscriberCount": 10,
+  "subscriberCount": 11,
   "subscribers": [
+    {
+      "file": "components/AngularCounter.ts",
+      "kind": "component",
+      "name": "AngularCounter.ngOnInit",
+      "storeCount": 1,
+    },
     {
       "file": "components/Counter.tsx",
       "kind": "component",

@@ -1,4 +1,4 @@
-import type { SourceFile } from "ts-morph";
+import { SyntaxKind, type SourceFile } from "ts-morph";
 import type { ModuleConfig, StoreKind } from "../types.js";
 import { normalizeStoreKind } from "../types.js";
 
@@ -35,6 +35,7 @@ export const NANOSTORES_FRAMEWORKS_MODULES = new Set<string>([
 	"@nanostores/lit",
 	"@nanostores/preact",
 	"@nanostores/solid",
+	"@nanostores/angular",
 ]);
 
 export interface NanostoresStoreImports {
@@ -90,24 +91,36 @@ export function collectNanostoresStoreImports(
 	return { storeFactories, nanostoresNamespaces };
 }
 
-export interface NanostoresReactImports {
+export interface NanostoresFrameworkImports {
 	useStoreFns: Set<string>;
-	reactNamespaces: Set<string>;
+	frameworkNamespaces: Set<string>;
+	angularServiceNames: Set<string>;
 }
 
 /**
- * Collects information about imported useStore from supported modules:
- * - useStoreFns: local function names (useStore, useNanoStore, ...)
- * - reactNamespaces: namespace imports (import * as nsReact from "nanostores/react")
+ * Names of exported types/classes from @nanostores/angular that we track
+ * to resolve DI-injected service instances calling useStore().
  */
-export function collectNanostoresReactImports(
+const ANGULAR_SERVICE_NAMES = new Set(["NanostoresService"]);
+
+/**
+ * Collects information about imported useStore from supported framework modules:
+ * - useStoreFns: local function names (useStore, useNanoStore, ...)
+ * - frameworkNamespaces: namespace imports (import * as nsReact from "nanostores/react")
+ * - angularServiceNames: constructor parameter names typed as NanostoresService
+ */
+export function collectNanostoresFrameworkImports(
 	sourceFile: SourceFile,
 	moduleConfig?: ModuleConfig,
-): NanostoresReactImports {
+): NanostoresFrameworkImports {
 	const useStoreFns = new Set<string>();
-	const reactNamespaces = new Set<string>();
+	const frameworkNamespaces = new Set<string>();
+	const angularServiceNames = new Set<string>();
 
 	const frameworkModules = moduleConfig?.frameworkModules ?? NANOSTORES_FRAMEWORKS_MODULES;
+
+	// Collect local names of NanostoresService imports for Angular DI detection
+	const angularServiceLocalNames = new Set<string>();
 
 	for (const imp of sourceFile.getImportDeclarations()) {
 		const module = imp.getModuleSpecifierValue();
@@ -123,14 +136,32 @@ export function collectNanostoresReactImports(
 			if (imported === "useStore") {
 				useStoreFns.add(local);
 			}
+			if (ANGULAR_SERVICE_NAMES.has(imported)) {
+				angularServiceLocalNames.add(local);
+			}
 		}
 
 		// import * as nsReact from "nanostores/react"
 		const ns = imp.getNamespaceImport();
 		if (ns) {
-			reactNamespaces.add(ns.getText());
+			frameworkNamespaces.add(ns.getText());
 		}
 	}
 
-	return { useStoreFns, reactNamespaces };
+	// Resolve Angular DI: find constructor parameters typed as NanostoresService
+	if (angularServiceLocalNames.size > 0) {
+		for (const cls of sourceFile.getDescendantsOfKind(SyntaxKind.ClassDeclaration)) {
+			for (const ctor of cls.getConstructors()) {
+				for (const param of ctor.getParameters()) {
+					const typeNode = param.getTypeNode();
+					const paramName = param.getName();
+					if (paramName && typeNode && angularServiceLocalNames.has(typeNode.getText())) {
+						angularServiceNames.add(paramName);
+					}
+				}
+			}
+		}
+	}
+
+	return { useStoreFns, frameworkNamespaces, angularServiceNames };
 }

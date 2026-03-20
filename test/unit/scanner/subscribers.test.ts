@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SyntaxKind } from "ts-morph";
 import {
-	collectNanostoresReactImports,
+	collectNanostoresFrameworkImports,
 	collectNanostoresStoreImports,
 } from "../../../src/domain/project/scanner/imports.ts";
 import {
@@ -53,7 +53,7 @@ describe("scanner/subscribers", () => {
 			"useReactStore($a);",
 		].join("\n");
 		const { sourceFile } = createSourceFile(code, "Component.tsx");
-		const imports = collectNanostoresReactImports(sourceFile);
+		const imports = collectNanostoresFrameworkImports(sourceFile);
 		const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
 		const results = calls.map(callExpr => ({
@@ -64,6 +64,52 @@ describe("scanner/subscribers", () => {
 		expect(results.find(r => r.text === "useNanoStore($a)")?.match).toBe(true);
 		expect(results.find(r => r.text === "nsReact.useStore($a)")?.match).toBe(true);
 		expect(results.find(r => r.text === "useReactStore($a)")?.match).toBe(false);
+	});
+
+	it("detects Angular this.service.useStore() calls", () => {
+		const code = [
+			'import { NanostoresService } from "@nanostores/angular";',
+			"",
+			"class AppComponent {",
+			"  constructor(private nanostores: NanostoresService) {}",
+			"  ngOnInit() {",
+			"    this.nanostores.useStore($a);",
+			"  }",
+			"}",
+		].join("\n");
+		const { sourceFile } = createSourceFile(code, "app.component.ts");
+		const imports = collectNanostoresFrameworkImports(sourceFile);
+		const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+
+		const results = calls.map(callExpr => ({
+			text: callExpr.getText(),
+			match: isUseStoreCall(callExpr, imports),
+		}));
+
+		expect(results.find(r => r.text === "this.nanostores.useStore($a)")?.match).toBe(true);
+	});
+
+	it("rejects this.otherService.useStore() without NanostoresService type", () => {
+		const code = [
+			'import { NanostoresService } from "@nanostores/angular";',
+			"",
+			"class AppComponent {",
+			"  constructor(private nanostores: NanostoresService, private other: OtherService) {}",
+			"  ngOnInit() {",
+			"    this.other.useStore($a);",
+			"  }",
+			"}",
+		].join("\n");
+		const { sourceFile } = createSourceFile(code, "app.component.ts");
+		const imports = collectNanostoresFrameworkImports(sourceFile);
+		const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+
+		const results = calls.map(callExpr => ({
+			text: callExpr.getText(),
+			match: isUseStoreCall(callExpr, imports),
+		}));
+
+		expect(results.find(r => r.text === "this.other.useStore($a)")?.match).toBe(false);
 	});
 
 	it("infers subscriber kinds from names and extensions", () => {
@@ -129,8 +175,8 @@ describe("scanner/subscribers", () => {
 
 		const componentFile = sourceFiles.get("component.tsx")!;
 		const subscriberContext = createSubscriberContext(storeContext);
-		const reactImports = collectNanostoresReactImports(componentFile);
-		analyzeSubscribersInFile(componentFile, absRoot, reactImports, subscriberContext);
+		const frameworkImports = collectNanostoresFrameworkImports(componentFile);
+		analyzeSubscribersInFile(componentFile, absRoot, frameworkImports, subscriberContext);
 
 		expect(subscriberContext.subscribers.length).toBe(1);
 		const subscriber = subscriberContext.subscribers[0];
@@ -168,9 +214,9 @@ describe("scanner/subscribers", () => {
 
 		const subscriberContext = createSubscriberContext(storeContext);
 		const sourceFile = sourceFiles.get("consumer.ts")!;
-		const reactImports = collectNanostoresReactImports(sourceFile);
+		const frameworkImports = collectNanostoresFrameworkImports(sourceFile);
 
-		analyzeSubscribersInFile(sourceFile, absRoot, reactImports, subscriberContext);
+		analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext);
 
 		expect(subscriberContext.subscribers.length).toBe(1);
 		const subscriber = subscriberContext.subscribers[0];
@@ -205,10 +251,51 @@ describe("scanner/subscribers", () => {
 
 		const subscriberContext = createSubscriberContext(storeContext);
 		const sourceFile = sourceFiles.get("consumer.ts")!;
-		const reactImports = collectNanostoresReactImports(sourceFile);
-		analyzeSubscribersInFile(sourceFile, absRoot, reactImports, subscriberContext);
+		const frameworkImports = collectNanostoresFrameworkImports(sourceFile);
+		analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext);
 
 		expect(subscriberContext.subscribers.length).toBe(0);
+	});
+
+	it("detects Angular component subscribers via DI service", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $profile = atom({ name: 'John' });",
+			].join("\n"),
+			"app.component.ts": [
+				'import { NanostoresService } from "@nanostores/angular";',
+				'import { $profile } from "./stores";',
+				"",
+				"class AppComponent {",
+				"  constructor(private nanostores: NanostoresService) {}",
+				"  ngOnInit() {",
+				"    this.nanostores.useStore($profile);",
+				"  }",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const componentFile = sourceFiles.get("app.component.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(componentFile);
+		analyzeSubscribersInFile(componentFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.name).toBe("AppComponent.ngOnInit");
+		expect(subscriber.kind).toBe("component");
+		expect(subscriber.storeIds.length).toBe(1);
+
+		const matchedStore = storeContext.stores.find(s => s.id === subscriber.storeIds[0]);
+		expect(matchedStore?.name).toBe("$profile");
 	});
 
 	it("tracks first useStore line in a container", () => {
@@ -234,8 +321,8 @@ describe("scanner/subscribers", () => {
 
 		const widgetFile = sourceFiles.get("widget.tsx")!;
 		const subscriberContext = createSubscriberContext(storeContext);
-		const reactImports = collectNanostoresReactImports(widgetFile);
-		analyzeSubscribersInFile(widgetFile, absRoot, reactImports, subscriberContext);
+		const frameworkImports = collectNanostoresFrameworkImports(widgetFile);
+		analyzeSubscribersInFile(widgetFile, absRoot, frameworkImports, subscriberContext);
 
 		expect(subscriberContext.subscribers.length).toBe(1);
 		const subscriber = subscriberContext.subscribers[0];

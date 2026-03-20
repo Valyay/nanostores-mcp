@@ -6,7 +6,7 @@ import { isErrnoException, realpathSafe } from "../../../config/security.js";
 import { discoverSourceFiles } from "./files.js";
 import type { ProjectIndex, ScanOptions } from "../types.js";
 import type { StoreMatch, SubscriberMatch, StoreRelation } from "../types.js";
-import { collectNanostoresStoreImports, collectNanostoresReactImports } from "./imports.js";
+import { collectNanostoresStoreImports, collectNanostoresFrameworkImports } from "./imports.js";
 import { analyzeStoresInFile } from "./stores.js";
 import type { StoreAnalysisContext, DerivedStub } from "./stores.js";
 import { analyzeSubscribersInFile } from "./subscribers.js";
@@ -176,8 +176,8 @@ export async function scanProject(
 
 		// --- Second pass: find subscribers ---
 		for (const sourceFile of project.getSourceFiles()) {
-			const reactImports = collectNanostoresReactImports(sourceFile, moduleConfig);
-			analyzeSubscribersInFile(sourceFile, absRoot, reactImports, subscriberContext);
+			const frameworkImports = collectNanostoresFrameworkImports(sourceFile, moduleConfig);
+			analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext);
 		}
 
 		onProgress?.(

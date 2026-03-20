@@ -152,6 +152,23 @@ export async function createProjectFixture(): Promise<string> {
 
 	await writeFile(
 		rootDir,
+		"components/AngularCounter.ts",
+		[
+			'import { NanostoresService } from "@nanostores/angular";',
+			'import { $count } from "../stores";',
+			"",
+			"export class AngularCounter {",
+			"\tconstructor(private nanostores: NanostoresService) {}",
+			"\tngOnInit() {",
+			"\t\tthis.nanostores.useStore($count);",
+			"\t}",
+			"}",
+			"",
+		].join("\n"),
+	);
+
+	await writeFile(
+		rootDir,
 		"components/VueWidget.vue",
 		[
 			"<template>",
@@ -489,6 +506,23 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 			"</script>",
 			"",
 			"<p>{$framework}</p>",
+			"",
+		].join("\n"),
+	);
+
+	await writeFile(
+		rootDir,
+		"components/AngularWidget.ts",
+		[
+			'import { NanostoresService } from "@nanostores/angular";',
+			'import { $framework } from "../stores/framework";',
+			"",
+			"export class AngularWidget {",
+			"\tconstructor(private ns: NanostoresService) {}",
+			"\tngOnInit() {",
+			"\t\tthis.ns.useStore($framework);",
+			"\t}",
+			"}",
 			"",
 		].join("\n"),
 	);
