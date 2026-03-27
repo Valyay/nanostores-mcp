@@ -43,6 +43,8 @@ describe("scanner domain: edge cases", () => {
 		const persistStore = findStore(index, "$persist", "stores/aliases.ts");
 		const familyStore = findStore(index, "$family", "stores/aliases.ts");
 		const templateStore = findStore(index, "$template", "stores/aliases.ts");
+		const namedCreatorStore = findStore(index, "$namedCreator", "stores/aliases.ts");
+		const nsCreatorStore = findStore(index, "$nsCreator", "stores/aliases.ts");
 		const computedStore = findStore(index, "$computed", "stores/aliases.ts");
 		const computedArrayStore = findStore(index, "$computedArray", "stores/aliases.ts");
 		const computedTplStore = findStore(index, "$computedTpl", "stores/aliases.ts");
@@ -55,6 +57,8 @@ describe("scanner domain: edge cases", () => {
 		expect(persistStore?.kind).toBe("persistentMap");
 		expect(familyStore?.kind).toBe("atomFamily");
 		expect(templateStore?.kind).toBe("mapTemplate");
+		expect(namedCreatorStore?.kind).toBe("mapTemplate");
+		expect(nsCreatorStore?.kind).toBe("mapTemplate");
 		expect(computedStore?.kind).toBe("computed");
 		expect(computedArrayStore?.kind).toBe("computed");
 		expect(computedTplStore?.kind).toBe("computedTemplate");

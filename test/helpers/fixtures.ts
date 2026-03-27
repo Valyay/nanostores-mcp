@@ -272,7 +272,7 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 		rootDir,
 		"stores/aliases.ts",
 		[
-			'import { atom as createAtom, map, computed as makeComputed, mapTemplate, computedTemplate, atomFamily } from "nanostores";',
+			'import { atom as createAtom, map, computed as makeComputed, mapTemplate, mapCreator, computedTemplate, atomFamily } from "nanostores";',
 			'import * as ns from "nanostores";',
 			'import { persistentMap } from "nanostores/persistent";',
 			"",
@@ -282,6 +282,8 @@ export async function createScannerEdgeCasesFixture(): Promise<string> {
 			'export const $persist = persistentMap("prefs", { theme: "dark" });',
 			"export const $family = atomFamily(id => ({ id }));",
 			"export const $template = mapTemplate(id => ({ id }));",
+			"export const $namedCreator = mapCreator(store => store);",
+			"export const $nsCreator = ns.mapCreator(store => store);",
 			"export const $computed = makeComputed($alias, value => value + 1);",
 			"export const $computedArray = makeComputed([$alias, $nsMap, $alias], (a, b) => a + b.count);",
 			"export const $computedTpl = computedTemplate($alias, value => value);",

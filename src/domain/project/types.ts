@@ -110,6 +110,8 @@ export function normalizeStoreKind(raw: string): StoreKind {
 		case "createI18n":
 		case "localeFrom":
 			return "i18n";
+		case "mapCreator":
+			return "mapTemplate";
 		default:
 			return "unknown";
 	}
