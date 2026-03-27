@@ -63,13 +63,21 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		);
 	}
 
+	// Tool cost hierarchy
+	lines.push(
+		"",
+		"Tool cost order — prefer lighter tools first:",
+		`  ${TOOLS.projectOutline} → ${TOOLS.storeSummary} → ${TOOLS.storeSubgraph} → ${TOOLS.scanProject}`,
+		`Avoid ${TOOLS.scanProject} unless you need to iterate over every store; targeted tools give the same insight at a fraction of the cost.`,
+	);
+
 	// Tool selection guide
 	lines.push(
 		"",
 		"Tool selection guide:",
-		`- "What stores exist?" → ${TOOLS.projectOutline} (compact summary) or ${TOOLS.scanProject} (full list)`,
+		`- "What stores exist?" → ${TOOLS.projectOutline} (always start here; use ${TOOLS.scanProject} only if you need the raw full list)`,
 		`- "Tell me about $store" → ${TOOLS.storeSummary} (direct neighbors)`,
-		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} (multi-hop impact chain)`,
+		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} with radius=1; increase only for transitive chains`,
 	);
 
 	if (loggerEnabled) {
@@ -89,7 +97,7 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 	// Diagnostic workflow
 	lines.push(
 		"",
-		"Diagnostic workflow after scanning:",
+		"Diagnostic workflow:",
 		"- Check computed chain depth via derives_from edges; longer chains increase the number of recalculations per change — consider whether intermediate stores are necessary.",
 		"- Identify fan-in hotspots: computed stores depending on many other stores get recalculated once per dependency change.",
 		"- Stores in static graph but never used by any subscriber may indicate dead code.",
@@ -120,16 +128,18 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		lines.push(
 			"",
 			"Combined static + runtime analysis pattern:",
-			`1. ${TOOLS.scanProject} → build the store dependency graph.`,
-			`2. ${TOOLS.runtimeCoverage} → find gaps between static declarations and runtime events.`,
-			`3. For flagged stores: ${TOOLS.storeActivity} (runtime details) + ${TOOLS.storeSubgraph} (static impact).`,
-			`4. ${TOOLS.findNoisyStores} → identify performance bottlenecks across the project.`,
+			`1. ${TOOLS.projectOutline} → identify hubs and hot zones.`,
+			`2. ${TOOLS.storeSummary} for each flagged hub → understand direct neighbors.`,
+			`3. ${TOOLS.runtimeCoverage} → find gaps between static declarations and runtime events.`,
+			`4. For flagged stores: ${TOOLS.storeActivity} (runtime details) + ${TOOLS.storeSubgraph} radius=1 (static impact).`,
+			`5. ${TOOLS.findNoisyStores} → identify performance bottlenecks across the project.`,
+			`6. ${TOOLS.scanProject} → only if you need to iterate over every store in the project.`,
 		);
 	}
 
 	lines.push(
 		"",
-		`Start with ${TOOLS.projectOutline} for a quick overview or ${TOOLS.scanProject} for full data. Use prompts (${PROMPTS.explainProject}, ${PROMPTS.explainStore}, ${PROMPTS.debugStore}, ${PROMPTS.docsHowTo}) for guided analysis.`,
+		`Always start with ${TOOLS.projectOutline}. Use ${TOOLS.scanProject} only when you need to process every store — it returns the full raw list and is significantly heavier than other tools.`,
 	);
 
 	return lines.join("\n");

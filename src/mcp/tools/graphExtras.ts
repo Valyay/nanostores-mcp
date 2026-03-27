@@ -178,7 +178,9 @@ export function registerStoreSubgraphTool(
 				"files, derived relations, and subscribers within a configurable BFS radius (default 2). " +
 				`Unlike ${TOOLS.storeSummary} (direct neighbors only), this follows transitive chains ` +
 				"to show the full impact zone. " +
-				'Example: {name: "$cart", radius: 3} or {storeId: "store:src/stores.ts#$cart"}.',
+				"Start with radius=1 for direct impact; increase only when you need transitive chains. " +
+				"On highly connected hub stores (score>5 in project_outline) radius=2+ may return most of the project. " +
+				'Example: {name: "$cart", radius: 1} or {storeId: "store:src/stores.ts#$cart", radius: 2}.',
 			inputSchema: StoreSubgraphInputSchema,
 			outputSchema: StoreSubgraphOutputSchema,
 			annotations: {

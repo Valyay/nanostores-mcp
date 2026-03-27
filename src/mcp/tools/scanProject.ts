@@ -159,9 +159,9 @@ export function registerScanProjectTool(
 		{
 			title: "Scan project for Nanostores usage",
 			description:
-				"Use this when you need a full picture of nanostores usage in the project. " +
+				"Use this only when you need to iterate over every store in the project at once. " +
 				"Returns every store, subscriber (component/hook/effect), and store-to-store dependency. " +
-				`Prefer ${TOOLS.projectOutline} for a lightweight summary; use this tool when you need the complete list. ` +
+				`For analysis tasks prefer ${TOOLS.projectOutline} + ${TOOLS.storeSummary} — they give the same insight at a fraction of the cost. ` +
 				'Example: {force: true} to bypass cache, or {} for a cached scan.',
 			inputSchema: ScanProjectInputSchema,
 			outputSchema: ScanProjectOutputSchema,
