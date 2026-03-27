@@ -1,11 +1,13 @@
+import { TOOLS } from "../uris.js";
+
 export function storeNotFoundMessage(key: string, rootPath: string): string {
 	return (
 		`Store not found.\n\n` +
 		`Requested: ${key}\n` +
 		`Root: ${rootPath}\n\n` +
 		`Possible actions:\n` +
-		`- Run nanostores_scan_project first to index the project.\n` +
-		`- If the store was recently added, run nanostores_clear_cache then nanostores_scan_project.\n` +
+		`- Run ${TOOLS.scanProject} first to index the project.\n` +
+		`- If the store was recently added, run ${TOOLS.clearCache} then ${TOOLS.scanProject}.\n` +
 		`- Check the store name/id for typos.`
 	);
 }

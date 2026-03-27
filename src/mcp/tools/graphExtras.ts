@@ -53,7 +53,8 @@ export function registerProjectOutlineTool(
 			description:
 				"Use this for a quick overview of Nanostores usage in the project — " +
 				"store kind distribution, top directories, and hub stores ranked by connectivity. " +
-				"Lighter than a full scan.",
+				"Returns a compact summary instead of full store/subscriber lists (same scan data, smaller response). " +
+				`Use ${TOOLS.scanProject} when you need the complete list of stores and relations.`,
 			inputSchema: ProjectOutlineInputSchema,
 			outputSchema: ProjectOutlineOutputSchema,
 			annotations: {
@@ -104,7 +105,7 @@ export function registerProjectOutlineTool(
 							type: "text",
 							text:
 								`Failed to build project outline.\n\n` +
-								`Run nanostores_scan_project first if the project hasn't been indexed.\n` +
+								`Run ${TOOLS.scanProject} first if the project hasn't been indexed.\n` +
 								`Error: ${msg}`,
 						},
 					],
@@ -173,9 +174,11 @@ export function registerStoreSubgraphTool(
 		{
 			title: "Get store subgraph",
 			description:
-				"Use this when you need the dependency neighborhood of a store — " +
-				"files, derived relations, and subscribers within a configurable BFS radius. " +
-				"Useful for impact analysis and understanding store connectivity.",
+				"Use this when you need the multi-hop dependency neighborhood of a store — " +
+				"files, derived relations, and subscribers within a configurable BFS radius (default 2). " +
+				`Unlike ${TOOLS.storeSummary} (direct neighbors only), this follows transitive chains ` +
+				"to show the full impact zone. " +
+				'Example: {name: "$cart", radius: 3} or {storeId: "store:src/stores.ts#$cart"}.',
 			inputSchema: StoreSubgraphInputSchema,
 			outputSchema: StoreSubgraphOutputSchema,
 			annotations: {

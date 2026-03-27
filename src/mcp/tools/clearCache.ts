@@ -24,7 +24,7 @@ export function registerClearCacheTool(
 			description:
 				"Use this when scan results seem stale or after making file changes " +
 				"that the server may not have detected. Clears the cached project index " +
-				"so the next nanostores_scan_project call performs a fresh scan.",
+				`so the next ${TOOLS.scanProject} call performs a fresh scan.`,
 			inputSchema: ClearCacheInputSchema,
 			annotations: {
 				readOnlyHint: false,

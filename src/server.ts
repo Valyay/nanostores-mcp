@@ -18,7 +18,7 @@ import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
 import { registerPingTool } from "./mcp/tools/ping.js";
 import { createStoreAutocomplete } from "./mcp/shared/storeAutocomplete.js";
-import { TOOLS } from "./mcp/uris.js";
+import { TOOLS, PROMPTS } from "./mcp/uris.js";
 
 import packageJson from "../package.json" with { type: "json" };
 
@@ -63,6 +63,30 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		);
 	}
 
+	// Tool selection guide
+	lines.push(
+		"",
+		"Tool selection guide:",
+		`- "What stores exist?" → ${TOOLS.projectOutline} (compact summary) or ${TOOLS.scanProject} (full list)`,
+		`- "Tell me about $store" → ${TOOLS.storeSummary} (direct neighbors)`,
+		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} (multi-hop impact chain)`,
+	);
+
+	if (loggerEnabled) {
+		lines.push(
+			`- "Why is $store updating so often?" → ${TOOLS.storeActivity} (runtime events for one store)`,
+			`- "Any performance issues?" → ${TOOLS.findNoisyStores} then ${TOOLS.storeActivity} for details`,
+			`- "Is everything instrumented?" → ${TOOLS.runtimeCoverage} (static vs runtime gaps)`,
+		);
+	}
+
+	if (docsEnabled) {
+		lines.push(
+			`- "How do I use computed stores?" → ${TOOLS.docsSearch} with query or storeKind`,
+		);
+	}
+
+	// Diagnostic workflow
 	lines.push(
 		"",
 		"Diagnostic workflow after scanning:",
@@ -91,9 +115,21 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		);
 	}
 
+	// Combined analysis pattern (static + runtime)
+	if (loggerEnabled) {
+		lines.push(
+			"",
+			"Combined static + runtime analysis pattern:",
+			`1. ${TOOLS.scanProject} → build the store dependency graph.`,
+			`2. ${TOOLS.runtimeCoverage} → find gaps between static declarations and runtime events.`,
+			`3. For flagged stores: ${TOOLS.storeActivity} (runtime details) + ${TOOLS.storeSubgraph} (static impact).`,
+			`4. ${TOOLS.findNoisyStores} → identify performance bottlenecks across the project.`,
+		);
+	}
+
 	lines.push(
 		"",
-		`Start with ${TOOLS.scanProject}. Use prompts (explain-project, explain-store, debug-store, docs-how-to) for guided analysis.`,
+		`Start with ${TOOLS.projectOutline} for a quick overview or ${TOOLS.scanProject} for full data. Use prompts (${PROMPTS.explainProject}, ${PROMPTS.explainStore}, ${PROMPTS.debugStore}, ${PROMPTS.docsHowTo}) for guided analysis.`,
 	);
 
 	return lines.join("\n");

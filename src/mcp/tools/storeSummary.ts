@@ -92,8 +92,9 @@ export function registerStoreSummaryTool(
 			title: "Summarize a Nanostores store",
 			description:
 				"Use this when you need details about a specific store — its kind, file location, " +
-				"subscribers, and derived relations. Accepts store id or name. " +
-				"Run nanostores_scan_project first if you don't know the store id.",
+				"direct subscribers, and first-level derived relations. Accepts store id or name. " +
+				`For multi-hop dependency chains use ${TOOLS.storeSubgraph} instead. ` +
+				'Example: {name: "$counter"} or {storeId: "store:src/stores.ts#$counter"}.',
 			inputSchema: StoreSummaryInputSchema,
 			outputSchema: StoreSummaryOutputSchema,
 			annotations: {

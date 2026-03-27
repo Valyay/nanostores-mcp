@@ -3,14 +3,14 @@ import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 
 import type { SuggestStoreNamesFn } from "../shared/storeAutocomplete.js";
-import { URIS } from "../uris.js";
+import { TOOLS, PROMPTS, URIS } from "../uris.js";
 
 export function registerExplainStorePrompt(
 	server: McpServer,
 	suggestStoreNames: SuggestStoreNamesFn,
 ): void {
 	server.registerPrompt(
-		"explain-store",
+		PROMPTS.explainStore,
 		{
 			title: "Explain a Nanostores store",
 			description:
@@ -41,8 +41,8 @@ export function registerExplainStorePrompt(
 				"For this task, you have access to the following MCP resources and tools provided by this server:",
 				`- ${URIS.storeById(store_name)} — JSON details for this store (kind, file, definition, relations, subscribers, etc.).`,
 				`- ${URIS.graph} — project-wide Nanostores graph (files, stores, relations).`,
-				"- `nanostores_store_summary` tool — store-level analysis and explanation for a given store.",
-				"- `nanostores_store_subgraph` tool — focused subgraph around this store (neighbors and relations within a configurable BFS radius). Lighter than the full graph.",
+				`- \`${TOOLS.storeSummary}\` tool — store-level analysis and explanation for a given store.`,
+				`- \`${TOOLS.storeSubgraph}\` tool — focused subgraph around this store (neighbors and relations within a configurable BFS radius). Lighter than the full graph.`,
 				"",
 				"These are the ONLY reliable sources of truth about this store and its relations in the current project.",
 				"</ENVIRONMENT>",
@@ -53,7 +53,7 @@ export function registerExplainStorePrompt(
 				"   - If this resource is missing or the store cannot be found, clearly say that the store does not exist in the current graph and suggest checking the name.",
 				"2. If the store exists, optionally use the project-wide graph at:",
 				`   - ${URIS.graph} — to understand how this store connects to other stores and files.`,
-				"3. When you need more context about the file that declares the store, you MAY call the `nanostores_store_summary` tool for that file.",
+				`3. When you need more context about the file that declares the store, you MAY call the \`${TOOLS.storeSummary}\` tool for that file.`,
 				"",
 				"Do NOT invent stores, files, folders, or relationships that are not present in these resources.",
 				"If some information you would normally want is missing from the resources, explicitly mention that limitation instead of guessing.",

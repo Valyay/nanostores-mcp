@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { completable } from "@modelcontextprotocol/sdk/server/completable.js";
 import { z } from "zod";
 import type { SuggestStoreNamesFn } from "../shared/storeAutocomplete.js";
-import { URIS } from "../uris.js";
+import { TOOLS, PROMPTS, URIS } from "../uris.js";
 
 /**
  * Prompt: nanostores/debug-store
@@ -13,7 +13,7 @@ export function registerDebugStorePrompt(
 	suggestStoreNames: SuggestStoreNamesFn,
 ): void {
 	server.registerPrompt(
-		"debug-store",
+		PROMPTS.debugStore,
 		{
 			title: "Debug a Nanostores store",
 			description:
@@ -46,13 +46,13 @@ export function registerDebugStorePrompt(
 				"For this task, you have access to the following MCP tools and resources provided by this server:",
 				"",
 				"Runtime tools (primary for runtime data):",
-				`- \`nanostores_store_activity\` with \`storeName: "${store_name}"\` — runtime stats, recent events, and activity for this store. Supports \`kinds\` and \`actionName\` filters for targeted queries.`,
-				"- `nanostores_runtime_overview` — high-level health report across all stores.",
-				"- `nanostores_find_noisy_stores` — compare this store against other high-activity stores.",
+				`- \`${TOOLS.storeActivity}\` with \`storeName: "${store_name}"\` — runtime stats, recent events, and activity for this store. Supports \`kinds\` and \`actionName\` filters for targeted queries.`,
+				`- \`${TOOLS.runtimeOverview}\` — high-level health report across all stores.`,
+				`- \`${TOOLS.findNoisyStores}\` — compare this store against other high-activity stores.`,
 				"",
 				"Static resources and tools (for code structure):",
 				`- ${URIS.storeById(store_name)} — static analysis for this store (AST graph, subscribers, relations).`,
-				"- `nanostores_store_subgraph` tool — focused subgraph around this store (neighbors and relations within a configurable BFS radius). Lighter than the full graph.",
+				`- \`${TOOLS.storeSubgraph}\` tool — focused subgraph around this store (neighbors and relations within a configurable BFS radius). Lighter than the full graph.`,
 				`- ${URIS.graph} — project-wide Nanostores dependency graph (files, stores, relations).`,
 				"",
 				"Treat these tools and resources as your ONLY reliable sources of truth about this store's behavior",
@@ -62,7 +62,7 @@ export function registerDebugStorePrompt(
 				"<RETRIEVAL_INSTRUCTIONS>",
 				"Before you start writing the final debug report, you MUST:",
 				"",
-				`1. Call \`nanostores_store_activity\` with \`storeName: "${store_name}"\` to get runtime stats and recent events.`,
+				`1. Call \`${TOOLS.storeActivity}\` with \`storeName: "${store_name}"\` to get runtime stats and recent events.`,
 				"   - If no runtime data is returned, explicitly note that runtime information is missing or limited.",
 				"2. Use the runtime activity data as your primary source of truth for this store's behavior.",
 				"",
@@ -71,11 +71,11 @@ export function registerDebugStorePrompt(
 				`   - ${URIS.graph} — for broader project context and how this store fits into the overall graph.`,
 				"",
 				"4. When you need global runtime context or comparisons:",
-				"   - Use `nanostores_runtime_overview` and `nanostores_find_noisy_stores`.",
+				`   - Use \`${TOOLS.runtimeOverview}\` and \`${TOOLS.findNoisyStores}\`.`,
 				"",
 				"5. When you want to back up recommendations with official guidance:",
-				"   - Use `nanostores_docs_for_store` to retrieve docs for this store kind.",
-				"   - Use `nanostores_docs_search` to find best practices for patterns or problems you detect.",
+				`   - Use \`${TOOLS.docsSearch}\` with \`storeKind\` to retrieve docs for this store kind.`,
+				`   - Use \`${TOOLS.docsSearch}\` with \`query\` to find best practices for patterns or problems you detect.`,
 				"",
 				"Do NOT invent metrics, events, or relationships that are not present in these resources.",
 				"If some information you would normally want is missing, explicitly mention that limitation instead of guessing.",
@@ -148,7 +148,7 @@ export function registerDebugStorePrompt(
 				"",
 				"5. **Documentation References**",
 				"   - Mention which Nanostores docs or patterns support your recommendations",
-				"     (for example: results from `nanostores_docs_for_store` / `nanostores_docs_search`).",
+				`     (for example: results from \`${TOOLS.docsSearch}\` with \`storeKind\` or \`query\`).`,
 				"",
 				"Guidelines:",
 				"- Keep the report tightly focused on this store.",
@@ -187,7 +187,7 @@ export function registerDebugStorePrompt(
  */
 export function registerDebugProjectActivityPrompt(server: McpServer): void {
 	server.registerPrompt(
-		"debug-project-activity",
+		PROMPTS.debugProjectActivity,
 		{
 			title: "Debug project-wide Nanostores activity",
 			description:
@@ -208,9 +208,9 @@ export function registerDebugProjectActivityPrompt(server: McpServer): void {
 				"For this task, you have access to the following MCP tools and resources provided by this server:",
 				"",
 				"Runtime tools:",
-				"- `nanostores_runtime_overview` — overall health report and summary.",
-				'- `nanostores_find_noisy_stores` — identify high-activity or "chatty" stores.',
-				"- `nanostores_store_activity` — deep dive into specific stores or all events (omit `storeName` for all). Supports `kinds` and `actionName` filters.",
+				`- \`${TOOLS.runtimeOverview}\` — overall health report and summary.`,
+				`- \`${TOOLS.findNoisyStores}\` — identify high-activity or "chatty" stores.`,
+				`- \`${TOOLS.storeActivity}\` — deep dive into specific stores or all events (omit \`storeName\` for all). Supports \`kinds\` and \`actionName\` filters.`,
 				"",
 				"Tip: pass `compact: true` to runtime tools for TOON-encoded output at lower token cost.",
 				"",
@@ -224,13 +224,13 @@ export function registerDebugProjectActivityPrompt(server: McpServer): void {
 				"<RETRIEVAL_INSTRUCTIONS>",
 				"Before you start writing the final project-wide report, you SHOULD:",
 				"",
-				"- Use `nanostores_runtime_overview` to obtain a high-level summary of runtime health and key metrics.",
-				"- Use `nanostores_store_activity` (without `storeName`) to review recent events across all stores.",
+				`- Use \`${TOOLS.runtimeOverview}\` to obtain a high-level summary of runtime health and key metrics.`,
+				`- Use \`${TOOLS.storeActivity}\` (without \`storeName\`) to review recent events across all stores.`,
 				"- Use the project-wide graph:",
 				`  - ${URIS.graph} to understand how hot or problematic stores fit into the overall architecture.`,
 				"- When you need more detail on specific stores, use:",
-				"  - `nanostores_find_noisy_stores` to identify candidates.",
-				"  - `nanostores_store_activity` with a specific `storeName` to inspect individual stores more deeply.",
+				`  - \`${TOOLS.findNoisyStores}\` to identify candidates.`,
+				`  - \`${TOOLS.storeActivity}\` with a specific \`storeName\` to inspect individual stores more deeply.`,
 				"",
 				"Do NOT invent stores, metrics, or relationships that are not present in these resources.",
 				"If some information you would normally want is missing, explicitly mention that limitation instead of guessing.",
@@ -267,7 +267,7 @@ export function registerDebugProjectActivityPrompt(server: McpServer): void {
 				"- Are there opportunities for memoization/caching or using computed stores to reduce redundant work?",
 				"",
 				"6. Documentation and best practices:",
-				"- When in doubt about recommended patterns, use `nanostores_docs_search` to find relevant guidance.",
+				`- When in doubt about recommended patterns, use \`${TOOLS.docsSearch}\` to find relevant guidance.`,
 				"",
 				"Use this structured analysis to guide your report, but do NOT dump raw data.",
 				"</ANALYSIS_STEPS>",
@@ -304,7 +304,7 @@ export function registerDebugProjectActivityPrompt(server: McpServer): void {
 				"4. **Optimization Roadmap**",
 				"   - A prioritized list of optimization and refactoring steps (high → low impact).",
 				"   - For each step, briefly describe expected benefits and rough implementation effort (low/medium/high).",
-				"   - Back key recommendations with references to Nanostores best practices, using `nanostores_docs_search` when helpful.",
+				`   - Back key recommendations with references to Nanostores best practices, using \`${TOOLS.docsSearch}\` when helpful.`,
 				"",
 				"Guidelines:",
 				"- Focus on actionable insights rather than raw numbers.",

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { URIS } from "../uris.js";
+import { TOOLS, PROMPTS, URIS } from "../uris.js";
 
 const ExplainProjectArgsSchema = {
 	focus: z
@@ -13,7 +13,7 @@ const ExplainProjectArgsSchema = {
 
 export function registerExplainProjectPrompt(server: McpServer): void {
 	server.registerPrompt(
-		"explain-project",
+		PROMPTS.explainProject,
 		{
 			title: "Explain Nanostores usage in this project",
 			description: `High-level explanation of how Nanostores is used in the current project, based on ${URIS.graph}.`,
@@ -50,7 +50,7 @@ export function registerExplainProjectPrompt(server: McpServer): void {
 				"For this task, treat that resource as your ONLY reliable source of truth about existing Nanostores stores and where they live.",
 				"",
 				"Additional tools (optional, use when they help):",
-				"- `nanostores_project_outline` — lightweight summary (store counts, kinds distribution, top directories, hubs). Useful as a quick overview before loading the full graph.",
+				`- \`${TOOLS.projectOutline}\` — lightweight summary (store counts, kinds distribution, top directories, hubs). Useful as a quick overview before loading the full graph.`,
 				"</ENVIRONMENT>",
 				"",
 				"<GRAPH_SCHEMA>",

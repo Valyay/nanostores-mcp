@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { URIS } from "../uris.js";
+import { TOOLS, PROMPTS, URIS } from "../uris.js";
 
 /**
  * Prompt: nanostores/docs-how-to
@@ -8,7 +8,7 @@ import { URIS } from "../uris.js";
  */
 export function registerDocsHowToPrompt(server: McpServer): void {
 	server.registerPrompt(
-		"docs-how-to",
+		PROMPTS.docsHowTo,
 		{
 			title: "How to do something in Nanostores",
 			description:
@@ -34,13 +34,13 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 				"You are running inside an MCP client.",
 				"For this task, you have access to the following tools and resources provided by this server:",
 				"",
-				"- `nanostores_docs_search` — search Nanostores docs by topic (query) or store kind (storeKind: atom, map, computed, etc.).",
+				`- \`${TOOLS.docsSearch}\` — search Nanostores docs by topic (query) or store kind (storeKind: atom, map, computed, etc.).`,
 				`- ${URIS.docsIndex} — docs index listing all available documentation pages and tags. Useful to browse topics before searching.`,
 				`- ${URIS.docsPageTemplate} — resources that expose full documentation pages by id.`,
 				"",
 				"You MAY also use project-aware resources when you need to align your advice with the existing codebase:",
 				`- ${URIS.graph} — project-wide Nanostores graph (files, stores, relations).`,
-				"- `nanostores_store_summary` tool — store-level analysis to understand current patterns and store usage.",
+				`- \`${TOOLS.storeSummary}\` tool — store-level analysis to understand current patterns and store usage.`,
 				"",
 				"Treat these as your primary sources of truth about Nanostores APIs and patterns.",
 				"</ENVIRONMENT>",
@@ -48,7 +48,7 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 				"<RETRIEVAL_INSTRUCTIONS>",
 				"Before you start writing the final guide, you SHOULD:",
 				"",
-				"1. Use `nanostores_docs_search` with the user's task as your query (or a refined variant).",
+				`1. Use \`${TOOLS.docsSearch}\` with the user's task as your query (or a refined variant).`,
 				"   - Look for pages that contain guides, usage examples, and best practices relevant to this task.",
 				"",
 				"2. For the most relevant hits, fetch full documentation pages using:",
@@ -58,7 +58,7 @@ export function registerDocsHowToPrompt(server: McpServer): void {
 				'3. If the task clearly relates to an existing project (for example: "migrate current stores to persistent"),',
 				"   you MAY look at the project graph and summaries to adapt your advice:",
 				`   - Use ${URIS.graph} to see how stores are currently organized.`,
-				"   - Use `nanostores_store_summary` to inspect existing patterns that might influence the solution.",
+				`   - Use \`${TOOLS.storeSummary}\` to inspect existing patterns that might influence the solution.`,
 				"",
 				"Do NOT invent APIs or patterns that are not supported by the documentation.",
 				"If the documentation does not clearly cover some detail, acknowledge that limitation instead of guessing.",

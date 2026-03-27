@@ -72,7 +72,8 @@ export function registerDocsSearchTool(
 				"Use query for free-text search across guides, API references, and best practices. " +
 				"Use storeKind to get docs relevant to a specific store type (atom, map, computed, etc.). " +
 				"Combine both to search within store-relevant pages. " +
-				"To read full page content, use the nanostores://docs/page/{id} resource.",
+				`To read full page content, use the ${URIS.docsPageTemplate} resource. ` +
+				'Example: {query: "persistent storage"} or {storeKind: "computed"} or {query: "batched", storeKind: "computed"}.',
 			inputSchema: DocsSearchInputSchema,
 			outputSchema: DocsSearchOutputSchema,
 			annotations: {
@@ -99,7 +100,7 @@ export function registerDocsSearchTool(
 					content: [
 						{
 							type: "text",
-							text: "Provide at least one of: query (text search) or storeKind (e.g., atom, map, computed).\n\nTo browse all available docs, read the nanostores://docs resource.",
+							text: `Provide at least one of: query (text search) or storeKind (e.g., atom, map, computed).\n\nTo browse all available docs, read the ${URIS.docsIndex} resource.`,
 						},
 					],
 					structuredContent: {
@@ -155,7 +156,7 @@ export function registerDocsSearchTool(
 					summary = "No documentation found";
 					if (query) summary += ` for "${query}"`;
 					if (storeKind) summary += ` (kind: ${storeKind})`;
-					summary += ".\n\nTry browsing the nanostores://docs resource.";
+					summary += `.\n\nTry browsing the ${URIS.docsIndex} resource.`;
 				} else {
 					summary = `Found ${results.length} results`;
 					if (query) summary += ` for "${query}"`;

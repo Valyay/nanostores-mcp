@@ -114,7 +114,7 @@ export function registerDocsPageResource(
 						{
 							uri: uri.href,
 							mimeType: "text/plain",
-							text: `Page not found: ${pageId}\n\nUse the nanostores://docs resource to see available pages, or check the page ID for typos.`,
+							text: `Page not found: ${pageId}\n\nUse the ${URIS.docsIndex} resource to see available pages, or check the page ID for typos.`,
 						},
 					],
 				};

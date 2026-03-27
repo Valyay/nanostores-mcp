@@ -59,8 +59,32 @@ describe("buildInstructions", () => {
 		expect(result).not.toContain("nanostores_docs_search");
 	});
 
-	it("starts with scan_project guidance", () => {
+	it("starts with project_outline or scan_project guidance", () => {
 		const result = buildInstructions(false, false);
-		expect(result).toContain("Start with nanostores_scan_project");
+		expect(result).toContain("Start with nanostores_project_outline");
+		expect(result).toContain("nanostores_scan_project");
+	});
+
+	it("includes tool selection guide", () => {
+		const result = buildInstructions(false, false);
+		expect(result).toContain("Tool selection guide:");
+		expect(result).toContain("nanostores_store_summary (direct neighbors)");
+		expect(result).toContain("nanostores_store_subgraph (multi-hop impact chain)");
+	});
+
+	it("includes runtime tool selection guide when logger enabled", () => {
+		const enabled = buildInstructions(true, false);
+		const disabled = buildInstructions(false, false);
+		expect(enabled).toContain("nanostores_store_activity (runtime events");
+		expect(enabled).toContain("nanostores_find_noisy_stores then");
+		expect(enabled).toContain("nanostores_runtime_coverage (static vs runtime gaps)");
+		expect(disabled).not.toContain("runtime events");
+	});
+
+	it("includes combined analysis pattern when logger enabled", () => {
+		const enabled = buildInstructions(true, false);
+		const disabled = buildInstructions(false, false);
+		expect(enabled).toContain("Combined static + runtime analysis pattern:");
+		expect(disabled).not.toContain("Combined static + runtime");
 	});
 });

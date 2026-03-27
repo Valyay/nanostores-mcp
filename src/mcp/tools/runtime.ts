@@ -266,7 +266,8 @@ export function registerStoreActivityTool(
 				"Use this when debugging a specific store's runtime behavior — why it updates too often, " +
 				"what actions trigger changes, or whether it emits errors. " +
 				"Returns recent events, change frequency, action calls, and errors. " +
-				"Supports filtering by event kind (kinds) and action name (actionName).",
+				"Omit storeName to get activity across all stores. " +
+				'Example: {storeName: "$cart", kinds: ["change", "action-error"]} or {limit: 20, windowMs: 60000}.',
 			inputSchema: StoreActivityInputSchema,
 			outputSchema: StoreActivityOutputSchema,
 			annotations: {
@@ -327,7 +328,7 @@ export function registerStoreActivityTool(
 							text:
 								`Failed to get store activity.` +
 								(storeName
-									? ` Verify the store name "${storeName}" is correct (use nanostores_scan_project to check available stores).`
+									? ` Verify the store name "${storeName}" is correct (use ${TOOLS.scanProject} to check available stores).`
 									: ``) +
 								` Ensure the app is running with @nanostores/logger and events are being sent to the logger bridge.` +
 								`\n\nError: ${msg}`,
@@ -367,7 +368,8 @@ export function registerFindNoisyStoresTool(
 			description:
 				"Use this when investigating performance issues or excessive re-renders. " +
 				"Returns stores ranked by activity — frequent changes, many action calls — " +
-				"to pinpoint bottlenecks.",
+				"to pinpoint bottlenecks. " +
+				'Example: {limit: 10} or {windowMs: 30000, compact: true}.',
 			inputSchema: FindNoisyStoresInputSchema,
 			outputSchema: FindNoisyStoresOutputSchema,
 			annotations: {
@@ -441,7 +443,7 @@ export function registerFindNoisyStoresTool(
 							text:
 								`Failed to find noisy stores.` +
 								` Ensure the app is running with @nanostores/logger and events are being sent to the logger bridge.` +
-								` If no stores appear active, try nanostores_runtime_overview for a health check.` +
+								` If no stores appear active, try ${TOOLS.runtimeOverview} for a health check.` +
 								`\n\nError: ${msg}`,
 						},
 					],
@@ -481,7 +483,8 @@ export function registerRuntimeOverviewTool(
 			title: "Get runtime overview",
 			description:
 				"Use this when you want a high-level health check of the running app's state management. " +
-				"Returns active stores, error-prone stores, unused stores, and activity patterns.",
+				"Returns active stores, error-prone stores, unused stores, and activity patterns. " +
+				'Example: {} or {windowMs: 60000, compact: true}.',
 			inputSchema: RuntimeOverviewInputSchema,
 			outputSchema: RuntimeOverviewOutputSchema,
 			annotations: {
@@ -678,7 +681,8 @@ export function registerRuntimeCoverageTool(
 				"Compare static analysis graph with runtime event data to find stores " +
 				"that are declared but never seen at runtime (dead code candidates) and runtime " +
 				"stores not found in the static graph (dynamic or unscanned stores). " +
-				"Use after running the app to verify instrumentation completeness.",
+				"Use after running the app to verify instrumentation completeness. " +
+				"Example: {} or {projectRoot: \"/path/to/project\"}.",
 			inputSchema: RuntimeCoverageInputSchema,
 			outputSchema: RuntimeCoverageOutputSchema,
 			annotations: {

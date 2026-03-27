@@ -30,3 +30,15 @@ export const TOOLS = {
 	docsSearch: "nanostores_docs_search",
 	ping: "nanostores_ping",
 } as const;
+
+/**
+ * Centralized MCP prompt names
+ * Single source of truth for all nanostores prompt identifiers
+ */
+export const PROMPTS = {
+	explainProject: "explain-project",
+	explainStore: "explain-store",
+	debugStore: "debug-store",
+	debugProjectActivity: "debug-project-activity",
+	docsHowTo: "docs-how-to",
+} as const;
