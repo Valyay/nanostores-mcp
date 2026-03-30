@@ -374,8 +374,8 @@ initMcpLogger({
 ```typescript
 import { getMcpLogger } from "nanostores-mcp/mcpLogger";
 
-window.addEventListener("beforeunload", () => {
-	getMcpLogger()?.forceFlush();
+window.addEventListener("beforeunload", async () => {
+	await getMcpLogger()?.forceFlush();
 });
 ```
 
