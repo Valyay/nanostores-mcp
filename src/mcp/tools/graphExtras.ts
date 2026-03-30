@@ -18,6 +18,7 @@ const ProjectOutlineOutputSchema = z.object({
 	totals: z.object({
 		stores: z.number(),
 		filesWithStores: z.number(),
+		subscribers: z.number(),
 	}),
 	storeKinds: z.record(z.string(), z.number()),
 	topDirs: z.array(
@@ -34,6 +35,16 @@ const ProjectOutlineOutputSchema = z.object({
 			kind: z.string().optional(),
 			file: z.string().optional(),
 			score: z.number(),
+			subscribers: z.number(),
+			derivedDependents: z.number(),
+		}),
+	),
+	deadStores: z.array(
+		z.object({
+			storeId: z.string(),
+			name: z.string(),
+			kind: z.string().optional(),
+			file: z.string().optional(),
 		}),
 	),
 });
@@ -70,7 +81,7 @@ export function registerProjectOutlineTool(
 				const outline = buildGraphOutline(index);
 
 				let summary = `Project: ${outline.rootDir}\n`;
-				summary += `Stores: ${outline.totals.stores}, Files: ${outline.totals.filesWithStores}\n\n`;
+				summary += `Stores: ${outline.totals.stores}, Files: ${outline.totals.filesWithStores}, Subscribers: ${outline.totals.subscribers}\n\n`;
 
 				summary += `Store kinds:\n`;
 				for (const [kind, count] of Object.entries(outline.storeKinds)) {
@@ -87,7 +98,14 @@ export function registerProjectOutlineTool(
 				if (outline.hubs.length > 0) {
 					summary += `\nHub stores (by connectivity):\n`;
 					for (const hub of outline.hubs) {
-						summary += `- ${hub.name} (${hub.kind ?? "unknown"}, score: ${hub.score})\n`;
+						summary += `- ${hub.name} (${hub.kind ?? "unknown"}, score: ${hub.score}, subs: ${hub.subscribers}, derived: ${hub.derivedDependents})\n`;
+					}
+				}
+
+				if (outline.deadStores.length > 0) {
+					summary += `\nDead stores (no subscribers, not derived from):\n`;
+					for (const dead of outline.deadStores) {
+						summary += `- ${dead.name} (${dead.kind ?? "unknown"}) at ${dead.file}\n`;
 					}
 				}
 
@@ -159,6 +177,7 @@ const StoreSubgraphOutputSchema = z.object({
 			dependencies: z.number().optional(),
 		})
 		.optional(),
+	warning: z.string().optional(),
 });
 
 /**
@@ -215,6 +234,9 @@ export function registerStoreSubgraphTool(
 				}
 				if (subgraph.summary?.dependencies) {
 					summary += `, Dependencies: ${subgraph.summary.dependencies}`;
+				}
+				if (subgraph.warning) {
+					summary += `\nWarning: ${subgraph.warning}`;
 				}
 
 				return {

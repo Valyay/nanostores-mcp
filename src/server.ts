@@ -77,7 +77,7 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		"Tool selection guide:",
 		`- "What stores exist?" → ${TOOLS.projectOutline} (always start here; use ${TOOLS.scanProject} only if you need the raw full list)`,
 		`- "Tell me about $store" → ${TOOLS.storeSummary} (direct neighbors)`,
-		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} with radius=1; increase only for transitive chains`,
+		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} (multi-hop impact chain) with radius=1; increase only for transitive chains`,
 	);
 
 	if (loggerEnabled) {
@@ -139,7 +139,7 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 
 	lines.push(
 		"",
-		`Always start with ${TOOLS.projectOutline}. Use ${TOOLS.scanProject} only when you need to process every store — it returns the full raw list and is significantly heavier than other tools.`,
+		`Start with ${TOOLS.projectOutline}. Use ${TOOLS.scanProject} only when you need to process every store — it returns the full raw list and is significantly heavier than other tools.`,
 	);
 
 	return lines.join("\n");

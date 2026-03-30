@@ -6,6 +6,7 @@ export type GraphOutlineResponse = {
 	totals: {
 		stores: number;
 		filesWithStores: number;
+		subscribers: number;
 	};
 	storeKinds: Record<string, number>;
 	topDirs: Array<{
@@ -19,6 +20,14 @@ export type GraphOutlineResponse = {
 		kind?: string;
 		file?: string;
 		score: number;
+		subscribers: number;
+		derivedDependents: number;
+	}>;
+	deadStores: Array<{
+		storeId: string;
+		name: string;
+		kind?: string;
+		file?: string;
 	}>;
 };
 
@@ -44,6 +53,7 @@ export type StoreSubgraphResponse = {
 		subscribers?: number;
 		dependencies?: number;
 	};
+	warning?: string;
 };
 
 const outlineCache = new WeakMap<ProjectIndex, GraphOutlineResponse>();
@@ -88,6 +98,8 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const hasRichEdges = index.relations.some(rel => rel.type !== "declares");
 	const storeIds = new Set(index.stores.map(store => store.id));
 	const degree = new Map<string, number>();
+	const subscribersCount = new Map<string, number>();
+	const derivedCount = new Map<string, number>();
 
 	if (hasRichEdges) {
 		for (const rel of index.relations) {
@@ -96,6 +108,12 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 			}
 			if (storeIds.has(rel.to)) {
 				degree.set(rel.to, (degree.get(rel.to) ?? 0) + 1);
+			}
+			if (rel.type === "subscribes_to" && storeIds.has(rel.to)) {
+				subscribersCount.set(rel.to, (subscribersCount.get(rel.to) ?? 0) + 1);
+			}
+			if (rel.type === "derives_from" && storeIds.has(rel.to)) {
+				derivedCount.set(rel.to, (derivedCount.get(rel.to) ?? 0) + 1);
 			}
 		}
 	}
@@ -108,21 +126,34 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					kind: store.kind,
 					file: store.file,
 					score: degree.get(store.id) ?? 0,
+					subscribers: subscribersCount.get(store.id) ?? 0,
+					derivedDependents: derivedCount.get(store.id) ?? 0,
 				}))
 				.filter(hub => hub.score > 0)
 				.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 				.slice(0, HUBS_LIMIT)
 		: [];
 
+	const deadStores = index.stores
+		.filter(store => (degree.get(store.id) ?? 0) === 0)
+		.map(store => ({
+			storeId: store.id,
+			name: store.name ?? store.id,
+			kind: store.kind,
+			file: store.file,
+		}));
+
 	const outline: GraphOutlineResponse = {
 		rootDir: index.rootDir,
 		totals: {
 			stores: index.stores.length,
 			filesWithStores: filesWithStores.size,
+			subscribers: index.subscribers.length,
 		},
 		storeKinds,
 		topDirs,
 		hubs,
+		deadStores,
 	};
 
 	outlineCache.set(index, outline);
@@ -252,11 +283,20 @@ export function buildStoreSubgraph(
 		dependencies: filteredEdges.filter(edge => edge.type === "derives_from").length,
 	};
 
+	const storeNodes = nodes.filter(n => n.type === "store").length;
+	const totalProjectStores = index.stores.length;
+	const coverageRatio = totalProjectStores > 0 ? storeNodes / totalProjectStores : 0;
+	const warning =
+		coverageRatio > 0.8 && totalProjectStores > 10
+			? `Subgraph covers ${Math.round(coverageRatio * 100)}% of project stores (${storeNodes}/${totalProjectStores}). Consider radius=1 for targeted analysis.`
+			: undefined;
+
 	return {
 		centerStoreId: centerStore.id,
 		radius: normalizedRadius,
 		nodes,
 		edges: filteredEdges,
 		summary,
+		...(warning !== undefined ? { warning } : {}),
 	};
 }
