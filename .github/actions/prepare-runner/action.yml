@@ -1,0 +1,28 @@
+name: Setup runner
+description: Setup Node.js, install pnpm and cache dependencies
+
+inputs:
+  node-version:
+    description: Node.js version to use
+    required: false
+    default: "22"
+  registry-url:
+    description: npm registry URL for publishing
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      with:
+        node-version: ${{ inputs.node-version }}
+    - shell: bash
+      run: |
+        corepack enable
+        corepack install
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      with:
+        cache: pnpm
+        registry-url: ${{ inputs.registry-url }}
+    - run: pnpm install --frozen-lockfile
+      shell: bash
