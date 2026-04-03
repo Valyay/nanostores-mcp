@@ -91,7 +91,7 @@
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@vue/compiler-sfc": "^3.5.27",
-    "eslint": "^10.0.2",
+    "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
     "knip": "^5.85.0",
     "nanostores": "^1.1.0",
