@@ -502,7 +502,6 @@ describe("action() compatibility with buildLogger", () => {
 		const { atom } = await import("nanostores");
 		const { action } = await import("@nanostores/logger");
 
-		const events: NanostoresLoggerEvent[] = [];
 		const originalFetch = globalThis.fetch;
 		globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
 
@@ -537,8 +536,12 @@ describe("action() compatibility with buildLogger", () => {
 			allEvents.push(...body.events);
 		}
 
-		const actionStarts = allEvents.filter(e => e.kind === "action-start" && e.storeName === "$testAction");
-		const actionEnds = allEvents.filter(e => e.kind === "action-end" && e.storeName === "$testAction");
+		const actionStarts = allEvents.filter(
+			e => e.kind === "action-start" && e.storeName === "$testAction",
+		);
+		const actionEnds = allEvents.filter(
+			e => e.kind === "action-end" && e.storeName === "$testAction",
+		);
 
 		expect(actionStarts.length).toBeGreaterThanOrEqual(1);
 		expect(actionEnds.length).toBeGreaterThanOrEqual(1);
@@ -585,7 +588,9 @@ describe("action() compatibility with buildLogger", () => {
 			allEvents.push(...body.events);
 		}
 
-		const actionErrors = allEvents.filter(e => e.kind === "action-error" && e.storeName === "$testError");
+		const actionErrors = allEvents.filter(
+			e => e.kind === "action-error" && e.storeName === "$testError",
+		);
 		expect(actionErrors.length).toBeGreaterThanOrEqual(1);
 		expect(actionErrors[0].actionName).toBe("failAction");
 		expect(actionErrors[0].errorMessage).toBe("test failure");

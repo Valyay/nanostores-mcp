@@ -18,7 +18,7 @@ import { registerRuntimeFeatures } from "./features/runtime/index.js";
 import { registerDocsFeatures } from "./features/docs/index.js";
 import { registerPingTool } from "./mcp/tools/ping.js";
 import { createStoreAutocomplete } from "./mcp/shared/storeAutocomplete.js";
-import { TOOLS, PROMPTS } from "./mcp/uris.js";
+import { TOOLS } from "./mcp/uris.js";
 
 import packageJson from "../package.json" with { type: "json" };
 
@@ -89,9 +89,7 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 	}
 
 	if (docsEnabled) {
-		lines.push(
-			`- "How do I use computed stores?" → ${TOOLS.docsSearch} with query or storeKind`,
-		);
+		lines.push(`- "How do I use computed stores?" → ${TOOLS.docsSearch} with query or storeKind`);
 	}
 
 	// Diagnostic workflow

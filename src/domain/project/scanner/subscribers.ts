@@ -30,7 +30,10 @@ export interface SubscriberAccumulator {
  * - nsReact.useStore(...)                      — namespace import
  * - this.nanostores.useStore(...)              — Angular DI service
  */
-export function isUseStoreCall(callExpr: CallExpression, imports: NanostoresFrameworkImports): boolean {
+export function isUseStoreCall(
+	callExpr: CallExpression,
+	imports: NanostoresFrameworkImports,
+): boolean {
 	const expr = callExpr.getExpression();
 
 	// useStore(...)

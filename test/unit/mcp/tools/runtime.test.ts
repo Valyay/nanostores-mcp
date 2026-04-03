@@ -131,7 +131,13 @@ describe("find_noisy_stores tool: filtering and summary", () => {
 
 	it("includes avg duration in noisy stores summary", () => {
 		const stores = [
-			makeStats({ storeName: "$fast", changes: 50, actionsStarted: 10, actionsCompleted: 10, totalActionDurationMs: 500 }),
+			makeStats({
+				storeName: "$fast",
+				changes: 50,
+				actionsStarted: 10,
+				actionsCompleted: 10,
+				totalActionDurationMs: 500,
+			}),
 		];
 		const summary = buildNoisyStoresSummary(stores);
 		expect(summary).toContain("avg 50ms");
@@ -174,7 +180,13 @@ describe("runtime_overview tool: health report", () => {
 			totalEvents: 50,
 		});
 		const noisyStores = [
-			makeStats({ storeName: "$a", changes: 30, actionsStarted: 20, actionsCompleted: 15, totalActionDurationMs: 750 }),
+			makeStats({
+				storeName: "$a",
+				changes: 30,
+				actionsStarted: 20,
+				actionsCompleted: 15,
+				totalActionDurationMs: 750,
+			}),
 		];
 
 		const summary = buildRuntimeOverviewSummary({

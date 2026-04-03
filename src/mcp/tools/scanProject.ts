@@ -162,7 +162,7 @@ export function registerScanProjectTool(
 				"Use this only when you need to iterate over every store in the project at once. " +
 				"Returns every store, subscriber (component/hook/effect), and store-to-store dependency. " +
 				`For analysis tasks prefer ${TOOLS.projectOutline} + ${TOOLS.storeSummary} — they give the same insight at a fraction of the cost. ` +
-				'Example: {force: true} to bypass cache, or {} for a cached scan.',
+				"Example: {force: true} to bypass cache, or {} for a cached scan.",
 			inputSchema: ScanProjectInputSchema,
 			outputSchema: ScanProjectOutputSchema,
 			annotations: {

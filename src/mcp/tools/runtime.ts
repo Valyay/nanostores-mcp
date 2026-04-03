@@ -3,7 +3,11 @@ import { z } from "zod";
 import { encode as toToon } from "@toon-format/toon";
 import type { RuntimeAnalysisService } from "../../domain/index.js";
 import { makeStoreKey } from "../../domain/index.js";
-import type { StoreRuntimeStats, LoggerStatsSnapshot, CoverageReport } from "../../domain/runtime/types.js";
+import type {
+	StoreRuntimeStats,
+	LoggerStatsSnapshot,
+	CoverageReport,
+} from "../../domain/runtime/types.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import {
 	buildStaticHints,
@@ -134,7 +138,15 @@ export function buildStoreActivitySummary(
 }
 
 export function buildNoisyStoresSummary(
-	stores: Pick<StoreRuntimeStats, "storeName" | "changes" | "actionsStarted" | "actionsErrored" | "actionsCompleted" | "totalActionDurationMs">[],
+	stores: Pick<
+		StoreRuntimeStats,
+		| "storeName"
+		| "changes"
+		| "actionsStarted"
+		| "actionsErrored"
+		| "actionsCompleted"
+		| "totalActionDurationMs"
+	>[],
 ): string {
 	if (stores.length === 0) {
 		return "No active stores found.";
@@ -369,7 +381,7 @@ export function registerFindNoisyStoresTool(
 				"Use this when investigating performance issues or excessive re-renders. " +
 				"Returns stores ranked by activity — frequent changes, many action calls — " +
 				"to pinpoint bottlenecks. " +
-				'Example: {limit: 10} or {windowMs: 30000, compact: true}.',
+				"Example: {limit: 10} or {windowMs: 30000, compact: true}.",
 			inputSchema: FindNoisyStoresInputSchema,
 			outputSchema: FindNoisyStoresOutputSchema,
 			annotations: {
@@ -484,7 +496,7 @@ export function registerRuntimeOverviewTool(
 			description:
 				"Use this when you want a high-level health check of the running app's state management. " +
 				"Returns active stores, error-prone stores, unused stores, and activity patterns. " +
-				'Example: {} or {windowMs: 60000, compact: true}.',
+				"Example: {} or {windowMs: 60000, compact: true}.",
 			inputSchema: RuntimeOverviewInputSchema,
 			outputSchema: RuntimeOverviewOutputSchema,
 			annotations: {
@@ -682,7 +694,7 @@ export function registerRuntimeCoverageTool(
 				"that are declared but never seen at runtime (dead code candidates) and runtime " +
 				"stores not found in the static graph (dynamic or unscanned stores). " +
 				"Use after running the app to verify instrumentation completeness. " +
-				"Example: {} or {projectRoot: \"/path/to/project\"}.",
+				'Example: {} or {projectRoot: "/path/to/project"}.',
 			inputSchema: RuntimeCoverageInputSchema,
 			outputSchema: RuntimeCoverageOutputSchema,
 			annotations: {

@@ -106,10 +106,7 @@ describe("runtime coverage report", () => {
 	});
 
 	it("empty runtime (app not running) → all staticOnly", async () => {
-		const stores = [
-			makeStoreMatch("$a", "atom", "a.ts"),
-			makeStoreMatch("$b", "map", "b.ts"),
-		];
+		const stores = [makeStoreMatch("$a", "atom", "a.ts"), makeStoreMatch("$b", "map", "b.ts")];
 		const projectService = makeProjectService(stores);
 		const eventStore = createLoggerEventStore(100);
 
