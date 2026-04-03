@@ -7,6 +7,9 @@ import { addRelation } from "./relations.js";
 
 const SFC_EXTENSIONS = new Set([".vue", ".svelte"]);
 
+/** Method names on store objects that count as direct subscriptions. */
+const DIRECT_SUBSCRIBE_METHODS = new Set(["subscribe", "listen"]);
+
 function isSfcFile(filePath: string): boolean {
 	return SFC_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
@@ -22,6 +25,52 @@ export interface SubscriberAccumulator {
 	kind: SubscriberKind;
 	name?: string;
 	containerStartLine: number;
+}
+
+/**
+ * If `callExpr` is `$store.subscribe(fn)` or `$store.listen(fn)`,
+ * try to resolve the receiver to a known store.
+ * Returns matched stores or empty array when the call is not a direct subscribe.
+ */
+export function tryResolveDirectSubscribe(
+	callExpr: CallExpression,
+	context: Pick<SubscriberAnalysisContext, "storesBySymbol" | "storesByName">,
+	relativeFile: string,
+): StoreMatch[] {
+	const expr = callExpr.getExpression();
+	if (expr.getKind() !== SyntaxKind.PropertyAccessExpression) return [];
+
+	const propAccess = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+	const methodName = propAccess.getName();
+
+	if (!DIRECT_SUBSCRIBE_METHODS.has(methodName)) return [];
+
+	const receiver = propAccess.getExpression();
+	if (receiver.getKind() !== SyntaxKind.Identifier) return [];
+
+	const identifier = receiver.asKindOrThrow(SyntaxKind.Identifier);
+
+	// Resolve via symbol first
+	const sym = identifier.getSymbol();
+	if (sym) {
+		const key = getSymbolKey(sym);
+		const matches = context.storesBySymbol.get(key);
+		if (matches && matches.length > 0) return matches;
+	}
+
+	// Fallback by name
+	const varName = identifier.getText();
+	const byName = context.storesByName.get(varName) ?? [];
+
+	if (byName.length === 1) return byName;
+
+	if (byName.length > 1) {
+		const sameFile = byName.filter(s => s.file === relativeFile);
+		if (sameFile.length === 1) return sameFile;
+		if (isSfcFile(relativeFile)) return byName;
+	}
+
+	return [];
 }
 
 /**
@@ -201,56 +250,63 @@ export function analyzeSubscribersInFile(
 	const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
 	for (const callExpr of callExpressions) {
-		// Check that this is a useStore call from nanostores/react
-		if (!isUseStoreCall(callExpr, frameworkImports)) continue;
-
-		const args = callExpr.getArguments();
-		if (!args[0] || args[0].getKind() !== SyntaxKind.Identifier) continue;
-
-		const firstArg = args[0].asKindOrThrow(SyntaxKind.Identifier);
-
 		let matches: StoreMatch[] = [];
-		const sym = firstArg.getSymbol();
 
-		if (sym) {
-			const key = getSymbolKey(sym);
-			matches = context.storesBySymbol.get(key) ?? [];
+		// Path A: direct .subscribe() / .listen() on a store object
+		const directMatches = tryResolveDirectSubscribe(callExpr, context, relativeFile);
+		if (directMatches.length > 0) {
+			matches = directMatches;
 		}
 
-		// Fallback by name
-		if (matches.length === 0) {
-			const storeVarName = firstArg.getText();
-			const byName = context.storesByName.get(storeVarName) ?? [];
+		// Path B: useStore($store) from a framework adapter
+		if (matches.length === 0 && isUseStoreCall(callExpr, frameworkImports)) {
+			const args = callExpr.getArguments();
+			if (!args[0] || args[0].getKind() !== SyntaxKind.Identifier) continue;
 
-			if (byName.length === 1) {
-				matches = byName;
-			} else if (byName.length > 1) {
-				const sameFile = byName.filter(s => s.file === relativeFile);
-				if (sameFile.length === 1) {
-					matches = sameFile;
-				} else if (isSfcFile(relativeFile)) {
-					// SFC virtual files can't resolve cross-file symbols, so
-					// accept all name matches rather than losing the subscriber.
-					matches = byName;
-				}
+			const firstArg = args[0].asKindOrThrow(SyntaxKind.Identifier);
+
+			const sym = firstArg.getSymbol();
+
+			if (sym) {
+				const key = getSymbolKey(sym);
+				matches = context.storesBySymbol.get(key) ?? [];
 			}
-		}
 
-		// Fallback by import alias: import { $store as localName } from "..."
-		if (matches.length === 0) {
-			const storeVarName = firstArg.getText();
-			for (const imp of sourceFile.getImportDeclarations()) {
-				for (const named of imp.getNamedImports()) {
-					const local = named.getAliasNode()?.getText();
-					if (local === storeVarName) {
-						const importedName = named.getName();
-						const byImported = context.storesByName.get(importedName) ?? [];
-						if (byImported.length === 1) {
-							matches = byImported;
-						}
+			// Fallback by name
+			if (matches.length === 0) {
+				const storeVarName = firstArg.getText();
+				const byName = context.storesByName.get(storeVarName) ?? [];
+
+				if (byName.length === 1) {
+					matches = byName;
+				} else if (byName.length > 1) {
+					const sameFile = byName.filter(s => s.file === relativeFile);
+					if (sameFile.length === 1) {
+						matches = sameFile;
+					} else if (isSfcFile(relativeFile)) {
+						// SFC virtual files can't resolve cross-file symbols, so
+						// accept all name matches rather than losing the subscriber.
+						matches = byName;
 					}
 				}
-				if (matches.length > 0) break;
+			}
+
+			// Fallback by import alias: import { $store as localName } from "..."
+			if (matches.length === 0) {
+				const storeVarName = firstArg.getText();
+				for (const imp of sourceFile.getImportDeclarations()) {
+					for (const named of imp.getNamedImports()) {
+						const local = named.getAliasNode()?.getText();
+						if (local === storeVarName) {
+							const importedName = named.getName();
+							const byImported = context.storesByName.get(importedName) ?? [];
+							if (byImported.length === 1) {
+								matches = byImported;
+							}
+						}
+					}
+					if (matches.length > 0) break;
+				}
 			}
 		}
 

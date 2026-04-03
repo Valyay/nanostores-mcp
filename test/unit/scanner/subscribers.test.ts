@@ -298,6 +298,223 @@ describe("scanner/subscribers", () => {
 		expect(matchedStore?.name).toBe("$profile");
 	});
 
+	it("detects $store.subscribe() as a subscriber", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $count = atom(0);",
+			].join("\n"),
+			"effect.ts": [
+				'import { $count } from "./stores";',
+				"",
+				"function trackCount() {",
+				"  $count.subscribe(value => console.log(value));",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const effectFile = sourceFiles.get("effect.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(effectFile);
+		analyzeSubscribersInFile(effectFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.name).toBe("trackCount");
+		expect(subscriber.kind).toBe("unknown");
+		expect(subscriber.storeIds.length).toBe(1);
+
+		const matchedStore = storeContext.stores.find(s => s.id === subscriber.storeIds[0]);
+		expect(matchedStore?.name).toBe("$count");
+	});
+
+	it("detects $store.listen() as a subscriber", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $count = atom(0);",
+			].join("\n"),
+			"listener.ts": [
+				'import { $count } from "./stores";',
+				"",
+				"function onChange() {",
+				"  $count.listen(value => console.log(value));",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const listenerFile = sourceFiles.get("listener.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(listenerFile);
+		analyzeSubscribersInFile(listenerFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.name).toBe("onChange");
+		expect(subscriber.storeIds.length).toBe(1);
+	});
+
+	it("resolves .subscribe() store via symbol with name collisions", () => {
+		const files = {
+			"stores-a.ts": ['import { atom } from "nanostores";', "export const $val = atom(0);"].join(
+				"\n",
+			),
+			"stores-b.ts": ['import { atom } from "nanostores";', "export const $val = atom(1);"].join(
+				"\n",
+			),
+			"consumer.ts": [
+				'import { $val } from "./stores-a";',
+				"",
+				"function setup() {",
+				"  $val.subscribe(v => console.log(v));",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const consumerFile = sourceFiles.get("consumer.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(consumerFile);
+		analyzeSubscribersInFile(consumerFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.storeIds.length).toBe(1);
+
+		const matchedStore = storeContext.stores.find(s => s.id === subscriber.storeIds[0]);
+		expect(toPosix(matchedStore?.file ?? "")).toBe("stores-a.ts");
+	});
+
+	it("accumulates .subscribe() and useStore() in the same container", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $a = atom(0);",
+				"export const $b = atom(1);",
+			].join("\n"),
+			"mixed.tsx": [
+				'import { useStore } from "nanostores/react";',
+				'import { $a, $b } from "./stores";',
+				"",
+				"function Dashboard() {",
+				"  useStore($a);",
+				"  $b.subscribe(v => console.log(v));",
+				"  return null;",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const mixedFile = sourceFiles.get("mixed.tsx")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(mixedFile);
+		analyzeSubscribersInFile(mixedFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.name).toBe("Dashboard");
+		expect(subscriber.storeIds.length).toBe(2);
+		expect(subscriber.kind).toBe("component");
+	});
+
+	it("ignores .subscribe() on non-store objects", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $count = atom(0);",
+			].join("\n"),
+			"service.ts": [
+				'import { $count } from "./stores";',
+				"",
+				"const emitter = { subscribe: (fn: Function) => fn() };",
+				"",
+				"function setup() {",
+				"  emitter.subscribe(() => {});",
+				"  $count.subscribe(v => console.log(v));",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const serviceFile = sourceFiles.get("service.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(serviceFile);
+		analyzeSubscribersInFile(serviceFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		// Only $count should be matched, not emitter
+		expect(subscriber.storeIds.length).toBe(1);
+		const matchedStore = storeContext.stores.find(s => s.id === subscriber.storeIds[0]);
+		expect(matchedStore?.name).toBe("$count");
+	});
+
+	it("detects .subscribe() with import alias", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $count = atom(0);",
+			].join("\n"),
+			"aliased.ts": [
+				'import { $count as $myCount } from "./stores";',
+				"",
+				"function setup() {",
+				"  $myCount.subscribe(v => console.log(v));",
+				"}",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const aliasedFile = sourceFiles.get("aliased.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(aliasedFile);
+		analyzeSubscribersInFile(aliasedFile, absRoot, frameworkImports, subscriberContext);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.storeIds.length).toBe(1);
+		const matchedStore = storeContext.stores.find(s => s.id === subscriber.storeIds[0]);
+		expect(matchedStore?.name).toBe("$count");
+	});
+
 	it("tracks first useStore line in a container", () => {
 		const files = {
 			"widget.tsx": [
