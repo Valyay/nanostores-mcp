@@ -60,9 +60,9 @@
     "node": "^20.0.0 || >=22.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@toon-format/toon": "^2.1.0",
-    "globby": "^16.0.0",
+    "globby": "^16.2.0",
     "is-path-inside": "^4.0.0",
     "nanoid": "^5.1.6",
     "ts-morph": "^27.0.2",
