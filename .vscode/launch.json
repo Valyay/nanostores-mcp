@@ -1,0 +1,14 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug MCP Server (stdio)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+			"args": ["src/cli.ts"],
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
+		}
+	]
+}
