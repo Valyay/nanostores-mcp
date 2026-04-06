@@ -265,6 +265,31 @@ describe("project domain: graph and summary builders", () => {
 		expect(storeIds).toContain(storeCount);
 		expect(subgraph.edges.some(edge => edge.type === "derives_from")).toBe(true);
 	});
+
+	it("dead stores: store with only a declares edge is dead, subscribed/derived stores are not", () => {
+		const outline = buildGraphOutline(projectIndex);
+		const deadIds = outline.deadStores.map(s => s.storeId);
+
+		// $legacyCount has only a declares edge — nobody subscribes to or derives from it
+		expect(deadIds).toContain(storeLegacyCount);
+
+		// $count, $cart, $total all have subscribes_to or derives_from edges
+		expect(deadIds).not.toContain(storeCount);
+		expect(deadIds).not.toContain(storeCart);
+		expect(deadIds).not.toContain(storeTotal);
+	});
+
+	it("dead stores: index with only declares relations returns empty deadStores", () => {
+		const declaresOnlyIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 1,
+			stores: [{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" }],
+			subscribers: [],
+			relations: [{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 }],
+		};
+		const outline = buildGraphOutline(declaresOnlyIndex);
+		expect(outline.deadStores).toEqual([]);
+	});
 });
 
 describe("project domain: project analysis service", () => {

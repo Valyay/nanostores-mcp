@@ -134,14 +134,19 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 				.slice(0, HUBS_LIMIT)
 		: [];
 
-	const deadStores = index.stores
-		.filter(store => (degree.get(store.id) ?? 0) === 0)
-		.map(store => ({
-			storeId: store.id,
-			name: store.name ?? store.id,
-			kind: store.kind,
-			file: store.file,
-		}));
+	const deadStores = hasRichEdges
+		? index.stores
+				.filter(
+					store =>
+						(subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0,
+				)
+				.map(store => ({
+					storeId: store.id,
+					name: store.name ?? store.id,
+					kind: store.kind,
+					file: store.file,
+				}))
+		: [];
 
 	const outline: GraphOutlineResponse = {
 		rootDir: index.rootDir,
