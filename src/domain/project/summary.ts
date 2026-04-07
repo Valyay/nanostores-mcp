@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { ProjectIndex, StoreMatch } from "./types.js";
+import type { ProjectIndex, StoreMatch, SubscriberMatch, DeadStoreCategory } from "./types.js";
 
 export type GraphOutlineResponse = {
 	rootDir: string;
@@ -28,6 +28,8 @@ export type GraphOutlineResponse = {
 		name: string;
 		kind?: string;
 		file?: string;
+		category: DeadStoreCategory;
+		reason: string;
 	}>;
 };
 
@@ -60,6 +62,35 @@ const outlineCache = new WeakMap<ProjectIndex, GraphOutlineResponse>();
 
 const TOP_DIRS_LIMIT = 10;
 const HUBS_LIMIT = 10;
+const SFC_EXTENSIONS = new Set([".vue", ".svelte"]);
+const DEV_PATTERN = /\b(debug|dev|mock|test|story|fixture|storybook)\b/i;
+
+function classifyDeadStore(
+	store: StoreMatch,
+	mutatorCount: number,
+	referencedBySfc: boolean,
+): { category: DeadStoreCategory; reason: string } {
+	const name = store.name ?? store.id;
+	const file = store.file;
+
+	// Priority 1: dev-only
+	if (DEV_PATTERN.test(name) || DEV_PATTERN.test(file)) {
+		return { category: "dev-only", reason: "Name or file path suggests dev/test/debug usage" };
+	}
+
+	// Priority 2: write-only
+	if (mutatorCount > 0) {
+		return { category: "write-only", reason: "Has mutators but no subscribers or derived dependents" };
+	}
+
+	// Priority 3: framework-template
+	if (referencedBySfc) {
+		return { category: "framework-template", reason: "Referenced by a .svelte or .vue file — likely consumed in template" };
+	}
+
+	// Priority 4: orphaned
+	return { category: "orphaned", reason: "No subscribers, derivers, or mutators found" };
+}
 
 export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const cached = outlineCache.get(index);
@@ -100,6 +131,10 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const degree = new Map<string, number>();
 	const subscribersCount = new Map<string, number>();
 	const derivedCount = new Map<string, number>();
+	const mutatorsCount = new Map<string, number>();
+
+	// Track which SFC files reference which stores (via any relation)
+	const sfcStoreRefs = new Set<string>();
 
 	if (hasRichEdges) {
 		for (const rel of index.relations) {
@@ -114,6 +149,13 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 			}
 			if (rel.type === "derives_from" && storeIds.has(rel.to)) {
 				derivedCount.set(rel.to, (derivedCount.get(rel.to) ?? 0) + 1);
+			}
+			if (rel.type === "mutates" && storeIds.has(rel.to)) {
+				mutatorsCount.set(rel.to, (mutatorsCount.get(rel.to) ?? 0) + 1);
+			}
+			// Track SFC file → store references (via declares edge from file node)
+			if (rel.file && SFC_EXTENSIONS.has(path.extname(rel.file).toLowerCase()) && storeIds.has(rel.to)) {
+				sfcStoreRefs.add(rel.to);
 			}
 		}
 	}
@@ -145,6 +187,7 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					name: store.name ?? store.id,
 					kind: store.kind,
 					file: store.file,
+					...classifyDeadStore(store, mutatorsCount.get(store.id) ?? 0, sfcStoreRefs.has(store.id)),
 				}))
 		: [];
 
@@ -303,5 +346,149 @@ export function buildStoreSubgraph(
 		edges: filteredEdges,
 		summary,
 		...(warning !== undefined ? { warning } : {}),
+	};
+}
+
+// ── buildStoreImpact ──────────────────────────────────────────────────────────
+
+export type ImpactedStore = {
+	id: string;
+	name?: string;
+	kind: string;
+	file: string;
+};
+
+export type ImpactedSubscriber = {
+	id: string;
+	name?: string;
+	kind: string;
+	file: string;
+};
+
+export type StoreImpactHop = {
+	hop: number;
+	derivedStores: ImpactedStore[];
+	subscribers: ImpactedSubscriber[];
+};
+
+export type StoreImpactResponse = {
+	sourceStoreId: string;
+	sourceName?: string;
+	hops: StoreImpactHop[];
+	summary: {
+		totalAffectedStores: number;
+		totalAffectedSubscribers: number;
+		maxHops: number;
+	};
+};
+
+/**
+ * Computes the downstream causal impact of a store change.
+ *
+ * Unidirectional BFS: follows derives_from edges downward (who declared X as
+ * their dependency?) and collects subscribers at each hop. Stores are the
+ * frontier; subscribers are terminal — they react but do not propagate.
+ */
+export function buildStoreImpact(
+	index: ProjectIndex,
+	sourceStore: StoreMatch,
+): StoreImpactResponse {
+	// Build O(1) lookup for store by id
+	const storeById = new Map(index.stores.map(s => [s.id, s]));
+
+	// Index: storeId → stores that derive FROM it
+	const derivedBySource = new Map<string, StoreMatch[]>();
+	for (const rel of index.relations) {
+		if (rel.type !== "derives_from") continue;
+		const dep = storeById.get(rel.from);
+		if (!dep) continue;
+		let list = derivedBySource.get(rel.to);
+		if (!list) {
+			list = [];
+			derivedBySource.set(rel.to, list);
+		}
+		list.push(dep);
+	}
+
+	// Index: storeId → subscribers
+	const subscribersByStore = new Map<string, SubscriberMatch[]>();
+	for (const sub of index.subscribers) {
+		for (const storeId of sub.storeIds) {
+			let list = subscribersByStore.get(storeId);
+			if (!list) {
+				list = [];
+				subscribersByStore.set(storeId, list);
+			}
+			list.push(sub);
+		}
+	}
+
+	const hops: StoreImpactHop[] = [];
+	const visitedStores = new Set<string>([sourceStore.id]);
+	const visitedSubscribers = new Set<string>();
+
+	// BFS: frontier is the set of stores being expanded at the current level
+	let frontier: StoreMatch[] = [sourceStore];
+
+	while (frontier.length > 0) {
+		const nextFrontier: StoreMatch[] = [];
+		const hopDerivedStores: ImpactedStore[] = [];
+		const hopSubscribers: ImpactedSubscriber[] = [];
+
+		// First pass: discover derived stores from the current frontier
+		for (const store of frontier) {
+			for (const derived of derivedBySource.get(store.id) ?? []) {
+				if (visitedStores.has(derived.id)) continue;
+				visitedStores.add(derived.id);
+				hopDerivedStores.push({
+					id: derived.id,
+					name: derived.name,
+					kind: derived.kind,
+					file: derived.file,
+				});
+				nextFrontier.push(derived);
+			}
+		}
+
+		// Second pass: collect subscribers of frontier stores AND newly discovered
+		// derived stores. Subscribers of a store appear at the same hop as the store
+		// itself (subscribers of the source appear alongside its direct dependents).
+		for (const store of [...frontier, ...nextFrontier]) {
+			for (const sub of subscribersByStore.get(store.id) ?? []) {
+				if (visitedSubscribers.has(sub.id)) continue;
+				visitedSubscribers.add(sub.id);
+				hopSubscribers.push({
+					id: sub.id,
+					name: sub.name,
+					kind: sub.kind,
+					file: sub.file,
+				});
+			}
+		}
+
+		// Only emit a hop if something was found
+		if (hopDerivedStores.length > 0 || hopSubscribers.length > 0) {
+			hops.push({
+				hop: hops.length + 1,
+				derivedStores: hopDerivedStores,
+				subscribers: hopSubscribers,
+			});
+		}
+
+		frontier = nextFrontier;
+	}
+
+	const totalAffectedStores = hops.reduce((n, h) => n + h.derivedStores.length, 0);
+	const totalAffectedSubscribers = hops.reduce((n, h) => n + h.subscribers.length, 0);
+
+	return {
+		sourceStoreId: sourceStore.id,
+		sourceName: sourceStore.name,
+		hops,
+		summary: {
+			totalAffectedStores,
+			totalAffectedSubscribers,
+			maxHops: hops.length,
+		},
 	};
 }

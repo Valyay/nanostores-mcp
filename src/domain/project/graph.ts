@@ -79,6 +79,7 @@ export function buildStoreGraph(index: ProjectIndex): StoreGraph {
 		declares: 0,
 		subscribes_to: 0,
 		derives_from: 0,
+		mutates: 0,
 	};
 
 	for (const rel of index.relations) {

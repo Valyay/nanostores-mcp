@@ -5,6 +5,8 @@ export interface SfcScriptResult {
 	code: string;
 	scriptKind: ScriptKind;
 	hasScript: boolean;
+	/** Variable names (without `$` prefix) found as `$varName` in Svelte template text. */
+	templateStoreRefs?: string[];
 }
 
 const NO_SCRIPT: SfcScriptResult = { code: "", scriptKind: ScriptKind.JS, hasScript: false };
@@ -157,6 +159,61 @@ function getContentRange(block: AST.Script): Range | undefined {
 	return undefined;
 }
 
+/** Svelte 5 runes — compiler directives, NOT store subscriptions. */
+const SVELTE_RUNES = new Set([
+	"state",
+	"derived",
+	"effect",
+	"props",
+	"bindable",
+	"inspect",
+	"host",
+]);
+
+const DOLLAR_REF_PATTERN = /\$([a-zA-Z_]\w*)/g;
+
+interface SvelteAst {
+	module: AST.Script | null;
+	instance: AST.Script | null;
+	css: { start: number; end: number } | null;
+}
+
+/**
+ * Collect `$varName` references from the Svelte template (everything outside `<script>` blocks).
+ * Returns unique variable names without the `$` prefix, excluding Svelte 5 runes.
+ */
+function collectTemplateDollarRefs(contents: string, ast: SvelteAst): string[] {
+	// Build ranges to exclude (script + style blocks)
+	const excludeRanges: Range[] = [];
+	for (const block of [ast.module, ast.instance, ast.css]) {
+		if (block) {
+			excludeRanges.push({ start: block.start, end: block.end });
+		}
+	}
+	excludeRanges.sort((a, b) => a.start - b.start);
+
+	// Extract template text (everything outside script blocks)
+	let templateText = "";
+	let cursor = 0;
+	for (const range of excludeRanges) {
+		templateText += contents.slice(cursor, range.start);
+		cursor = range.end;
+	}
+	templateText += contents.slice(cursor);
+
+	// Scan for $varName patterns
+	const refs = new Set<string>();
+	let match: RegExpExecArray | null;
+	while ((match = DOLLAR_REF_PATTERN.exec(templateText)) !== null) {
+		const name = match[1];
+		if (!SVELTE_RUNES.has(name)) {
+			refs.add(name);
+		}
+	}
+
+	return Array.from(refs);
+}
+
 export async function extractScriptsFromSvelteSfc(
 	contents: string,
 	filePath: string,
@@ -188,9 +245,14 @@ export async function extractScriptsFromSvelteSfc(
 
 	const ordered = scripts.sort((a, b) => a.start - b.start).map(entry => entry.code);
 
+	// Scan template text for Svelte $varName auto-subscriptions.
+	// Remove script blocks from the source to get template-only text.
+	const templateStoreRefs = collectTemplateDollarRefs(contents, ast);
+
 	return {
 		code: ordered.join("\n"),
 		scriptKind,
 		hasScript,
+		...(templateStoreRefs.length > 0 ? { templateStoreRefs } : {}),
 	};
 }

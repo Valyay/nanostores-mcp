@@ -33,9 +33,19 @@ const ScanProjectOutputSchema = z.object({
 			storeIds: z.array(z.string()),
 		}),
 	),
+	mutators: z.array(
+		z.object({
+			id: z.string(),
+			file: z.string(),
+			line: z.number(),
+			kind: z.string(), // MutatorKind
+			name: z.string().optional(),
+			storeIds: z.array(z.string()),
+		}),
+	).optional(),
 	relations: z.array(
 		z.object({
-			type: z.enum(["declares", "subscribes_to", "derives_from"]),
+			type: z.enum(["declares", "subscribes_to", "derives_from", "mutates"]),
 			from: z.string(),
 			to: z.string(),
 			file: z.string().optional(),
@@ -57,8 +67,16 @@ export interface ScanProjectData {
 		name?: string;
 		storeIds: string[];
 	}>;
+	mutators?: Array<{
+		id: string;
+		file: string;
+		line: number;
+		kind: string;
+		name?: string;
+		storeIds: string[];
+	}>;
 	relations: Array<{
-		type: "declares" | "subscribes_to" | "derives_from";
+		type: "declares" | "subscribes_to" | "derives_from" | "mutates";
 		from: string;
 		to: string;
 		file?: string;

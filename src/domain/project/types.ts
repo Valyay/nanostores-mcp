@@ -24,6 +24,8 @@ export type StoreKind =
 
 export type SubscriberKind = "component" | "hook" | "effect" | "unknown";
 
+export type MutatorKind = "action" | "function" | "method" | "effect" | "unknown";
+
 export interface StoreMatch {
 	/** Store node identifier in the graph: store:relativePath#name */
 	id: string;
@@ -33,6 +35,8 @@ export interface StoreMatch {
 	kind: StoreKind;
 	/** Variable name, e.g. $counter */
 	name?: string;
+	/** TypeScript value type, e.g. "number" or "User". Extracted from generic arg or inferred from initialValue. */
+	valueType?: string;
 }
 
 export interface SubscriberMatch {
@@ -46,7 +50,18 @@ export interface SubscriberMatch {
 	storeIds: string[];
 }
 
-export type GraphEdgeType = "declares" | "subscribes_to" | "derives_from";
+export interface MutatorMatch {
+	/** Mutator identifier: mutator:relativePath[#Name] */
+	id: string;
+	file: string;
+	line: number;
+	kind: MutatorKind;
+	name?: string;
+	/** Which stores this mutator writes to (via mutates relations) */
+	storeIds: string[];
+}
+
+export type GraphEdgeType = "declares" | "subscribes_to" | "derives_from" | "mutates";
 
 export interface StoreRelation {
 	type: GraphEdgeType;
@@ -61,6 +76,7 @@ export interface ProjectIndex {
 	filesScanned: number;
 	stores: StoreMatch[];
 	subscribers: SubscriberMatch[];
+	mutators: MutatorMatch[];
 	relations: StoreRelation[];
 }
 
@@ -132,6 +148,21 @@ export function isDerivedKind(kind: StoreKind): boolean {
 // Lookup types
 // ============================================================================
 
+// ============================================================================
+// Dead store classification
+// ============================================================================
+
+export type DeadStoreCategory =
+	| "dev-only"
+	| "write-only"
+	| "framework-template"
+	| "orphaned"
+	| "unclassified";
+
+// ============================================================================
+// Lookup types
+// ============================================================================
+
 export type StoreResolutionBy = "id" | "name" | "id_tail";
 
 export interface StoreResolution {
@@ -143,6 +174,7 @@ export interface StoreResolution {
 
 export interface StoreNeighbors {
 	subscribers: SubscriberMatch[];
+	mutators: MutatorMatch[];
 	derivesFromStores: StoreMatch[];
 	derivesFromEdges: StoreRelation[];
 	dependentsStores: StoreMatch[];

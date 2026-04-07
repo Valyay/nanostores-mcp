@@ -69,7 +69,8 @@ describe("buildInstructions", () => {
 		const result = buildInstructions(false, false);
 		expect(result).toContain("Tool selection guide:");
 		expect(result).toContain("nanostores_store_summary (direct neighbors)");
-		expect(result).toContain("nanostores_store_subgraph (multi-hop impact chain)");
+		expect(result).toContain("nanostores_store_impact (ordered causal chain");
+		expect(result).toContain("nanostores_store_subgraph (BFS neighborhood");
 	});
 
 	it("includes runtime tool selection guide when logger enabled", () => {

@@ -3,6 +3,7 @@ import { SyntaxKind } from "ts-morph";
 import { collectNanostoresStoreImports } from "../../../src/domain/project/scanner/imports.ts";
 import {
 	analyzeStoresInFile,
+	extractStoreValueType,
 	getStoreKindFromCall,
 	getSymbolKey,
 	type StoreAnalysisContext,
@@ -113,5 +114,66 @@ describe("scanner/stores", () => {
 		const key = getSymbolKey(symbol!);
 		expect(key).toContain("$count@");
 		expect(toPosix(key)).toContain("/project/src/stores.ts:");
+	});
+});
+
+describe("extractStoreValueType", () => {
+	function getCallExpr(code: string) {
+		const { sourceFile } = createSourceFile(code, "stores.ts");
+		const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+		const call = calls.find(c => /^(atom|map|computed)/.test(c.getExpression().getText()));
+		if (!call) throw new Error("no call expression found");
+		return call;
+	}
+
+	it("returns explicit type argument for atom<number>", () => {
+		const call = getCallExpr('import { atom } from "nanostores";\nconst $x = atom<number>(0);');
+		expect(extractStoreValueType(call)).toBe("number");
+	});
+
+	it("returns explicit type argument for map<User>", () => {
+		const call = getCallExpr(
+			'import { map } from "nanostores";\ntype User = { name: string };\nconst $u = map<User>({ name: "" });',
+		);
+		expect(extractStoreValueType(call)).toBe("User");
+	});
+
+	it("infers number from numeric literal argument", () => {
+		const call = getCallExpr('import { atom } from "nanostores";\nconst $x = atom(0);');
+		expect(extractStoreValueType(call)).toBe("number");
+	});
+
+	it("infers string from string literal argument", () => {
+		const call = getCallExpr('import { atom } from "nanostores";\nconst $x = atom("");');
+		expect(extractStoreValueType(call)).toBe("string");
+	});
+
+	it("infers boolean from boolean literal argument", () => {
+		const call = getCallExpr('import { atom } from "nanostores";\nconst $x = atom(true);');
+		expect(extractStoreValueType(call)).toBe("boolean");
+	});
+
+	it("returns undefined when no type info is available", () => {
+		const call = getCallExpr('import { atom } from "nanostores";\nconst $x = atom();');
+		expect(extractStoreValueType(call)).toBeUndefined();
+	});
+
+	it("returns callback return type for single-dep computed", () => {
+		const call = getCallExpr(
+			"const $x = computed($a, (n: number) => n * 2);",
+		);
+		expect(extractStoreValueType(call)).toBe("number");
+	});
+
+	it("returns callback return type for array-dep computed", () => {
+		const call = getCallExpr(
+			"const $x = computed([$a, $b], (n: number, s: string) => `${n}${s}`);",
+		);
+		expect(extractStoreValueType(call)).toBe("string");
+	});
+
+	it("explicit type argument on computed still wins", () => {
+		const call = getCallExpr("const $x = computed<boolean>($a, (n: number) => n > 0);");
+		expect(extractStoreValueType(call)).toBe("boolean");
 	});
 });

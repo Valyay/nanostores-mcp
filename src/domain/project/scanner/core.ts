@@ -7,12 +7,35 @@ import { discoverSourceFiles } from "./files.js";
 import type { ProjectIndex, ScanOptions } from "../types.js";
 import type { StoreMatch, SubscriberMatch, StoreRelation } from "../types.js";
 import { collectNanostoresStoreImports, collectNanostoresFrameworkImports } from "./imports.js";
+import type { NanostoresStoreImports } from "./imports.js";
 import { analyzeStoresInFile } from "./stores.js";
 import type { StoreAnalysisContext, DerivedStub } from "./stores.js";
 import { analyzeSubscribersInFile } from "./subscribers.js";
 import type { SubscriberAnalysisContext } from "./subscribers.js";
-import { resolveDerivedRelations } from "./relations.js";
+import { analyzeMutationsInFile } from "./mutations.js";
+import type { MutationAnalysisContext } from "./mutations.js";
+import { addRelation, resolveDerivedRelations } from "./relations.js";
 import { extractScriptsFromSvelteSfc, extractScriptsFromVueSfc } from "./sfc.js";
+
+/**
+ * Look for tsconfig.json starting in rootDir and walking up to filesystem root.
+ * Returns the absolute path if found, undefined otherwise.
+ */
+async function findTsConfig(startDir: string): Promise<string | undefined> {
+	let dir = startDir;
+	while (true) {
+		const candidate = path.join(dir, "tsconfig.json");
+		try {
+			await fs.access(candidate);
+			return candidate;
+		} catch {
+			// not found here, go up
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) return undefined; // reached filesystem root
+		dir = parent;
+	}
+}
 
 /**
  * Internal extension of ScanOptions that carries pre-discovered files.
@@ -43,8 +66,13 @@ export async function scanProject(
 
 	onProgress?.(0, 4, `Validating workspace root: ${absRoot}`);
 
+	// Try to find tsconfig.json in the project root so that ts-morph can resolve
+	// node_modules (including nanostores types) for accurate value type inference.
+	const tsconfigPath = await findTsConfig(absRoot);
+
 	// Initialize ts-morph project
 	const project = new Project({
+		...(tsconfigPath ? { tsConfigFilePath: tsconfigPath } : {}),
 		skipAddingFilesFromTsConfig: true,
 		compilerOptions: {
 			allowJs: true,
@@ -87,6 +115,8 @@ export async function scanProject(
 		let loadedFiles = 0;
 		let skippedFiles = 0;
 		const parseErrorFiles: string[] = [];
+		// Svelte template $varName refs, keyed by absolute file path
+		const svelteTemplateRefs = new Map<string, string[]>();
 
 		for (const filePath of files) {
 			try {
@@ -94,10 +124,15 @@ export async function scanProject(
 
 				if (ext === ".vue" || ext === ".svelte") {
 					const contents = await fs.readFile(filePath, "utf8");
-					const { code, scriptKind, hasScript } =
+					const sfcResult =
 						ext === ".vue"
 							? await extractScriptsFromVueSfc(contents, filePath)
 							: await extractScriptsFromSvelteSfc(contents, filePath);
+					const { code, scriptKind, hasScript } = sfcResult;
+
+					if (sfcResult.templateStoreRefs && sfcResult.templateStoreRefs.length > 0) {
+						svelteTemplateRefs.set(filePath, sfcResult.templateStoreRefs);
+					}
 
 					if (!hasScript) {
 						project.createSourceFile(filePath, "", {
@@ -140,6 +175,7 @@ export async function scanProject(
 
 		const stores: StoreMatch[] = [];
 		const subscribers: SubscriberMatch[] = [];
+		const mutators: import("../types.js").MutatorMatch[] = [];
 		const relations: StoreRelation[] = [];
 		const relationKeys = new Set<string>();
 
@@ -157,9 +193,11 @@ export async function scanProject(
 			relationKeys,
 		};
 
-		// --- First pass: find stores ---
+		// --- First pass: find stores (cache storeImports per file for reuse in pass 2) ---
+		const storeImportsCache = new Map<import("ts-morph").SourceFile, NanostoresStoreImports>();
 		for (const sourceFile of project.getSourceFiles()) {
 			const importsInfo = collectNanostoresStoreImports(sourceFile, moduleConfig);
+			storeImportsCache.set(sourceFile, importsInfo);
 			analyzeStoresInFile(sourceFile, absRoot, importsInfo, storeContext);
 		}
 
@@ -177,16 +215,96 @@ export async function scanProject(
 		// --- Second pass: find subscribers ---
 		for (const sourceFile of project.getSourceFiles()) {
 			const frameworkImports = collectNanostoresFrameworkImports(sourceFile, moduleConfig);
-			analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext);
+			const storeImports = storeImportsCache.get(sourceFile);
+			analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext, storeImports);
+		}
+
+		// --- Svelte template $store auto-subscriptions ---
+		for (const [filePath, refNames] of svelteTemplateRefs) {
+			const relativeFile = path.relative(absRoot, filePath) || path.basename(filePath);
+			const matchedStoreIds: string[] = [];
+
+			for (const refName of refNames) {
+				// Try with and without $ prefix
+				const candidates = [
+					...(storesByName.get(refName) ?? []),
+					...(storesByName.get(`$${refName}`) ?? []),
+				];
+				for (const store of candidates) {
+					if (!matchedStoreIds.includes(store.id)) {
+						matchedStoreIds.push(store.id);
+					}
+				}
+			}
+
+			if (matchedStoreIds.length === 0) continue;
+
+			const baseName = path.basename(filePath, path.extname(filePath));
+
+			// Check if a subscriber already exists for this file (from useStore detection).
+			// Match by file, not by id — useStore creates IDs like subscriber:path@line
+			// while template creates subscriber:path#BaseName.
+			const existing = subscribers.find(s => s.file === relativeFile);
+			if (existing) {
+				// Merge template store refs into existing subscriber
+				for (const storeId of matchedStoreIds) {
+					if (!existing.storeIds.includes(storeId)) {
+						existing.storeIds.push(storeId);
+						addRelation(
+							{ type: "subscribes_to", from: existing.id, to: storeId, file: relativeFile },
+							relations,
+							relationKeys,
+						);
+					}
+				}
+			} else {
+				const subscriberId = `subscriber:${relativeFile}#${baseName}`;
+				// Create new subscriber for the template
+				const subscriber: SubscriberMatch = {
+					id: subscriberId,
+					file: relativeFile,
+					line: 1,
+					kind: "component",
+					name: baseName,
+					storeIds: matchedStoreIds,
+				};
+				subscribers.push(subscriber);
+				addRelation(
+					{ type: "declares", from: `file:${relativeFile}`, to: subscriberId, file: relativeFile, line: 1 },
+					relations,
+					relationKeys,
+				);
+				for (const storeId of matchedStoreIds) {
+					addRelation(
+						{ type: "subscribes_to", from: subscriberId, to: storeId, file: relativeFile },
+						relations,
+						relationKeys,
+					);
+				}
+			}
+		}
+
+		const mutationContext: MutationAnalysisContext = {
+			absRoot,
+			mutators,
+			storesByName,
+			storesBySymbol,
+			relations,
+			relationKeys,
+		};
+
+		// --- Third pass: find mutators ---
+		for (const sourceFile of project.getSourceFiles()) {
+			analyzeMutationsInFile(sourceFile, absRoot, mutationContext);
 		}
 
 		onProgress?.(
 			2,
 			4,
-			`AST analysis complete: found ${stores.length} stores and ${subscribers.length} subscribers`,
+			`AST analysis complete: found ${stores.length} stores, ${subscribers.length} subscribers, ${mutators.length} mutators`,
 		);
 
-		// --- Third pass: resolve derived relations ---
+		// --- Fourth pass: resolve derived relations ---
 		onProgress?.(3, 4, "Building relations graph");
 
 		resolveDerivedRelations(derivedStubs, {
@@ -201,6 +319,7 @@ export async function scanProject(
 			filesScanned: loadedFiles,
 			stores,
 			subscribers,
+			mutators,
 			relations,
 		};
 

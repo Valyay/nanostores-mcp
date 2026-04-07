@@ -1,4 +1,4 @@
-import type { StoreMatch, StoreRelation, SubscriberMatch } from "../../domain/project/types.js";
+import type { StoreMatch, StoreRelation, SubscriberMatch, MutatorMatch } from "../../domain/project/types.js";
 
 export interface StoreStructuredContent extends Record<string, unknown> {
 	store: {
@@ -7,6 +7,7 @@ export interface StoreStructuredContent extends Record<string, unknown> {
 		line: number;
 		kind: string;
 		name?: string;
+		valueType?: string;
 	};
 	resolution?: {
 		by?: string;
@@ -14,6 +15,14 @@ export interface StoreStructuredContent extends Record<string, unknown> {
 		note?: string;
 	};
 	subscribers: Array<{
+		id: string;
+		file: string;
+		line: number;
+		kind: string;
+		name?: string;
+		storeIds: string[];
+	}>;
+	mutators: Array<{
 		id: string;
 		file: string;
 		line: number;
@@ -61,6 +70,7 @@ export function buildStoreStructuredContent(args: {
 	resolutionBy?: string;
 	resolutionNote?: string;
 	subscribers: SubscriberMatch[];
+	mutators?: MutatorMatch[];
 	derivesFromStores: StoreMatch[];
 	derivesFromEdges?: StoreRelation[];
 	dependentsStores: StoreMatch[];
@@ -72,6 +82,7 @@ export function buildStoreStructuredContent(args: {
 		resolutionBy,
 		resolutionNote,
 		subscribers,
+		mutators = [],
 		derivesFromStores,
 		derivesFromEdges = [],
 		dependentsStores,
@@ -85,6 +96,7 @@ export function buildStoreStructuredContent(args: {
 			line: store.line,
 			kind: store.kind,
 			name: store.name,
+			...(store.valueType && { valueType: store.valueType }),
 		},
 		...(requestedKey && {
 			resolution: {
@@ -100,6 +112,14 @@ export function buildStoreStructuredContent(args: {
 			kind: sub.kind,
 			name: sub.name,
 			storeIds: sub.storeIds,
+		})),
+		mutators: mutators.map(mut => ({
+			id: mut.id,
+			file: mut.file,
+			line: mut.line,
+			kind: mut.kind,
+			name: mut.name,
+			storeIds: mut.storeIds,
 		})),
 		derivesFrom: {
 			stores: derivesFromStores.map(s => ({
@@ -142,6 +162,7 @@ export function buildStoreSummaryText(args: {
 	resolutionRequested?: string;
 	resolutionNote?: string;
 	subscribers: SubscriberMatch[];
+	mutators?: MutatorMatch[];
 	derivesFromStores: StoreMatch[];
 	dependentsStores: StoreMatch[];
 }): string {
@@ -151,6 +172,7 @@ export function buildStoreSummaryText(args: {
 		resolutionRequested,
 		resolutionNote,
 		subscribers,
+		mutators = [],
 		derivesFromStores,
 		dependentsStores,
 	} = args;
@@ -159,6 +181,7 @@ export function buildStoreSummaryText(args: {
 
 	lines.push(`Store: ${store.name ?? store.id}`);
 	lines.push(`Kind: ${store.kind}`);
+	if (store.valueType) lines.push(`Type: ${store.valueType}`);
 	lines.push(`File: ${store.file}:${store.line}`);
 
 	if (resolutionBy && resolutionRequested) {
@@ -189,6 +212,18 @@ export function buildStoreSummaryText(args: {
 	} else {
 		lines.push("");
 		lines.push("Derived dependents: none");
+	}
+
+	if (mutators.length > 0) {
+		lines.push("");
+		lines.push("Mutated by (functions/actions that write to this store):");
+		for (const mut of mutators) {
+			const displayName = mut.name || mut.id;
+			lines.push(`- [${mut.kind}] ${displayName} (${mut.file}:${mut.line})`);
+		}
+	} else {
+		lines.push("");
+		lines.push("Mutated by: none detected");
 	}
 
 	if (subscribers.length > 0) {

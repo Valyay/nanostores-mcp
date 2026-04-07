@@ -2,9 +2,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { ProjectAnalysisService } from "../../domain/index.js";
-import { buildGraphOutline, buildStoreSubgraph } from "../../domain/index.js";
+import { buildGraphOutline, buildStoreSubgraph, buildStoreImpact } from "../../domain/index.js";
 import { resolveWorkspaceRoot } from "../../config/settings.js";
 import { storeNotFoundMessage } from "../shared/consts.js";
+import { formatSubgraphText } from "../shared/subgraphText.js";
 import { TOOLS } from "../uris.js";
 
 // ── nanostores_project_outline ────────────────────────────────────────────────
@@ -45,6 +46,8 @@ const ProjectOutlineOutputSchema = z.object({
 			name: z.string(),
 			kind: z.string().optional(),
 			file: z.string().optional(),
+			category: z.enum(["dev-only", "write-only", "framework-template", "orphaned", "unclassified"]),
+			reason: z.string(),
 		}),
 	),
 });
@@ -103,9 +106,18 @@ export function registerProjectOutlineTool(
 				}
 
 				if (outline.deadStores.length > 0) {
-					summary += `\nDead stores (no subscribers, not derived from):\n`;
+					summary += `\nDead stores (${outline.deadStores.length} total):\n`;
+					const byCategory = new Map<string, typeof outline.deadStores>();
 					for (const dead of outline.deadStores) {
-						summary += `- ${dead.name} (${dead.kind ?? "unknown"}) at ${dead.file}\n`;
+						const list = byCategory.get(dead.category) ?? [];
+						list.push(dead);
+						byCategory.set(dead.category, list);
+					}
+					for (const [category, stores] of byCategory) {
+						summary += `\n  [${category}] (${stores.length}):\n`;
+						for (const dead of stores) {
+							summary += `  - ${dead.name} (${dead.kind ?? "unknown"}) at ${dead.file}\n`;
+						}
 					}
 				}
 
@@ -193,11 +205,13 @@ export function registerStoreSubgraphTool(
 		{
 			title: "Get store subgraph",
 			description:
-				"Use this when you need the multi-hop dependency neighborhood of a store — " +
+				"Use this when you need the bidirectional neighborhood of a store — " +
 				"files, derived relations, and subscribers within a configurable BFS radius (default 2). " +
 				`Unlike ${TOOLS.storeSummary} (direct neighbors only), this follows transitive chains ` +
-				"to show the full impact zone. " +
-				"Start with radius=1 for direct impact; increase only when you need transitive chains. " +
+				"in both directions (upstream dependencies and downstream dependents). " +
+				`Use ${TOOLS.storeImpact} instead when the question is 'what recomputes if X changes?' — ` +
+				"that tool follows the causal direction only and gives ordered hops. " +
+				"Start with radius=1; increase only when you need the wider structural context. " +
 				"On highly connected hub stores (score>5 in project_outline) radius=2+ may return most of the project. " +
 				'Example: {name: "$cart", radius: 1} or {storeId: "store:src/stores.ts#$cart", radius: 2}.',
 			inputSchema: StoreSubgraphInputSchema,
@@ -226,18 +240,7 @@ export function registerStoreSubgraphTool(
 
 				const subgraph = buildStoreSubgraph(index, store, radius);
 
-				let summary = `Subgraph for ${store.name ?? store.id} (radius=${subgraph.radius})\n`;
-				summary += `Nodes: ${subgraph.summary?.nodes ?? subgraph.nodes.length}, `;
-				summary += `Edges: ${subgraph.summary?.edges ?? subgraph.edges.length}`;
-				if (subgraph.summary?.subscribers) {
-					summary += `, Subscribers: ${subgraph.summary.subscribers}`;
-				}
-				if (subgraph.summary?.dependencies) {
-					summary += `, Dependencies: ${subgraph.summary.dependencies}`;
-				}
-				if (subgraph.warning) {
-					summary += `\nWarning: ${subgraph.warning}`;
-				}
+				const summary = formatSubgraphText(subgraph, store.name ?? store.id);
 
 				return {
 					content: [{ type: "text", text: summary }],
@@ -252,6 +255,129 @@ export function registerStoreSubgraphTool(
 						{
 							type: "text",
 							text: `Failed to build store subgraph. Root: ${rootPath}\nError: ${msg}`,
+						},
+					],
+				};
+			}
+		},
+	);
+}
+
+// ── nanostores_store_impact ───────────────────────────────────────────────────
+
+const StoreImpactInputSchema = z.object({
+	storeId: z.string().optional().describe("Exact store id. If provided, takes priority."),
+	name: z.string().optional().describe("Store name. Used if storeId is not provided."),
+	projectRoot: z.string().optional().describe("Project root path (uses default if omitted)"),
+});
+
+const ImpactedStoreSchema = z.object({
+	id: z.string(),
+	name: z.string().optional(),
+	kind: z.string(),
+	file: z.string(),
+});
+
+const ImpactedSubscriberSchema = z.object({
+	id: z.string(),
+	name: z.string().optional(),
+	kind: z.string(),
+	file: z.string(),
+});
+
+const StoreImpactOutputSchema = z.object({
+	sourceStoreId: z.string(),
+	sourceName: z.string().optional(),
+	hops: z.array(
+		z.object({
+			hop: z.number(),
+			derivedStores: z.array(ImpactedStoreSchema),
+			subscribers: z.array(ImpactedSubscriberSchema),
+		}),
+	),
+	summary: z.object({
+		totalAffectedStores: z.number(),
+		totalAffectedSubscribers: z.number(),
+		maxHops: z.number(),
+	}),
+});
+
+/**
+ * Tool: nanostores_store_impact
+ * One-directional causal impact traversal: what recomputes/re-renders if X changes?
+ */
+export function registerStoreImpactTool(
+	server: McpServer,
+	projectService: ProjectAnalysisService,
+): void {
+	server.registerTool(
+		TOOLS.storeImpact,
+		{
+			title: "Get store impact chain",
+			description:
+				"Use this to answer 'what will recompute or re-render if X changes?' — the primary refactoring question. " +
+				"Unlike nanostores_store_subgraph (BFS in both directions), this tool follows the causal direction only: " +
+				"derived stores that declared X as a dependency, then their derived stores, and so on. " +
+				"Subscribers appear at the same hop as the store they react to. " +
+				"Returns hops ordered from closest to farthest impact. " +
+				'Example: {name: "$isLoggedIn"} shows everything that recomputes when $isLoggedIn changes.',
+			inputSchema: StoreImpactInputSchema,
+			outputSchema: StoreImpactOutputSchema,
+			annotations: {
+				readOnlyHint: true,
+				idempotentHint: true,
+				openWorldHint: false,
+			},
+		},
+		async ({ storeId, name, projectRoot }) => {
+			if (!storeId && !name) {
+				throw new McpError(ErrorCode.InvalidParams, "Either 'storeId' or 'name' must be provided");
+			}
+
+			const rootPath = resolveWorkspaceRoot(projectRoot);
+			const key = storeId ? decodeURIComponent(storeId) : name!;
+
+			try {
+				const index = await projectService.getIndex(rootPath);
+				const store = await projectService.getStoreByKey(rootPath, key);
+
+				if (!store) {
+					throw new McpError(ErrorCode.InvalidParams, storeNotFoundMessage(key, rootPath));
+				}
+
+				const impact = buildStoreImpact(index, store);
+
+				let text = `Impact of ${impact.sourceName ?? impact.sourceStoreId}:\n`;
+				if (impact.hops.length === 0) {
+					text += "No downstream impact found — no derived stores or subscribers.";
+				} else {
+					for (const hop of impact.hops) {
+						text += `\nHop ${hop.hop}:\n`;
+						for (const s of hop.derivedStores) {
+							text += `  [derived]     ${s.name ?? s.id} (${s.kind}) — ${s.file}\n`;
+						}
+						for (const s of hop.subscribers) {
+							text += `  [subscriber]  ${s.name ?? s.id} (${s.kind}) — ${s.file}\n`;
+						}
+					}
+					text += `\nTotal: ${impact.summary.totalAffectedStores} derived stores, `;
+					text += `${impact.summary.totalAffectedSubscribers} subscribers, `;
+					text += `${impact.summary.maxHops} hop(s).`;
+				}
+
+				return {
+					content: [{ type: "text", text }],
+					structuredContent: impact,
+				};
+			} catch (error) {
+				if (error instanceof McpError) throw error;
+				const msg = error instanceof Error ? error.message : `Unknown error: ${String(error)}`;
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to compute store impact. Root: ${rootPath}\nError: ${msg}`,
 						},
 					],
 				};

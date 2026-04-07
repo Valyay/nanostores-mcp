@@ -123,7 +123,7 @@ export function registerStoreSummaryTool(
 
 				const { store, by: resolutionBy } = resolution;
 
-				const { subscribers, derivesFrom, derivesFromEdges, dependents, dependentsEdges } =
+				const { subscribers, mutators, derivesFrom, derivesFromEdges, dependents, dependentsEdges } =
 					await projectService.getStoreNeighbors(rootPath, store);
 
 				const structuredContent = buildStoreStructuredContent({
@@ -131,6 +131,7 @@ export function registerStoreSummaryTool(
 					requestedKey: key,
 					resolutionBy,
 					subscribers,
+					mutators,
 					derivesFromStores: derivesFrom,
 					derivesFromEdges,
 					dependentsStores: dependents,
@@ -142,6 +143,7 @@ export function registerStoreSummaryTool(
 					resolutionBy,
 					resolutionRequested: key,
 					subscribers,
+					mutators,
 					derivesFromStores: derivesFrom,
 					dependentsStores: dependents,
 				});

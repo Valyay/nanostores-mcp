@@ -545,4 +545,111 @@ describe("scanner/subscribers", () => {
 		const subscriber = subscriberContext.subscribers[0];
 		expect(subscriber.line).toBe(5);
 	});
+
+	it("detects effect([store1, store2], fn) as a multi-store subscriber", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $user = atom<string | null>(null);",
+				"export const $isLoading = atom(false);",
+			].join("\n"),
+			"auth.ts": [
+				'import { effect } from "nanostores";',
+				'import { $user, $isLoading } from "./stores";',
+				"",
+				"effect([$user, $isLoading], () => {",
+				"  console.log($user.get(), $isLoading.get());",
+				"});",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const authFile = sourceFiles.get("auth.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(authFile);
+		const storeImports = collectNanostoresStoreImports(authFile);
+		analyzeSubscribersInFile(authFile, absRoot, frameworkImports, subscriberContext, storeImports);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		const subscriber = subscriberContext.subscribers[0];
+		expect(subscriber.kind).toBe("effect");
+		expect(subscriber.storeIds.length).toBe(2);
+
+		const names = subscriber.storeIds.map(id => storeContext.stores.find(s => s.id === id)?.name);
+		expect(names).toContain("$user");
+		expect(names).toContain("$isLoading");
+	});
+
+	it("detects aliased effect import", () => {
+		const files = {
+			"stores.ts": ['import { atom } from "nanostores";', "export const $x = atom(0);"].join("\n"),
+			"side.ts": [
+				'import { effect as watchStores } from "nanostores";',
+				'import { $x } from "./stores";',
+				"",
+				"watchStores([$x], () => { console.log($x.get()); });",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const sideFile = sourceFiles.get("side.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(sideFile);
+		const storeImports = collectNanostoresStoreImports(sideFile);
+		analyzeSubscribersInFile(sideFile, absRoot, frameworkImports, subscriberContext, storeImports);
+
+		expect(subscriberContext.subscribers.length).toBe(1);
+		expect(subscriberContext.subscribers[0].kind).toBe("effect");
+		const names = subscriberContext.subscribers[0].storeIds.map(
+			id => storeContext.stores.find(s => s.id === id)?.name,
+		);
+		expect(names).toContain("$x");
+	});
+
+	it("detects namespace effect call: import * as ns from 'nanostores'; ns.effect([...], fn)", () => {
+		const files = {
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $count = atom(0);",
+			].join("\n"),
+			"side.ts": [
+				'import * as ns from "nanostores";',
+				'import { $count } from "./stores";',
+				"",
+				"ns.effect([$count], () => { console.log($count.get()); });",
+			].join("\n"),
+		};
+		const { project, absRoot, sourceFiles } = createTsMorphProject(files, "/project");
+		const storeContext = createStoreContext(absRoot);
+
+		for (const sourceFile of project.getSourceFiles()) {
+			const imports = collectNanostoresStoreImports(sourceFile);
+			analyzeStoresInFile(sourceFile, absRoot, imports, storeContext);
+		}
+
+		const sideFile = sourceFiles.get("side.ts")!;
+		const subscriberContext = createSubscriberContext(storeContext);
+		const frameworkImports = collectNanostoresFrameworkImports(sideFile);
+		const storeImports = collectNanostoresStoreImports(sideFile);
+		analyzeSubscribersInFile(sideFile, absRoot, frameworkImports, subscriberContext, storeImports);
+
+		expect(subscriberContext.subscribers).toHaveLength(1);
+		expect(subscriberContext.subscribers[0].kind).toBe("effect");
+		const names = subscriberContext.subscribers[0].storeIds.map(
+			id => storeContext.stores.find(s => s.id === id)?.name,
+		);
+		expect(names).toContain("$count");
+	});
 });

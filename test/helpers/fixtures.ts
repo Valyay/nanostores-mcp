@@ -201,6 +201,39 @@ export async function createProjectFixture(): Promise<string> {
 		].join("\n"),
 	);
 
+	// Svelte component using BOTH useStore AND $store template syntax
+	await writeFile(
+		rootDir,
+		"components/SvelteMixed.svelte",
+		[
+			"<script>",
+			"  import { useStore } from '@nanostores/svelte'",
+			"  import { $count, $cart } from '../stores'",
+			"",
+			"  const count = useStore($count)",
+			"</script>",
+			"",
+			"<p>{count}</p>",
+			"<p>{$cart.items.length}</p>",
+			"",
+		].join("\n"),
+	);
+
+	// Svelte component using $store template syntax (no useStore import)
+	await writeFile(
+		rootDir,
+		"components/SvelteTemplateOnly.svelte",
+		[
+			"<script>",
+			"  import { $count } from '../stores'",
+			"</script>",
+			"",
+			"<p>{$count}</p>",
+			"<span>doubled: {$count * 2}</span>",
+			"",
+		].join("\n"),
+	);
+
 	await writeFile(
 		rootDir,
 		"stores/extra.mjs",

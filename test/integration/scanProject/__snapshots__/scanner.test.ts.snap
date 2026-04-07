@@ -2,12 +2,12 @@
 
 exports[`scanner domain: snapshot > produces a stable store/subscriber/relation summary for the fixture project 1`] = `
 {
-  "filesScanned": 14,
-  "relationCount": 36,
+  "filesScanned": 16,
+  "relationCount": 43,
   "relationTypes": {
-    "declares": 19,
+    "declares": 21,
     "derives_from": 3,
-    "subscribes_to": 14,
+    "subscribes_to": 19,
   },
   "storeCount": 8,
   "stores": [
@@ -52,7 +52,7 @@ exports[`scanner domain: snapshot > produces a stable store/subscriber/relation 
       "name": "$mjsCount",
     },
   ],
-  "subscriberCount": 11,
+  "subscriberCount": 13,
   "subscribers": [
     {
       "file": "components/AngularCounter.ts",
@@ -89,6 +89,18 @@ exports[`scanner domain: snapshot > produces a stable store/subscriber/relation 
       "kind": "component",
       "name": "SvelteCounter",
       "storeCount": 1,
+    },
+    {
+      "file": "components/SvelteMixed.svelte",
+      "kind": "component",
+      "name": "SvelteMixed",
+      "storeCount": 3,
+    },
+    {
+      "file": "components/SvelteTemplateOnly.svelte",
+      "kind": "component",
+      "name": "SvelteTemplateOnly",
+      "storeCount": 2,
     },
     {
       "file": "components/SvelteWidget.svelte",

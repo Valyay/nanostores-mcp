@@ -181,6 +181,79 @@ describe("sfc/extractScriptsFromSvelteSfc", () => {
 	});
 });
 
+describe("sfc/extractScriptsFromSvelteSfc: templateStoreRefs", () => {
+	it("detects $varName in template and returns it in templateStoreRefs", async () => {
+		const svelte = [
+			"<script>",
+			'  import { count } from "./stores";',
+			"</script>",
+			"<p>{$count}</p>",
+		].join("\n");
+
+		const result = await extractScriptsFromSvelteSfc(svelte, "Widget.svelte");
+		expect(result.templateStoreRefs).toContain("count");
+	});
+
+	it("excludes Svelte 5 runes from templateStoreRefs", async () => {
+		// $effect and $inspect can appear in template-level expressions in edge cases
+		// but more importantly, runes like $state could appear in HTML comments or text.
+		// We test with a minimal template that only has rune-like names.
+		const svelte = [
+			"<script>",
+			"  let x = 0;",
+			"</script>",
+			"<!-- $state $derived $effect $props $bindable $inspect $host -->",
+		].join("\n");
+
+		const result = await extractScriptsFromSvelteSfc(svelte, "Widget.svelte");
+		expect(result.templateStoreRefs).toBeUndefined();
+	});
+
+	it("excludes CSS variables in style blocks from templateStoreRefs", async () => {
+		const svelte = [
+			"<script>",
+			'  import { primary } from "./stores";',
+			"</script>",
+			"<style>",
+			"  div { color: $primary; font-size: $spacing; }",
+			"</style>",
+			"<p>{$primary}</p>",
+		].join("\n");
+
+		const result = await extractScriptsFromSvelteSfc(svelte, "Widget.svelte");
+		// Only the template {$primary} should be found, not the CSS $primary or $spacing
+		expect(result.templateStoreRefs).toEqual(["primary"]);
+	});
+
+	it("keeps real store refs while filtering runes in same template", async () => {
+		const svelte = [
+			"<script>",
+			'  import { user } from "./stores";',
+			"  let x = $state(0);",
+			"</script>",
+			"<p>{$user}</p>",
+		].join("\n");
+
+		const result = await extractScriptsFromSvelteSfc(svelte, "Widget.svelte");
+		expect(result.templateStoreRefs).toEqual(["user"]);
+	});
+
+	it("collects multiple distinct $varName refs and deduplicates", async () => {
+		const svelte = [
+			"<script>",
+			'  import { count, user } from "./stores";',
+			"</script>",
+			"<p>{$count}</p>",
+			"<p>{$user}</p>",
+			"<span>{$count}</span>",
+		].join("\n");
+
+		const result = await extractScriptsFromSvelteSfc(svelte, "Widget.svelte");
+		expect(result.templateStoreRefs).toEqual(expect.arrayContaining(["count", "user"]));
+		expect(result.templateStoreRefs).toHaveLength(2);
+	});
+});
+
 describe("sfc/error resilience: Vue", () => {
 	it("throws on malformed Vue template", async () => {
 		const malformedVue = [

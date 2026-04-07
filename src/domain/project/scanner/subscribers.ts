@@ -1,7 +1,7 @@
 import { CallExpression, SyntaxKind, SourceFile, Node } from "ts-morph";
 import path from "node:path";
 import type { SubscriberMatch, SubscriberKind, StoreMatch } from "../types.js";
-import type { NanostoresFrameworkImports } from "./imports.js";
+import type { NanostoresFrameworkImports, NanostoresStoreImports } from "./imports.js";
 import { getSymbolKey } from "./stores.js";
 import { addRelation } from "./relations.js";
 
@@ -224,6 +224,77 @@ export function inferSubscriberKind(relativeFile: string, containerName?: string
 	return "unknown";
 }
 
+/**
+ * If `callExpr` is `effect([store1, store2], fn)` or `ns.effect([...], fn)` imported from
+ * nanostores, returns all store matches from the dependency array. Returns empty array otherwise.
+ */
+export function tryResolveEffectArgs(
+	callExpr: CallExpression,
+	storeImports: Pick<NanostoresStoreImports, "effectFns" | "nanostoresNamespaces">,
+	context: Pick<SubscriberAnalysisContext, "storesBySymbol" | "storesByName">,
+	relativeFile: string,
+): StoreMatch[] {
+	const expr = callExpr.getExpression();
+
+	// Named import: effect([...], fn)
+	if (expr.getKind() === SyntaxKind.Identifier) {
+		if (!storeImports.effectFns.has(expr.getText())) return [];
+	}
+	// Namespace import: ns.effect([...], fn)
+	else if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+		const propAccess = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+		if (propAccess.getName() !== "effect") return [];
+		const obj = propAccess.getExpression();
+		if (obj.getKind() !== SyntaxKind.Identifier) return [];
+		if (!storeImports.nanostoresNamespaces.has(obj.getText())) return [];
+	} else {
+		return [];
+	}
+
+	const args = callExpr.getArguments();
+	if (args.length === 0) return [];
+
+	const firstArg = args[0];
+	if (firstArg.getKind() !== SyntaxKind.ArrayLiteralExpression) return [];
+
+	const arrayLiteral = firstArg.asKindOrThrow(SyntaxKind.ArrayLiteralExpression);
+	const results: StoreMatch[] = [];
+	const seen = new Set<string>();
+
+	for (const element of arrayLiteral.getElements()) {
+		if (element.getKind() !== SyntaxKind.Identifier) continue;
+		const identifier = element.asKindOrThrow(SyntaxKind.Identifier);
+
+		let found: StoreMatch[] = [];
+
+		const sym = identifier.getSymbol();
+		if (sym) {
+			const key = getSymbolKey(sym);
+			found = context.storesBySymbol.get(key) ?? [];
+		}
+
+		if (found.length === 0) {
+			const varName = identifier.getText();
+			const byName = context.storesByName.get(varName) ?? [];
+			if (byName.length === 1) {
+				found = byName;
+			} else if (byName.length > 1) {
+				const sameFile = byName.filter(s => s.file === relativeFile);
+				found = sameFile.length >= 1 ? sameFile : byName;
+			}
+		}
+
+		for (const store of found) {
+			if (!seen.has(store.id)) {
+				seen.add(store.id);
+				results.push(store);
+			}
+		}
+	}
+
+	return results;
+}
+
 export interface SubscriberAnalysisContext {
 	absRoot: string;
 	subscribers: SubscriberMatch[];
@@ -241,6 +312,7 @@ export function analyzeSubscribersInFile(
 	absRoot: string,
 	frameworkImports: NanostoresFrameworkImports,
 	context: SubscriberAnalysisContext,
+	storeImports?: Pick<NanostoresStoreImports, "effectFns" | "nanostoresNamespaces">,
 ): void {
 	const absPath = sourceFile.getFilePath();
 	const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
@@ -310,6 +382,16 @@ export function analyzeSubscribersInFile(
 			}
 		}
 
+		// Path C: effect([store1, store2], fn) or ns.effect([...], fn) from nanostores
+		let isEffectPath = false;
+		if (matches.length === 0 && storeImports) {
+			const effectMatches = tryResolveEffectArgs(callExpr, storeImports, context, relativeFile);
+			if (effectMatches.length > 0) {
+				matches = effectMatches;
+				isEffectPath = true;
+			}
+		}
+
 		if (matches.length === 0) {
 			continue;
 		}
@@ -320,7 +402,7 @@ export function analyzeSubscribersInFile(
 
 		let acc = subscriberAccumulators.get(key);
 		if (!acc) {
-			const kind = inferSubscriberKind(relativeFile, containerName);
+			const kind = isEffectPath ? "effect" : inferSubscriberKind(relativeFile, containerName);
 			acc = {
 				storeIds: new Set<string>(),
 				firstUseLine: callExpr.getStartLineNumber(),

@@ -1,4 +1,4 @@
-import { CallExpression, SyntaxKind, SourceFile, Symbol as TsSymbol, Node } from "ts-morph";
+import { CallExpression, SyntaxKind, SourceFile, Symbol as TsSymbol, Node, Type } from "ts-morph";
 import path from "node:path";
 import type { StoreMatch, StoreKind, StoreRelation } from "../types.js";
 import { isDerivedKind, normalizeStoreKind } from "../types.js";
@@ -23,6 +23,44 @@ export function getSymbolKey(symbol: TsSymbol): string {
 		return `${resolvedSymbol.getName()}@${filePath}:${line}`;
 	}
 	return resolvedSymbol.getName();
+}
+
+/**
+ * Extract the TypeScript value type for a store call expression.
+ * Prefers explicit type arguments (atom<number>) over inference.
+ * Falls back to widening the first argument's literal type.
+ */
+export function extractStoreValueType(callExpr: CallExpression): string | undefined {
+	// 1. Explicit type argument wins: atom<number>(0) or computed<string>(...) → "number"
+	const typeArgs = callExpr.getTypeArguments();
+	if (typeArgs.length > 0) {
+		return typeArgs[0].getText();
+	}
+
+	const args = callExpr.getArguments();
+	if (args.length === 0) return undefined;
+
+	// 2. If the last argument is a callback (arrow/function), use its return type.
+	//    This handles computed/batched: computed($a, (n) => n * 2) → last arg is the fn.
+	const lastArg = args[args.length - 1];
+	const lastArgKind = lastArg.getKind();
+	if (lastArgKind === SyntaxKind.ArrowFunction || lastArgKind === SyntaxKind.FunctionExpression) {
+		const returnType = lastArg.getType().getCallSignatures()[0]?.getReturnType();
+		if (!returnType) return undefined;
+		const typeText = returnType.getText();
+		if (typeText === "unknown" || typeText === "any" || typeText === "never") return undefined;
+		return typeText;
+	}
+
+	// 3. Base stores: widen literal initial value → atom(0) → "number", atom("") → "string"
+	const argType: Type = args[0].getType();
+	if (argType.isLiteral()) {
+		return argType.getBaseTypeOfLiteralType().getText();
+	}
+
+	const typeText = argType.getText();
+	if (typeText === "unknown" || typeText === "any" || typeText === "never") return undefined;
+	return typeText;
 }
 
 /**
@@ -102,6 +140,7 @@ export function analyzeStoresInFile(
 				line,
 				kind,
 				name: varName,
+				valueType: extractStoreValueType(callExpr),
 			};
 			context.stores.push(store);
 

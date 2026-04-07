@@ -81,7 +81,7 @@ describe("scanner domain: scanProject", () => {
 	it("detects adapter subscribers and extra file formats", async () => {
 		const index = await scanProject(projectRoot);
 
-		expect(index.filesScanned).toBe(14);
+		expect(index.filesScanned).toBe(16);
 
 		const storeNames = index.stores.map(store => store.name);
 		expect(storeNames).toContain("$mjsCount");
@@ -136,6 +136,41 @@ describe("scanner domain: scanProject", () => {
 
 		expect(vueSubscriber?.storeIds).toContain(countStore!.id);
 		expect(svelteSubscriber?.storeIds).toContain(countStore!.id);
+	});
+
+	it("merges Svelte $store template refs with useStore subscribers (no duplicates)", async () => {
+		const index = await scanProject(projectRoot);
+
+		// SvelteMixed uses useStore($count) in script AND {$cart} in template
+		const mixedSubscribers = index.subscribers.filter(
+			s => s.file === "components/SvelteMixed.svelte",
+		);
+
+		// Should be exactly ONE subscriber (merged), not two
+		expect(mixedSubscribers).toHaveLength(1);
+
+		const countStore = findStore(index, "$count", "stores.ts");
+		const cartStore = findStore(index, "$cart", "stores.ts");
+		expect(mixedSubscribers[0].storeIds).toContain(countStore!.id);
+		expect(mixedSubscribers[0].storeIds).toContain(cartStore!.id);
+	});
+
+	it("detects Svelte $store template auto-subscriptions", async () => {
+		const index = await scanProject(projectRoot);
+
+		const countStore = findStore(index, "$count", "stores.ts");
+		expect(countStore).toBeTruthy();
+
+		// SvelteTemplateOnly uses {$count} in template, NOT useStore()
+		const templateSubscriber = findSubscriber(
+			index,
+			"SvelteTemplateOnly",
+			"components/SvelteTemplateOnly.svelte",
+		);
+
+		expect(templateSubscriber).toBeTruthy();
+		expect(templateSubscriber?.kind).toBe("component");
+		expect(templateSubscriber?.storeIds).toContain(countStore!.id);
 	});
 
 	it("covers all supported source file extensions", async () => {

@@ -102,8 +102,12 @@ export function collectStoreNeighbors(index: ProjectIndex, store: StoreMatch): S
 	const dependentsIds = new Set(dependentsEdges.map(r => r.from));
 	const dependentsStores: StoreMatch[] = index.stores.filter(s => dependentsIds.has(s.id));
 
+	// Mutators that write to this store
+	const mutators = (index.mutators ?? []).filter(mut => mut.storeIds.includes(store.id));
+
 	return {
 		subscribers,
+		mutators,
 		derivesFromStores,
 		derivesFromEdges,
 		dependentsStores,

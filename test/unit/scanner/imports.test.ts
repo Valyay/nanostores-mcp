@@ -71,6 +71,35 @@ describe("scanner/imports", () => {
 		expect(info.angularServiceNames.has("stores")).toBe(true);
 	});
 
+	it("collects effectFns from nanostores base module", () => {
+		const code = [
+			'import { effect } from "nanostores";',
+			'import { effect as watchStores } from "nanostores";',
+		].join("\n");
+		const { sourceFile } = createSourceFile(code, "side.ts");
+		const info = collectNanostoresStoreImports(sourceFile);
+
+		expect(info.effectFns.has("effect")).toBe(true);
+		expect(info.effectFns.has("watchStores")).toBe(true);
+	});
+
+	it("does not collect effect from non-base modules", () => {
+		const code = ['import { effect } from "some-other-lib";'].join("\n");
+		const { sourceFile } = createSourceFile(code, "side.ts");
+		const info = collectNanostoresStoreImports(sourceFile);
+
+		expect(info.effectFns.size).toBe(0);
+	});
+
+	it("does not add effect to storeFactories", () => {
+		const code = ['import { effect, atom } from "nanostores";'].join("\n");
+		const { sourceFile } = createSourceFile(code, "side.ts");
+		const info = collectNanostoresStoreImports(sourceFile);
+
+		expect(info.storeFactories.has("effect")).toBe(false);
+		expect(info.storeFactories.get("atom")).toBe("atom");
+	});
+
 	it("ignores constructor params without NanostoresService type", () => {
 		const angularSource = [
 			'import { NanostoresService } from "@nanostores/angular";',

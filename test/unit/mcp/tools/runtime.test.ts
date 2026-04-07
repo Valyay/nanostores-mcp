@@ -126,6 +126,7 @@ describe("find_noisy_stores tool: filtering and summary", () => {
 		const summary = buildNoisyStoresSummary(stores);
 
 		expect(summary).toContain("$fast: 150 total activity");
+		expect(summary).toContain("50 action cycles");
 		expect(summary).toContain("2 errors");
 	});
 
@@ -196,7 +197,7 @@ describe("runtime_overview tool: health report", () => {
 			unmountedStores: [],
 		});
 
-		expect(summary).toContain("$a: 30 changes, 20 actions (avg 50ms)");
+		expect(summary).toContain("$a: 30 changes, 20 action cycles (avg 50ms)");
 	});
 
 	it("shows no-activity message when no stores", () => {

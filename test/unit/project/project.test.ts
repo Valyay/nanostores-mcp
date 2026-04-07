@@ -68,6 +68,7 @@ const projectIndex: ProjectIndex = {
 			storeIds: [storeCart],
 		},
 	],
+	mutators: [],
 	relations: [
 		{
 			type: "declares",
@@ -279,12 +280,153 @@ describe("project domain: graph and summary builders", () => {
 		expect(deadIds).not.toContain(storeTotal);
 	});
 
+	it("dead stores: orphaned store has category 'orphaned'", () => {
+		const outline = buildGraphOutline(projectIndex);
+		const legacy = outline.deadStores.find(s => s.storeId === storeLegacyCount);
+
+		expect(legacy).toBeTruthy();
+		expect(legacy!.category).toBe("orphaned");
+		expect(legacy!.reason).toBeDefined();
+	});
+
+	it("dead stores: dev-only when name contains debug", () => {
+		const debugStore = "store:src/debug.ts#$proxyDebug";
+		const devIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: debugStore, file: "src/debug.ts", line: 1, kind: "atom", name: "$proxyDebug" },
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
+			subscribers: [
+				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+			],
+			mutators: [],
+			relations: [
+				{ type: "declares", from: "file:src/debug.ts", to: debugStore, file: "src/debug.ts", line: 1 },
+				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
+				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+			],
+		};
+		const outline = buildGraphOutline(devIndex);
+		const debug = outline.deadStores.find(s => s.storeId === debugStore);
+		expect(debug?.category).toBe("dev-only");
+	});
+
+	it("dead stores: dev-only takes priority over write-only", () => {
+		// Store matches both dev-only (name has "debug") and write-only (has mutators)
+		const debugWriteStore = "store:src/debug.ts#$debugCounter";
+		const mutatorId = "mutator:src/debug.ts#setDebug";
+		const priorityIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: debugWriteStore, file: "src/debug.ts", line: 1, kind: "atom", name: "$debugCounter" },
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
+			subscribers: [
+				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+			],
+			mutators: [
+				{ id: mutatorId, file: "src/debug.ts", line: 5, kind: "function", name: "setDebug", storeIds: [debugWriteStore] },
+			],
+			relations: [
+				{ type: "declares", from: "file:src/debug.ts", to: debugWriteStore, file: "src/debug.ts", line: 1 },
+				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
+				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+				{ type: "mutates", from: mutatorId, to: debugWriteStore, file: "src/debug.ts", line: 5 },
+			],
+		};
+		const outline = buildGraphOutline(priorityIndex);
+		const debug = outline.deadStores.find(s => s.storeId === debugWriteStore);
+		expect(debug?.category).toBe("dev-only");
+	});
+
+	it("dead stores: framework-template when store is referenced by SFC file", () => {
+		const svelteStore = "store:src/stores/page.ts#$page";
+		const ftIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: svelteStore, file: "src/stores/page.ts", line: 1, kind: "atom", name: "$page" },
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
+			subscribers: [
+				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+			],
+			mutators: [],
+			relations: [
+				{ type: "declares", from: "file:src/stores/page.ts", to: svelteStore, file: "src/stores/page.ts", line: 1 },
+				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
+				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+				// A declares edge from a .svelte file referencing this store (e.g., it imports the store)
+				{ type: "declares", from: "file:components/Page.svelte", to: svelteStore, file: "components/Page.svelte", line: 3 },
+			],
+		};
+		const outline = buildGraphOutline(ftIndex);
+		const page = outline.deadStores.find(s => s.storeId === svelteStore);
+		expect(page?.category).toBe("framework-template");
+	});
+
+	it("dead stores: write-only when store has mutators but no subscribers", () => {
+		const writeOnlyStore = "store:src/stores/writeOnly.ts#$writeOnly";
+		const mutatorId = "mutator:src/actions/update.ts#updateAction";
+		const woIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 3,
+			stores: [
+				{ id: writeOnlyStore, file: "src/stores/writeOnly.ts", line: 1, kind: "atom", name: "$writeOnly" },
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
+			subscribers: [
+				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+			],
+			mutators: [
+				{ id: mutatorId, file: "src/actions/update.ts", line: 5, kind: "action", name: "updateAction", storeIds: [writeOnlyStore] },
+			],
+			relations: [
+				{ type: "declares", from: "file:src/stores/writeOnly.ts", to: writeOnlyStore, file: "src/stores/writeOnly.ts", line: 1 },
+				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
+				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+				{ type: "mutates", from: mutatorId, to: writeOnlyStore, file: "src/actions/update.ts", line: 5 },
+			],
+		};
+		const outline = buildGraphOutline(woIndex);
+		const wo = outline.deadStores.find(s => s.storeId === writeOnlyStore);
+		expect(wo?.category).toBe("write-only");
+	});
+
+	it("dead stores: dev-only when file path contains test", () => {
+		const testStore = "store:test/mocks/store.ts#$mockUser";
+		const devIndex: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: testStore, file: "test/mocks/store.ts", line: 1, kind: "atom", name: "$mockUser" },
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
+			subscribers: [
+				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+			],
+			mutators: [],
+			relations: [
+				{ type: "declares", from: "file:test/mocks/store.ts", to: testStore, file: "test/mocks/store.ts", line: 1 },
+				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
+				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+			],
+		};
+		const outline = buildGraphOutline(devIndex);
+		const mock = outline.deadStores.find(s => s.storeId === testStore);
+		expect(mock?.category).toBe("dev-only");
+	});
+
 	it("dead stores: index with only declares relations returns empty deadStores", () => {
 		const declaresOnlyIndex: ProjectIndex = {
 			rootDir: "/workspace",
 			filesScanned: 1,
 			stores: [{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" }],
 			subscribers: [],
+			mutators: [],
 			relations: [{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 }],
 		};
 		const outline = buildGraphOutline(declaresOnlyIndex);

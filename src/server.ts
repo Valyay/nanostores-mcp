@@ -43,7 +43,8 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		`   - ${TOOLS.scanProject} — discovers stores and dependency graph`,
 		`   - ${TOOLS.storeSummary} — inspects individual stores`,
 		`   - ${TOOLS.projectOutline} — quick high-level overview`,
-		`   - ${TOOLS.storeSubgraph} — impact analysis around a specific store`,
+		`   - ${TOOLS.storeSubgraph} — neighborhood around a specific store (BFS, both directions)`,
+		`   - ${TOOLS.storeImpact} — causal impact chain: what recomputes if X changes?`,
 	];
 
 	if (loggerEnabled) {
@@ -77,7 +78,8 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		"Tool selection guide:",
 		`- "What stores exist?" → ${TOOLS.projectOutline} (always start here; use ${TOOLS.scanProject} only if you need the raw full list)`,
 		`- "Tell me about $store" → ${TOOLS.storeSummary} (direct neighbors)`,
-		`- "What depends on / is affected by $store?" → ${TOOLS.storeSubgraph} (multi-hop impact chain) with radius=1; increase only for transitive chains`,
+		`- "What depends on / is affected by $store?" → ${TOOLS.storeImpact} (ordered causal chain, downstream only)`,
+		`- "Who else is near $store in the graph?" → ${TOOLS.storeSubgraph} (BFS neighborhood, both directions)`,
 	);
 
 	if (loggerEnabled) {

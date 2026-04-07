@@ -6,6 +6,7 @@ import type {
 	StoreRelation,
 	StoreResolution,
 	SubscriberMatch,
+	MutatorMatch,
 } from "./types.js";
 import { resolveStore, collectStoreNeighbors, type StoreNeighbors } from "./lookup.js";
 
@@ -47,6 +48,7 @@ export interface ProjectAnalysisService {
 		dependents: StoreMatch[];
 		dependentsEdges: StoreRelation[];
 		subscribers: SubscriberMatch[];
+		mutators: MutatorMatch[];
 	}>;
 
 	/**
@@ -105,6 +107,7 @@ export function createProjectAnalysisService(
 			dependents: StoreMatch[];
 			dependentsEdges: StoreRelation[];
 			subscribers: SubscriberMatch[];
+			mutators: MutatorMatch[];
 		}> {
 			const index = await repository.getIndex(root);
 			const neighbors: StoreNeighbors = collectStoreNeighbors(index, store);
@@ -115,6 +118,7 @@ export function createProjectAnalysisService(
 				dependents: neighbors.dependentsStores,
 				dependentsEdges: neighbors.dependentsEdges,
 				subscribers: neighbors.subscribers,
+				mutators: neighbors.mutators,
 			};
 		},
 

@@ -7,6 +7,7 @@ import { registerClearCacheTool } from "../../mcp/tools/clearCache.js";
 import {
 	registerProjectOutlineTool,
 	registerStoreSubgraphTool,
+	registerStoreImpactTool,
 } from "../../mcp/tools/graphExtras.js";
 import { registerStoreResource } from "../../mcp/resources/store.js";
 import { registerGraphResource } from "../../mcp/resources/graph.js";
@@ -29,6 +30,7 @@ export function registerStaticFeatures(
 	registerClearCacheTool(server, projectService, resetAutocompleteCache, onResourcesChanged);
 	registerProjectOutlineTool(server, projectService);
 	registerStoreSubgraphTool(server, projectService);
+	registerStoreImpactTool(server, projectService);
 
 	// Resources
 	registerStoreResource(server, projectService);

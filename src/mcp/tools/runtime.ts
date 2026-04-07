@@ -154,7 +154,7 @@ export function buildNoisyStoresSummary(
 	let summary = `Top ${stores.length} most active stores:\n\n`;
 	for (const store of stores) {
 		const activity = store.changes + store.actionsStarted;
-		let line = `\u2022 ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} actions`;
+		let line = `\u2022 ${store.storeName}: ${activity} total activity (${store.changes} changes, ${store.actionsStarted} action cycles`;
 		if (store.actionsCompleted > 0) {
 			const avg = Math.round(store.totalActionDurationMs / store.actionsCompleted);
 			line += `, avg ${avg}ms`;
@@ -194,7 +194,7 @@ export function buildRuntimeOverviewSummary(args: {
 	if (noisyStores.length > 0) {
 		summary += `\uD83D\uDD25 Top 5 most active stores:\n`;
 		for (const store of noisyStores) {
-			let line = `  \u2022 ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} actions`;
+			let line = `  \u2022 ${store.storeName}: ${store.changes} changes, ${store.actionsStarted} action cycles`;
 			if (store.actionsCompleted > 0) {
 				const avg = Math.round(store.totalActionDurationMs / store.actionsCompleted);
 				line += ` (avg ${avg}ms)`;

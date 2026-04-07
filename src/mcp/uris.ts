@@ -28,6 +28,7 @@ export const TOOLS = {
 	findNoisyStores: "nanostores_find_noisy_stores",
 	runtimeCoverage: "nanostores_runtime_coverage",
 	docsSearch: "nanostores_docs_search",
+	storeImpact: "nanostores_store_impact",
 	ping: "nanostores_ping",
 } as const;
 
