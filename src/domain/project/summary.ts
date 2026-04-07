@@ -1,5 +1,8 @@
 import path from "node:path";
-import type { ProjectIndex, StoreMatch, SubscriberMatch, DeadStoreCategory } from "./types.js";
+import type { ProjectIndex, StoreMatch, SubscriberMatch, StoreKind } from "./types.js";
+// SubscriberMatch is used in buildStoreImpact below
+
+const PERSISTENT_KINDS = new Set<StoreKind>(["persistentAtom", "persistentMap"]);
 
 export type GraphOutlineResponse = {
 	rootDir: string;
@@ -22,14 +25,40 @@ export type GraphOutlineResponse = {
 		score: number;
 		subscribers: number;
 		derivedDependents: number;
+		/** Subscriber count broken down by kind (component/hook/effect/etc.). */
+		subscribersByKind: Record<string, number>;
+		/** Mutator count broken down by kind (action/component/etc.). */
+		mutatorsByKind: Record<string, number>;
 	}>;
-	deadStores: Array<{
+	/** Top store pairs that co-occur (appear together) in the same subscriber.
+	 * Sorted by co-occurrence count descending. Reveals stores that are
+	 * logically coupled from the consumer's perspective. */
+	coOccurringPairs: Array<{
+		storeIdA: string;
+		nameA: string;
+		storeIdB: string;
+		nameB: string;
+		/** Number of subscribers that use both stores simultaneously. */
+		count: number;
+	}>;
+	/** Stores with no detected subscribers or derived dependents in the static graph.
+	 * Raw signals only — qualitative interpretation (dead code, lazy-loaded, template-consumed, etc.)
+	 * is left to the LLM consumer. Only populated when the project has subscriber/derived edges
+	 * (i.e. when graph analysis is meaningful). */
+	unreferencedStores: Array<{
 		storeId: string;
 		name: string;
 		kind?: string;
 		file?: string;
-		category: DeadStoreCategory;
-		reason: string;
+		valueType?: string;
+		/** Number of mutators (set/setKey calls) targeting this store. > 0 suggests write-only pattern. */
+		mutatorCount: number;
+		/** Number of distinct SFC (.vue/.svelte) files that reference this store. > 0 suggests template consumption. */
+		sfcFileReferences: number;
+		/** Whether the store uses a persistent kind (persistentAtom/persistentMap). */
+		isPersistent: boolean;
+		/** Mutator count broken down by kind (action/component/etc.). */
+		mutatorsByKind: Record<string, number>;
 	}>;
 };
 
@@ -43,6 +72,7 @@ export type StoreSubgraphResponse = {
 		kind?: string;
 		file?: string;
 		path?: string;
+		valueType?: string;
 	}>;
 	edges: Array<{
 		from: string;
@@ -62,35 +92,8 @@ const outlineCache = new WeakMap<ProjectIndex, GraphOutlineResponse>();
 
 const TOP_DIRS_LIMIT = 10;
 const HUBS_LIMIT = 10;
+const PAIRS_LIMIT = 10;
 const SFC_EXTENSIONS = new Set([".vue", ".svelte"]);
-const DEV_PATTERN = /\b(debug|dev|mock|test|story|fixture|storybook)\b/i;
-
-function classifyDeadStore(
-	store: StoreMatch,
-	mutatorCount: number,
-	referencedBySfc: boolean,
-): { category: DeadStoreCategory; reason: string } {
-	const name = store.name ?? store.id;
-	const file = store.file;
-
-	// Priority 1: dev-only
-	if (DEV_PATTERN.test(name) || DEV_PATTERN.test(file)) {
-		return { category: "dev-only", reason: "Name or file path suggests dev/test/debug usage" };
-	}
-
-	// Priority 2: write-only
-	if (mutatorCount > 0) {
-		return { category: "write-only", reason: "Has mutators but no subscribers or derived dependents" };
-	}
-
-	// Priority 3: framework-template
-	if (referencedBySfc) {
-		return { category: "framework-template", reason: "Referenced by a .svelte or .vue file — likely consumed in template" };
-	}
-
-	// Priority 4: orphaned
-	return { category: "orphaned", reason: "No subscribers, derivers, or mutators found" };
-}
 
 export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const cached = outlineCache.get(index);
@@ -128,13 +131,18 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 
 	const hasRichEdges = index.relations.some(rel => rel.type !== "declares");
 	const storeIds = new Set(index.stores.map(store => store.id));
+	const storeById = new Map(index.stores.map(store => [store.id, store]));
 	const degree = new Map<string, number>();
 	const subscribersCount = new Map<string, number>();
 	const derivedCount = new Map<string, number>();
 	const mutatorsCount = new Map<string, number>();
 
-	// Track which SFC files reference which stores (via any relation)
-	const sfcStoreRefs = new Set<string>();
+	// Track distinct SFC files that reference each store (via any relation)
+	const sfcStoreRefs = new Map<string, Set<string>>();
+
+	// Kind breakdowns — built from entity arrays for accurate kind metadata
+	const subscribersByKind = new Map<string, Record<string, number>>();
+	const mutatorsByKind = new Map<string, Record<string, number>>();
 
 	if (hasRichEdges) {
 		for (const rel of index.relations) {
@@ -153,12 +161,73 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 			if (rel.type === "mutates" && storeIds.has(rel.to)) {
 				mutatorsCount.set(rel.to, (mutatorsCount.get(rel.to) ?? 0) + 1);
 			}
-			// Track SFC file → store references (via declares edge from file node)
+			// Track distinct SFC files that reference each store
 			if (rel.file && SFC_EXTENSIONS.has(path.extname(rel.file).toLowerCase()) && storeIds.has(rel.to)) {
-				sfcStoreRefs.add(rel.to);
+				let files = sfcStoreRefs.get(rel.to);
+				if (!files) {
+					files = new Set();
+					sfcStoreRefs.set(rel.to, files);
+				}
+				files.add(rel.file);
+			}
+		}
+
+		for (const sub of index.subscribers) {
+			for (const storeId of sub.storeIds) {
+				if (!storeIds.has(storeId)) continue;
+				let breakdown = subscribersByKind.get(storeId);
+				if (!breakdown) {
+					breakdown = {};
+					subscribersByKind.set(storeId, breakdown);
+				}
+				breakdown[sub.kind] = (breakdown[sub.kind] ?? 0) + 1;
+			}
+		}
+
+		for (const mut of index.mutators) {
+			for (const storeId of mut.storeIds) {
+				if (!storeIds.has(storeId)) continue;
+				let breakdown = mutatorsByKind.get(storeId);
+				if (!breakdown) {
+					breakdown = {};
+					mutatorsByKind.set(storeId, breakdown);
+				}
+				breakdown[mut.kind] = (breakdown[mut.kind] ?? 0) + 1;
 			}
 		}
 	}
+
+	// Co-occurrence: count how often each pair of stores appears in the same subscriber
+	const pairCounts = new Map<string, number>();
+	const pairMeta = new Map<string, { storeIdA: string; nameA: string; storeIdB: string; nameB: string }>();
+	for (const sub of index.subscribers) {
+		const knownIds = sub.storeIds.filter(id => storeIds.has(id));
+		if (knownIds.length < 2) continue;
+		const sorted = [...knownIds].sort();
+		for (let i = 0; i < sorted.length; i++) {
+			for (let j = i + 1; j < sorted.length; j++) {
+				const key = `${sorted[i]}||${sorted[j]}`;
+				pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+				if (!pairMeta.has(key)) {
+					const sa = storeById.get(sorted[i]);
+					const sb = storeById.get(sorted[j]);
+					if (sa && sb) {
+						pairMeta.set(key, {
+							storeIdA: sa.id,
+							nameA: sa.name ?? sa.id,
+							storeIdB: sb.id,
+							nameB: sb.name ?? sb.id,
+						});
+					}
+				}
+			}
+		}
+	}
+	const coOccurringPairs = Array.from(pairCounts.entries())
+		.filter(([key]) => pairMeta.has(key))
+		.map(([key, count]) => ({ ...pairMeta.get(key)!, count }))
+		.sort((a, b) => b.count - a.count || a.nameA.localeCompare(b.nameA))
+		.slice(0, PAIRS_LIMIT);
 
 	const hubs = hasRichEdges
 		? index.stores
@@ -170,13 +239,15 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					score: degree.get(store.id) ?? 0,
 					subscribers: subscribersCount.get(store.id) ?? 0,
 					derivedDependents: derivedCount.get(store.id) ?? 0,
+					subscribersByKind: subscribersByKind.get(store.id) ?? {},
+					mutatorsByKind: mutatorsByKind.get(store.id) ?? {},
 				}))
 				.filter(hub => hub.score > 0)
 				.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 				.slice(0, HUBS_LIMIT)
 		: [];
 
-	const deadStores = hasRichEdges
+	const unreferencedStores = hasRichEdges
 		? index.stores
 				.filter(
 					store =>
@@ -187,7 +258,11 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					name: store.name ?? store.id,
 					kind: store.kind,
 					file: store.file,
-					...classifyDeadStore(store, mutatorsCount.get(store.id) ?? 0, sfcStoreRefs.has(store.id)),
+					...(store.valueType !== undefined ? { valueType: store.valueType } : {}),
+					mutatorCount: mutatorsCount.get(store.id) ?? 0,
+					sfcFileReferences: sfcStoreRefs.get(store.id)?.size ?? 0,
+					isPersistent: PERSISTENT_KINDS.has(store.kind),
+					mutatorsByKind: mutatorsByKind.get(store.id) ?? {},
 				}))
 		: [];
 
@@ -201,7 +276,8 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 		storeKinds,
 		topDirs,
 		hubs,
-		deadStores,
+		unreferencedStores,
+		coOccurringPairs,
 	};
 
 	outlineCache.set(index, outline);
@@ -306,6 +382,7 @@ export function buildStoreSubgraph(
 				name: store.name,
 				kind: store.kind,
 				file: store.file,
+				...(store.valueType !== undefined ? { valueType: store.valueType } : {}),
 			});
 		} else if (nodeId.startsWith("file:")) {
 			nodes.push({
@@ -356,6 +433,7 @@ export type ImpactedStore = {
 	name?: string;
 	kind: string;
 	file: string;
+	valueType?: string;
 };
 
 export type ImpactedSubscriber = {
@@ -445,6 +523,7 @@ export function buildStoreImpact(
 					name: derived.name,
 					kind: derived.kind,
 					file: derived.file,
+					...(derived.valueType !== undefined ? { valueType: derived.valueType } : {}),
 				});
 				nextFrontier.push(derived);
 			}

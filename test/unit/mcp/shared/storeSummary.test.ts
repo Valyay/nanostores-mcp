@@ -46,7 +46,7 @@ describe("buildStoreSummaryText", () => {
 		expect(text).toContain("File: src/stores.ts:5");
 		expect(text).toContain("Derives from: none (base store)");
 		expect(text).toContain("Derived dependents: none");
-		expect(text).toContain("Subscribers: none found");
+		expect(text).toContain("Subscribers: 0 detected by static analysis");
 	});
 
 	it("includes resolution info when provided", () => {

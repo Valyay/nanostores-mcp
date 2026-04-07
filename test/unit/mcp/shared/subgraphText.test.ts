@@ -135,6 +135,35 @@ describe("formatSubgraphText", () => {
 		expect(result).toMatch(/[Ss]ubscrib/);
 	});
 
+	it("includes valueType in store node output when present", () => {
+		const subgraph = makeSubgraph({
+			nodes: [
+				{
+					id: "store:src/stores.ts#$user",
+					type: "store",
+					name: "$user",
+					kind: "atom",
+					file: "src/stores.ts",
+					valueType: "User",
+				},
+				{
+					id: "store:src/stores.ts#$name",
+					type: "store",
+					name: "$name",
+					kind: "computed",
+					file: "src/stores.ts",
+					valueType: "string",
+				},
+			],
+			edges: [],
+			summary: { nodes: 2, edges: 0 },
+		});
+
+		const result = formatSubgraphText(subgraph, "$user");
+		expect(result).toMatch(/User/);
+		expect(result).toMatch(/string/);
+	});
+
 	it("appends warning when present", () => {
 		const subgraph = makeSubgraph({
 			warning: "Subgraph covers 85% of project stores. Consider radius=1.",

@@ -223,7 +223,7 @@ export function buildStoreSummaryText(args: {
 		}
 	} else {
 		lines.push("");
-		lines.push("Mutated by: none detected");
+		lines.push("Mutated by: 0 detected by static analysis");
 	}
 
 	if (subscribers.length > 0) {
@@ -235,7 +235,7 @@ export function buildStoreSummaryText(args: {
 		}
 	} else {
 		lines.push("");
-		lines.push("Subscribers: none found");
+		lines.push("Subscribers: 0 detected by static analysis");
 	}
 
 	return lines.join("\n");

@@ -54,7 +54,8 @@ export function formatSubgraphText(
 		for (const node of storeNodes) {
 			const kind = node.kind ?? "store";
 			const name = nodeDisplayName(node);
-			let line = `\n  [${kind}] ${name}`;
+			const typeAnnotation = node.valueType ? `: ${node.valueType}` : "";
+			let line = `\n  [${kind}] ${name}${typeAnnotation}`;
 
 			if (node.id === centerStoreId) {
 				line += " ← center";

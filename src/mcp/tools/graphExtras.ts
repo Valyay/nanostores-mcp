@@ -38,16 +38,30 @@ const ProjectOutlineOutputSchema = z.object({
 			score: z.number(),
 			subscribers: z.number(),
 			derivedDependents: z.number(),
+			subscribersByKind: z.record(z.string(), z.number()),
+			mutatorsByKind: z.record(z.string(), z.number()),
 		}),
 	),
-	deadStores: z.array(
+	unreferencedStores: z.array(
 		z.object({
 			storeId: z.string(),
 			name: z.string(),
 			kind: z.string().optional(),
 			file: z.string().optional(),
-			category: z.enum(["dev-only", "write-only", "framework-template", "orphaned", "unclassified"]),
-			reason: z.string(),
+			valueType: z.string().optional(),
+			mutatorCount: z.number(),
+			sfcFileReferences: z.number(),
+			isPersistent: z.boolean(),
+			mutatorsByKind: z.record(z.string(), z.number()),
+		}),
+	),
+	coOccurringPairs: z.array(
+		z.object({
+			storeIdA: z.string(),
+			nameA: z.string(),
+			storeIdB: z.string(),
+			nameB: z.string(),
+			count: z.number(),
 		}),
 	),
 });
@@ -105,23 +119,20 @@ export function registerProjectOutlineTool(
 					}
 				}
 
-				if (outline.deadStores.length > 0) {
-					summary += `\nDead stores (${outline.deadStores.length} total):\n`;
-					const byCategory = new Map<string, typeof outline.deadStores>();
-					for (const dead of outline.deadStores) {
-						const list = byCategory.get(dead.category) ?? [];
-						list.push(dead);
-						byCategory.set(dead.category, list);
-					}
-					for (const [category, stores] of byCategory) {
-						summary += `\n  [${category}] (${stores.length}):\n`;
-						for (const dead of stores) {
-							summary += `  - ${dead.name} (${dead.kind ?? "unknown"}) at ${dead.file}\n`;
-						}
+				if (outline.unreferencedStores.length > 0) {
+					summary += `\nUnreferenced stores (${outline.unreferencedStores.length} detected by static analysis):\n`;
+					for (const store of outline.unreferencedStores) {
+						const signals: string[] = [];
+						if (store.mutatorCount > 0) signals.push(`${store.mutatorCount} mutator(s)`);
+						if (store.sfcFileReferences > 0) signals.push(`${store.sfcFileReferences} SFC file ref(s)`);
+						if (store.isPersistent) signals.push("persistent");
+						if (store.valueType) signals.push(`type: ${store.valueType}`);
+						const signalStr = signals.length > 0 ? ` [${signals.join(", ")}]` : "";
+						summary += `- ${store.name} (${store.kind ?? "unknown"}) at ${store.file}${signalStr}\n`;
 					}
 				}
 
-				return {
+					return {
 					content: [{ type: "text", text: summary }],
 					structuredContent: outline,
 				};
@@ -172,6 +183,7 @@ const StoreSubgraphOutputSchema = z.object({
 			kind: z.string().optional(),
 			file: z.string().optional(),
 			path: z.string().optional(),
+			valueType: z.string().optional(),
 		}),
 	),
 	edges: z.array(
@@ -205,13 +217,10 @@ export function registerStoreSubgraphTool(
 		{
 			title: "Get store subgraph",
 			description:
-				"Use this when you need the bidirectional neighborhood of a store — " +
-				"files, derived relations, and subscribers within a configurable BFS radius (default 2). " +
-				`Unlike ${TOOLS.storeSummary} (direct neighbors only), this follows transitive chains ` +
-				"in both directions (upstream dependencies and downstream dependents). " +
-				`Use ${TOOLS.storeImpact} instead when the question is 'what recomputes if X changes?' — ` +
-				"that tool follows the causal direction only and gives ordered hops. " +
-				"Start with radius=1; increase only when you need the wider structural context. " +
+				`If your question is 'what recomputes downstream when X changes?', use ${TOOLS.storeImpact} instead — it gives the ordered causal chain in one call. ` +
+				"Use this tool only when you need both directions: upstream sources AND downstream dependents together. " +
+				"Returns the BFS neighborhood within a configurable radius (default 2). " +
+				"Start with radius=1; increase only when you need wider structural context. " +
 				"On highly connected hub stores (score>5 in project_outline) radius=2+ may return most of the project. " +
 				'Example: {name: "$cart", radius: 1} or {storeId: "store:src/stores.ts#$cart", radius: 2}.',
 			inputSchema: StoreSubgraphInputSchema,
@@ -276,6 +285,7 @@ const ImpactedStoreSchema = z.object({
 	name: z.string().optional(),
 	kind: z.string(),
 	file: z.string(),
+	valueType: z.string().optional(),
 });
 
 const ImpactedSubscriberSchema = z.object({
@@ -315,12 +325,12 @@ export function registerStoreImpactTool(
 		{
 			title: "Get store impact chain",
 			description:
-				"Use this to answer 'what will recompute or re-render if X changes?' — the primary refactoring question. " +
-				"Unlike nanostores_store_subgraph (BFS in both directions), this tool follows the causal direction only: " +
-				"derived stores that declared X as a dependency, then their derived stores, and so on. " +
+				"When you need to trace what recomputes if X changes, call this once — not nanostores_store_summary on each downstream store. " +
+				"Returns the full ordered downstream chain in a single response: " +
+				"computed stores that depend on X at hop 1, their dependents at hop 2, and so on. " +
 				"Subscribers appear at the same hop as the store they react to. " +
-				"Returns hops ordered from closest to farthest impact. " +
-				'Example: {name: "$isLoggedIn"} shows everything that recomputes when $isLoggedIn changes.',
+				"Use nanostores_store_subgraph instead when you also need upstream ancestors (BFS in both directions). " +
+				'Example: {name: "$isLoggedIn"} returns every computed store and subscriber that recomputes when $isLoggedIn changes, ordered by distance.',
 			inputSchema: StoreImpactInputSchema,
 			outputSchema: StoreImpactOutputSchema,
 			annotations: {
@@ -354,7 +364,8 @@ export function registerStoreImpactTool(
 					for (const hop of impact.hops) {
 						text += `\nHop ${hop.hop}:\n`;
 						for (const s of hop.derivedStores) {
-							text += `  [derived]     ${s.name ?? s.id} (${s.kind}) — ${s.file}\n`;
+							const typeStr = s.valueType ? `: ${s.valueType}` : "";
+							text += `  [derived]     ${s.name ?? s.id}${typeStr} (${s.kind}) — ${s.file}\n`;
 						}
 						for (const s of hop.subscribers) {
 							text += `  [subscriber]  ${s.name ?? s.id} (${s.kind}) — ${s.file}\n`;

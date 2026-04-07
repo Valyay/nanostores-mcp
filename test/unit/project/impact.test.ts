@@ -223,6 +223,28 @@ describe("buildStoreImpact", () => {
 		expect(hop1!.subscribers.map(s => s.id)).toContain(subscriberDashboard);
 	});
 
+	it("valueType is propagated from StoreMatch to ImpactedStore", () => {
+		const typedIndex: ProjectIndex = {
+			...projectIndex,
+			stores: [
+				{ id: storeUser, file: "src/stores/user.ts", line: 1, kind: "atom", name: "$user", valueType: "User" },
+				{ id: storeIsLoggedIn, file: "src/stores/auth.ts", line: 1, kind: "computed", name: "$isLoggedIn", valueType: "boolean" },
+				{ id: storeGreeting, file: "src/stores/greeting.ts", line: 1, kind: "computed", name: "$greeting", valueType: "string" },
+				{ id: storeTitle, file: "src/stores/title.ts", line: 1, kind: "atom", name: "$title" },
+			],
+		};
+		const userStore = typedIndex.stores.find(s => s.id === storeUser)!;
+		const result = buildStoreImpact(typedIndex, userStore);
+
+		const hop1 = result.hops.find(h => h.hop === 1);
+		const isLoggedIn = hop1!.derivedStores.find(s => s.id === storeIsLoggedIn);
+		expect(isLoggedIn?.valueType).toBe("boolean");
+
+		const hop2 = result.hops.find(h => h.hop === 2);
+		const greeting = hop2!.derivedStores.find(s => s.id === storeGreeting);
+		expect(greeting?.valueType).toBe("string");
+	});
+
 	it("cycle protection: does not loop or repeat stores", () => {
 		// A → B → A cycle
 		const storeA = "store:src/a.ts#$a";

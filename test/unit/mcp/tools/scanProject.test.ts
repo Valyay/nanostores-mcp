@@ -112,3 +112,64 @@ describe("scan_project tool: response building", () => {
 		expect(text).toContain("[atom] at a.ts:1");
 	});
 });
+
+describe("scan_project tool: compact mode", () => {
+	it("compact mode returns byDir grouped by directory", () => {
+		const data = makeIndex({
+			stores: [
+				{ id: "store:src/stores/a.ts#$a", file: "src/stores/a.ts", line: 1, kind: "atom", name: "$a" },
+				{ id: "store:src/stores/b.ts#$b", file: "src/stores/b.ts", line: 2, kind: "computed", name: "$b" },
+				{ id: "store:lib/c.ts#$c", file: "lib/c.ts", line: 1, kind: "atom", name: "$c" },
+			],
+			subscribers: [
+				{ id: "subscriber:src/App.tsx#App", file: "src/App.tsx", line: 8, kind: "component", name: "App", storeIds: ["store:src/stores/a.ts#$a"] },
+			],
+			mutators: [],
+			relations: [],
+		});
+
+		const { structuredContent } = buildScanProjectResponse(data, undefined, true);
+
+		expect(structuredContent.byDir).toBeDefined();
+		const byDir = structuredContent.byDir as Array<{ dir: string; storeCount: number; subscriberCount: number; mutatorCount: number; storeKinds: Record<string, number> }>;
+
+		const storesDir = byDir.find(d => d.dir === "src/stores");
+		expect(storesDir?.storeCount).toBe(2);
+		expect(storesDir?.storeKinds).toEqual({ atom: 1, computed: 1 });
+
+		const libDir = byDir.find(d => d.dir === "lib");
+		expect(libDir?.storeCount).toBe(1);
+	});
+
+	it("compact mode text output shows directory summary, not full store list", () => {
+		const { content } = buildScanProjectResponse(makeIndex(), undefined, true);
+		const text = content[0].text;
+
+		expect(text).not.toContain("First stores:");
+		expect(text).toContain("By directory:");
+	});
+
+	it("compact mode omits raw stores/subscribers/relations arrays from structured content", () => {
+		const { structuredContent } = buildScanProjectResponse(makeIndex(), undefined, true);
+
+		expect(structuredContent.stores).toBeUndefined();
+		expect(structuredContent.subscribers).toBeUndefined();
+		expect(structuredContent.relations).toBeUndefined();
+	});
+
+	it("non-compact mode (default) returns full arrays and no byDir", () => {
+		const { structuredContent } = buildScanProjectResponse(makeIndex());
+
+		expect(Array.isArray(structuredContent.stores)).toBe(true);
+		expect(Array.isArray(structuredContent.subscribers)).toBe(true);
+		expect(structuredContent.byDir).toBeUndefined();
+	});
+
+	it("compact mode includes totals in structured content", () => {
+		const { structuredContent } = buildScanProjectResponse(makeIndex(), undefined, true);
+
+		const totals = structuredContent.totals as { stores: number; subscribers: number; relations: number };
+		expect(totals.stores).toBe(2);
+		expect(totals.subscribers).toBe(1);
+	});
+});

@@ -691,8 +691,8 @@ export function registerRuntimeCoverageTool(
 			title: "Runtime coverage report",
 			description:
 				"Compare static analysis graph with runtime event data to find stores " +
-				"that are declared but never seen at runtime (dead code candidates) and runtime " +
-				"stores not found in the static graph (dynamic or unscanned stores). " +
+				"declared in the static graph but not observed in this runtime session, and stores " +
+				"seen at runtime but absent from the static graph (dynamic or unscanned). " +
 				"Use after running the app to verify instrumentation completeness. " +
 				'Example: {} or {projectRoot: "/path/to/project"}.',
 			inputSchema: RuntimeCoverageInputSchema,
