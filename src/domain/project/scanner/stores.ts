@@ -117,7 +117,7 @@ export function analyzeStoresInFile(
 	const absPath = sourceFile.getFilePath();
 	const relativeFile = path.relative(absRoot, absPath) || path.basename(absPath);
 
-	const variableStatements = sourceFile.getVariableStatements();
+	const variableStatements = sourceFile.getDescendantsOfKind(SyntaxKind.VariableStatement);
 
 	for (const statement of variableStatements) {
 		for (const declaration of statement.getDeclarations()) {

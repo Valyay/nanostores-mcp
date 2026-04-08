@@ -112,7 +112,6 @@ describe("buildInstructions", () => {
 		expect(result).toContain("Analyze / how is state structured?");
 		expect(result).toContain("Why does $Component re-render?");
 		expect(result).toContain("Is any state unused / dead?");
-		expect(result).toContain("staticAnalysisLimitations field");
 	});
 
 	it("request patterns: includes performance pattern only when logger enabled", () => {
@@ -122,10 +121,9 @@ describe("buildInstructions", () => {
 		expect(disabled).not.toContain("Performance / why noisy updates?");
 	});
 
-	it("structural signals: includes coOccurringPairs and staticAnalysisLimitations", () => {
+	it("structural signals: includes coOccurringPairs", () => {
 		const result = buildInstructions(false, false);
 		expect(result).toContain("coOccurringPairs");
-		expect(result).toContain("staticAnalysisLimitations");
 	});
 
 	it("analysis directive comes before the tools list", () => {

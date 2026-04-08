@@ -107,7 +107,7 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		`- "Analyze / how is state structured?" → ${TOOLS.projectOutline} → follow investigation hints in the response → Read flagged source files`,
 		`- "Why does $Component re-render?" → ${TOOLS.storeSummary} for each store it uses → ${TOOLS.storeImpact} → Read component and store source`,
 		`- "What happens when [event / action]?" → identify the store that changes → ${TOOLS.storeImpact} → Read mutator source`,
-		`- "Is any state unused / dead?" → ${TOOLS.projectOutline} → unreferencedStores section → check staticAnalysisLimitations field → Read source files before concluding`,
+		`- "Is any state unused / dead?" → ${TOOLS.projectOutline} → unreferencedStores section → Read source files before concluding`,
 		`- "How is [auth / routing / sync] managed?" → ${TOOLS.scanProject}({compact: true}) → ${TOOLS.storeSummary} for relevant stores → Read source files`,
 	);
 
@@ -129,7 +129,6 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		"- fan-in: computed stores that depend on many sources recalculate once per source change.",
 		`- unreferencedStores in ${TOOLS.projectOutline}: stores with no detected subscribers or derived dependents; includes mutatorCount, sfcFileReferences, and isPersistent signals.`,
 		`- coOccurringPairs in ${TOOLS.projectOutline}: stores that consistently appear together in subscribers — candidates for consolidation or a shared derived store.`,
-		`- staticAnalysisLimitations in ${TOOLS.projectOutline}: patterns the scanner cannot see statically — account for these before concluding dead code or missing wiring.`,
 	);
 
 	if (loggerEnabled) {
