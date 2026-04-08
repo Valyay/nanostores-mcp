@@ -25,6 +25,7 @@ export type GraphOutlineResponse = {
 		score: number;
 		subscribers: number;
 		derivedDependents: number;
+		mutators: number;
 		/** Subscriber count broken down by kind (component/hook/effect/etc.). */
 		subscribersByKind: Record<string, number>;
 		/** Mutator count broken down by kind (action/component/etc.). */
@@ -132,7 +133,6 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const hasRichEdges = index.relations.some(rel => rel.type !== "declares");
 	const storeIds = new Set(index.stores.map(store => store.id));
 	const storeById = new Map(index.stores.map(store => [store.id, store]));
-	const degree = new Map<string, number>();
 	const subscribersCount = new Map<string, number>();
 	const derivedCount = new Map<string, number>();
 	const mutatorsCount = new Map<string, number>();
@@ -146,12 +146,6 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 
 	if (hasRichEdges) {
 		for (const rel of index.relations) {
-			if (storeIds.has(rel.from)) {
-				degree.set(rel.from, (degree.get(rel.from) ?? 0) + 1);
-			}
-			if (storeIds.has(rel.to)) {
-				degree.set(rel.to, (degree.get(rel.to) ?? 0) + 1);
-			}
 			if (rel.type === "subscribes_to" && storeIds.has(rel.to)) {
 				subscribersCount.set(rel.to, (subscribersCount.get(rel.to) ?? 0) + 1);
 			}
@@ -236,14 +230,25 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					name: store.name ?? store.id,
 					kind: store.kind,
 					file: store.file,
-					score: degree.get(store.id) ?? 0,
+					score:
+						(subscribersCount.get(store.id) ?? 0) * 3 +
+						(derivedCount.get(store.id) ?? 0) * 2 +
+						(mutatorsCount.get(store.id) ?? 0) * 1,
 					subscribers: subscribersCount.get(store.id) ?? 0,
 					derivedDependents: derivedCount.get(store.id) ?? 0,
+					mutators: mutatorsCount.get(store.id) ?? 0,
 					subscribersByKind: subscribersByKind.get(store.id) ?? {},
 					mutatorsByKind: mutatorsByKind.get(store.id) ?? {},
 				}))
 				.filter(hub => hub.score > 0)
-				.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+				.sort(
+					(a, b) =>
+						b.score - a.score ||
+						b.subscribers - a.subscribers ||
+						b.derivedDependents - a.derivedDependents ||
+						b.mutators - a.mutators ||
+						a.name.localeCompare(b.name),
+				)
 				.slice(0, HUBS_LIMIT)
 		: [];
 

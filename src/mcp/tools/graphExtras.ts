@@ -38,6 +38,7 @@ const ProjectOutlineOutputSchema = z.object({
 			score: z.number(),
 			subscribers: z.number(),
 			derivedDependents: z.number(),
+			mutators: z.number(),
 			subscribersByKind: z.record(z.string(), z.number()),
 			mutatorsByKind: z.record(z.string(), z.number()),
 		}),

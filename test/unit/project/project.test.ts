@@ -638,3 +638,86 @@ describe("project domain: project analysis service", () => {
 		expect(notFound).toBeNull();
 	});
 });
+
+describe("hubs: weighted score", () => {
+	it("store with UI subscriber ranks above store with only derived dependent", () => {
+		const storeA = "store:src/a.ts#$a"; // 1 subscriber → score = 3
+		const storeC = "store:src/c.ts#$c"; // 1 derived dependent → score = 2
+		const subA = "subscriber:src/App.tsx#App";
+		const index: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: storeA, file: "src/a.ts", line: 1, kind: "atom", name: "$a" },
+				{ id: storeC, file: "src/c.ts", line: 1, kind: "atom", name: "$c" },
+			],
+			subscribers: [{ id: subA, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [storeA] }],
+			mutators: [],
+			relations: [
+				{ type: "subscribes_to", from: subA, to: storeA, file: "src/App.tsx", line: 1 },
+				// any store deriving from $c gives $c a derived dependent (score = 2)
+				{ type: "derives_from", from: "store:src/d.ts#$d", to: storeC, file: "src/d.ts", line: 1 },
+			],
+		};
+
+		const outline = buildGraphOutline(index);
+		const hubA = outline.hubs.find(h => h.storeId === storeA);
+		const hubC = outline.hubs.find(h => h.storeId === storeC);
+
+		expect(hubA).toBeTruthy();
+		expect(hubC).toBeTruthy();
+		expect(hubA!.score).toBeGreaterThan(hubC!.score);
+
+		const names = outline.hubs.map(h => h.storeId);
+		expect(names.indexOf(storeA)).toBeLessThan(names.indexOf(storeC));
+	});
+
+	it("store with only declares edge does not appear in hubs", () => {
+		const storeIsolated = "store:src/isolated.ts#$isolated";
+		const storeActive = "store:src/active.ts#$active";
+		const sub = "subscriber:src/App.tsx#App";
+		const index: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [
+				{ id: storeIsolated, file: "src/isolated.ts", line: 1, kind: "atom", name: "$isolated" },
+				{ id: storeActive, file: "src/active.ts", line: 1, kind: "atom", name: "$active" },
+			],
+			subscribers: [{ id: sub, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [storeActive] }],
+			mutators: [],
+			relations: [
+				{ type: "declares", from: "file:src/isolated.ts", to: storeIsolated, file: "src/isolated.ts", line: 1 },
+				{ type: "declares", from: "file:src/active.ts", to: storeActive, file: "src/active.ts", line: 1 },
+				{ type: "subscribes_to", from: sub, to: storeActive, file: "src/App.tsx", line: 1 },
+			],
+		};
+
+		const outline = buildGraphOutline(index);
+		const hubIds = outline.hubs.map(h => h.storeId);
+
+		expect(hubIds).not.toContain(storeIsolated);
+		expect(hubIds).toContain(storeActive);
+	});
+
+	it("hub exposes mutators count alongside subscribers and derivedDependents", () => {
+		const storeA = "store:src/a.ts#$a";
+		const mutatorA = "mutator:src/actions.ts#setA";
+		const index: ProjectIndex = {
+			rootDir: "/workspace",
+			filesScanned: 2,
+			stores: [{ id: storeA, file: "src/a.ts", line: 1, kind: "atom", name: "$a" }],
+			subscribers: [],
+			mutators: [{ id: mutatorA, file: "src/actions.ts", line: 1, kind: "action", name: "setA", storeIds: [storeA] }],
+			relations: [
+				{ type: "declares", from: "file:src/a.ts", to: storeA, file: "src/a.ts", line: 1 },
+				{ type: "mutates", from: mutatorA, to: storeA, file: "src/actions.ts", line: 1 },
+			],
+		};
+
+		const outline = buildGraphOutline(index);
+		const hub = outline.hubs.find(h => h.storeId === storeA);
+
+		expect(hub).toBeTruthy();
+		expect(hub!.mutators).toBe(1);
+	});
+});
