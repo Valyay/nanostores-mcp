@@ -1,9 +1,98 @@
 import { CallExpression, SyntaxKind, SourceFile, Symbol as TsSymbol, Node, Type } from "ts-morph";
 import path from "node:path";
-import type { StoreMatch, StoreKind, StoreRelation } from "../types.js";
+import type { StoreMatch, StoreKind, StoreRelation, StoreFlags } from "../types.js";
 import { isDerivedKind, normalizeStoreKind } from "../types.js";
 import type { NanostoresStoreImports } from "./imports.js";
 import { addRelation } from "./relations.js";
+
+const SIDE_EFFECT_METHODS = new Set(["set", "setKey", "subscribe", "listen"]);
+const CLEANUP_METHODS = new Set(["destroy"]);
+const SIDE_EFFECT_GLOBALS = new Set(["setTimeout", "setInterval", "fetch"]);
+
+interface ComputedSideEffectResult {
+	hasSideEffects: boolean;
+	hasCleanupCalls: boolean;
+}
+
+/** Detects side-effectful and cleanup calls inside a computed callback. */
+function detectComputedSideEffects(callExpr: CallExpression): ComputedSideEffectResult {
+	const args = callExpr.getArguments();
+	const callback = args[args.length - 1];
+	if (!callback) return { hasSideEffects: false, hasCleanupCalls: false };
+
+	const k = callback.getKind();
+	if (k !== SyntaxKind.ArrowFunction && k !== SyntaxKind.FunctionExpression) {
+		return { hasSideEffects: false, hasCleanupCalls: false };
+	}
+
+	let hasSideEffects = false;
+	let hasCleanupCalls = false;
+
+	for (const inner of callback.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+		const expr = inner.getExpression();
+		if (expr.getKind() === SyntaxKind.PropertyAccessExpression) {
+			const name = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression).getName();
+			if (SIDE_EFFECT_METHODS.has(name)) hasSideEffects = true;
+			if (CLEANUP_METHODS.has(name)) hasCleanupCalls = true;
+		}
+		if (expr.getKind() === SyntaxKind.Identifier && SIDE_EFFECT_GLOBALS.has(expr.getText())) {
+			hasSideEffects = true;
+		}
+	}
+	return { hasSideEffects, hasCleanupCalls };
+}
+
+/** Returns true if the node is declared inside a function body (factory pattern). */
+function isInsideFunction(node: Node): boolean {
+	let parent = node.getParent();
+	while (parent && !Node.isSourceFile(parent)) {
+		if (
+			Node.isFunctionDeclaration(parent) ||
+			Node.isArrowFunction(parent) ||
+			Node.isFunctionExpression(parent)
+		) return true;
+		parent = parent.getParent();
+	}
+	return false;
+}
+
+/**
+ * After stores are indexed, marks stores that have an onMount() call in the same file.
+ * Must be called after analyzeStoresInFile so storesByName/storesBySymbol are populated.
+ */
+export function detectMountDependentActivation(
+	sourceFile: SourceFile,
+	context: Pick<StoreAnalysisContext, "storesByName" | "storesBySymbol">,
+	onMountFns: Set<string>,
+): void {
+	if (onMountFns.size === 0) return;
+
+	for (const callExpr of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+		const expr = callExpr.getExpression();
+		if (expr.getKind() !== SyntaxKind.Identifier) continue;
+		if (!onMountFns.has(expr.getText())) continue;
+
+		const firstArg = callExpr.getArguments()[0];
+		if (!firstArg || firstArg.getKind() !== SyntaxKind.Identifier) continue;
+
+		const ident = firstArg.asKindOrThrow(SyntaxKind.Identifier);
+		const sym = ident.getSymbol();
+		let matches: StoreMatch[] = [];
+
+		if (sym) {
+			const key = getSymbolKey(sym);
+			matches = context.storesBySymbol.get(key) ?? [];
+		}
+		if (matches.length === 0) {
+			matches = context.storesByName.get(ident.getText()) ?? [];
+		}
+
+		for (const store of matches) {
+			store.flags ??= {};
+			store.flags.hasMountDependentActivation = true;
+		}
+	}
+}
 
 export interface DerivedStub {
 	derivedVar: string;
@@ -134,6 +223,16 @@ export function analyzeStoresInFile(
 
 			const id = `store:${relativeFile}#${varName}`;
 
+			const flags: StoreFlags = {};
+			if (isDerivedKind(kind)) {
+				const { hasSideEffects, hasCleanupCalls } = detectComputedSideEffects(callExpr);
+				if (hasSideEffects) flags.computedHasSideEffects = true;
+				if (hasCleanupCalls) flags.computedHasCleanupCalls = true;
+			}
+			if (isInsideFunction(declaration)) {
+				flags.isInsideFactory = true;
+			}
+
 			const store: StoreMatch = {
 				id,
 				file: relativeFile,
@@ -141,6 +240,7 @@ export function analyzeStoresInFile(
 				kind,
 				name: varName,
 				valueType: extractStoreValueType(callExpr),
+				flags: Object.keys(flags).length > 0 ? flags : undefined,
 			};
 			context.stores.push(store);
 

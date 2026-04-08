@@ -8,6 +8,7 @@ export interface StoreStructuredContent extends Record<string, unknown> {
 		kind: string;
 		name?: string;
 		valueType?: string;
+		flags?: import("../../domain/project/types.js").StoreFlags;
 	};
 	resolution?: {
 		by?: string;
@@ -97,6 +98,7 @@ export function buildStoreStructuredContent(args: {
 			kind: store.kind,
 			name: store.name,
 			...(store.valueType && { valueType: store.valueType }),
+			...(store.flags && { flags: store.flags }),
 		},
 		...(requestedKey && {
 			resolution: {
@@ -183,6 +185,32 @@ export function buildStoreSummaryText(args: {
 	lines.push(`Kind: ${store.kind}`);
 	if (store.valueType) lines.push(`Type: ${store.valueType}`);
 	lines.push(`File: ${store.file}:${store.line}`);
+
+	if (store.flags && Object.keys(store.flags).length > 0) {
+		lines.push("");
+		lines.push("Semantic risk signals:");
+		if (store.flags.computedHasSideEffects) {
+			lines.push("  ⚠ computedHasSideEffects: callback contains side-effectful calls (.set, .subscribe, setTimeout, etc.) — read source before assuming pure derivation");
+		}
+		if (store.flags.computedHasCleanupCalls) {
+			lines.push("  ⚠ computedHasCleanupCalls: callback contains .destroy() calls — typical lifecycle cleanup pattern, verify it is intentional");
+		}
+		if (store.flags.isInsideFactory) {
+			lines.push("  ⚠ isInsideFactory: declared inside a function — may be absent from storeKinds count and hub ranking");
+		}
+		if (store.flags.hasMountDependentActivation) {
+			lines.push("  ⚠ hasMountDependentActivation: lazy activation via onMount — behavior only starts when the store has active subscribers");
+		}
+		if (store.flags.writtenWithoutSubscribers) {
+			lines.push("  ⚠ writtenWithoutSubscribers: mutators exist but no reactive subscribers detected — may be imperative-only usage, dead code, or subscribers hidden from static analysis");
+		}
+		if (store.flags.readViaGetOnly) {
+			lines.push("  ⚠ readViaGetOnly: read only via .get() calls, no useStore/subscribe detected — imperative access pattern, not reactive");
+		}
+		if (store.flags.storyOrTestOnlyWriter) {
+			lines.push("  ⚠ storyOrTestOnlyWriter: all detected mutations come from test/story files — store is not written in production code");
+		}
+	}
 
 	if (resolutionBy && resolutionRequested) {
 		lines.push("");

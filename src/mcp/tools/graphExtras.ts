@@ -14,6 +14,16 @@ const ProjectOutlineInputSchema = z.object({
 	projectRoot: z.string().optional().describe("Project root path (uses default if omitted)"),
 });
 
+const StoreFlagsSchema = z.object({
+	computedHasSideEffects: z.boolean().optional(),
+	computedHasCleanupCalls: z.boolean().optional(),
+	isInsideFactory: z.boolean().optional(),
+	hasMountDependentActivation: z.boolean().optional(),
+	writtenWithoutSubscribers: z.boolean().optional(),
+	readViaGetOnly: z.boolean().optional(),
+	storyOrTestOnlyWriter: z.boolean().optional(),
+});
+
 const ProjectOutlineOutputSchema = z.object({
 	rootDir: z.string(),
 	totals: z.object({
@@ -41,6 +51,7 @@ const ProjectOutlineOutputSchema = z.object({
 			mutators: z.number(),
 			subscribersByKind: z.record(z.string(), z.number()),
 			mutatorsByKind: z.record(z.string(), z.number()),
+			flags: StoreFlagsSchema.optional(),
 		}),
 	),
 	unreferencedStores: z.array(
@@ -63,6 +74,36 @@ const ProjectOutlineOutputSchema = z.object({
 			storeIdB: z.string(),
 			nameB: z.string(),
 			count: z.number(),
+		}),
+	),
+	topSemanticAnomalies: z.array(
+		z.object({
+			storeId: z.string(),
+			name: z.string(),
+			kind: z.string().optional(),
+			file: z.string().optional(),
+			score: z.number(),
+			directSubscribers: z.number(),
+			mutators: z.number(),
+			flags: StoreFlagsSchema,
+		}),
+	),
+	topBlindSpots: z.array(
+		z.object({
+			storeId: z.string(),
+			name: z.string(),
+			kind: z.string().optional(),
+			file: z.string().optional(),
+			blindSpotType: z.enum([
+				"possibly_svelte_reactive",
+				"factory_local",
+				"story_or_test_scoped",
+				"imperative_only",
+				"truly_unreferenced_candidate",
+			]),
+			mutatorCount: z.number(),
+			sfcFileReferences: z.number(),
+			flags: StoreFlagsSchema.optional(),
 		}),
 	),
 });
@@ -117,6 +158,27 @@ export function registerProjectOutlineTool(
 					summary += `\nHub stores (by connectivity):\n`;
 					for (const hub of outline.hubs) {
 						summary += `- ${hub.name} (${hub.kind ?? "unknown"}, score: ${hub.score}, subs: ${hub.subscribers}, derived: ${hub.derivedDependents})\n`;
+					}
+				}
+
+				if (outline.topSemanticAnomalies.length > 0) {
+					summary += `\nSemantic anomalies (stores with unusual flags — validate with source before concluding):\n`;
+					for (const store of outline.topSemanticAnomalies) {
+						const flagNames = Object.entries(store.flags)
+							.filter(([, v]) => v === true)
+							.map(([k]) => k)
+							.join(", ");
+						summary += `- ${store.name} (${store.kind ?? "unknown"}, score: ${store.score}) — flags: ${flagNames} — ${store.file}\n`;
+					}
+				}
+
+				if (outline.topBlindSpots.length > 0) {
+					summary += `\nBlind spots (stores appearing unreferenced — categorized by most likely reason):\n`;
+					for (const store of outline.topBlindSpots) {
+						const signals: string[] = [`type: ${store.blindSpotType}`];
+						if (store.mutatorCount > 0) signals.push(`${store.mutatorCount} mutator(s)`);
+						if (store.sfcFileReferences > 0) signals.push(`${store.sfcFileReferences} SFC ref(s)`);
+						summary += `- ${store.name} (${store.kind ?? "unknown"}) [${signals.join(", ")}] — ${store.file}\n`;
 					}
 				}
 

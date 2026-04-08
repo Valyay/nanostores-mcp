@@ -3,6 +3,7 @@ import { SyntaxKind } from "ts-morph";
 import { collectNanostoresStoreImports } from "../../../src/domain/project/scanner/imports.ts";
 import {
 	analyzeStoresInFile,
+	detectMountDependentActivation,
 	extractStoreValueType,
 	getStoreKindFromCall,
 	getSymbolKey,
@@ -175,5 +176,122 @@ describe("extractStoreValueType", () => {
 	it("explicit type argument on computed still wins", () => {
 		const call = getCallExpr("const $x = computed<boolean>($a, (n: number) => n > 0);");
 		expect(extractStoreValueType(call)).toBe("boolean");
+	});
+});
+
+describe("scanner/stores — semantic flags", () => {
+	function scanCode(code: string) {
+		const { sourceFile, absRoot } = createSourceFile(code, "src/stores.ts");
+		const importsInfo = collectNanostoresStoreImports(sourceFile);
+		const context = createStoreContext(absRoot);
+		analyzeStoresInFile(sourceFile, absRoot, importsInfo, context);
+		detectMountDependentActivation(sourceFile, context, importsInfo.onMountFns);
+		return new Map(context.stores.map(s => [s.name, s]));
+	}
+
+	// ── computedHasSideEffects ────────────────────────────────────────────────
+
+	it("flags computed with .set() call inside callback", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"const $b = computed($a, v => { $a.set(v + 1); return v; });",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
+		expect(stores.get("$a")?.flags?.computedHasSideEffects).toBeUndefined();
+	});
+
+	it("flags computed with .subscribe() call inside callback", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"const $b = computed($a, v => { $a.subscribe(() => {}); return v; });",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
+	});
+
+	it("flags computed with .destroy() call as computedHasCleanupCalls, not computedHasSideEffects", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"declare const prev: any;",
+			"const $b = computed($a, v => { prev?.destroy(); return v; });",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasCleanupCalls).toBe(true);
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBeUndefined();
+	});
+
+	it("flags computed with setTimeout inside callback", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"const $b = computed($a, v => { setTimeout(() => {}, 1000); return v; });",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
+	});
+
+	it("does not flag computed with pure derivation", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"const $b = computed($a, v => v * 2);",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBeUndefined();
+	});
+
+	// ── isInsideFactory ───────────────────────────────────────────────────────
+
+	it("can set both computedHasCleanupCalls and computedHasSideEffects on same store", () => {
+		const stores = scanCode([
+			'import { atom, computed } from "nanostores";',
+			"const $a = atom(0);",
+			"declare const prev: any;",
+			"const $b = computed($a, v => { prev?.destroy(); $a.set(v); return v; });",
+		].join("\n"));
+		expect(stores.get("$b")?.flags?.computedHasCleanupCalls).toBe(true);
+		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
+	});
+
+	it("flags atom declared inside a function", () => {
+		const stores = scanCode([
+			'import { atom } from "nanostores";',
+			"export const $global = atom(0);",
+			"export function createPage() {",
+			"  const $local = atom(false);",
+			"  return { $local };",
+			"}",
+		].join("\n"));
+		expect(stores.get("$global")?.flags?.isInsideFactory).toBeUndefined();
+		expect(stores.get("$local")?.flags?.isInsideFactory).toBe(true);
+	});
+
+	it("flags atom declared inside an arrow function", () => {
+		const stores = scanCode([
+			'import { atom } from "nanostores";',
+			"export const createMixin = () => {",
+			"  const $x = atom('');",
+			"  return $x;",
+			"};",
+		].join("\n"));
+		expect(stores.get("$x")?.flags?.isInsideFactory).toBe(true);
+	});
+
+	// ── hasMountDependentActivation ───────────────────────────────────────────
+
+	it("flags store that has onMount call in the same file", () => {
+		const stores = scanCode([
+			'import { atom, onMount } from "nanostores";',
+			"export const $status = atom('idle');",
+			"onMount($status, () => { $status.set('active'); return () => $status.set('idle'); });",
+		].join("\n"));
+		expect(stores.get("$status")?.flags?.hasMountDependentActivation).toBe(true);
+	});
+
+	it("does not flag store without onMount", () => {
+		const stores = scanCode([
+			'import { atom } from "nanostores";',
+			"export const $value = atom(0);",
+		].join("\n"));
+		expect(stores.get("$value")?.flags?.hasMountDependentActivation).toBeUndefined();
 	});
 });

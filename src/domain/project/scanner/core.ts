@@ -8,13 +8,14 @@ import type { ProjectIndex, ScanOptions } from "../types.js";
 import type { StoreMatch, SubscriberMatch, StoreRelation } from "../types.js";
 import { collectNanostoresStoreImports, collectNanostoresFrameworkImports } from "./imports.js";
 import type { NanostoresStoreImports } from "./imports.js";
-import { analyzeStoresInFile } from "./stores.js";
+import { analyzeStoresInFile, detectMountDependentActivation } from "./stores.js";
 import type { StoreAnalysisContext, DerivedStub } from "./stores.js";
 import { analyzeSubscribersInFile } from "./subscribers.js";
 import type { SubscriberAnalysisContext } from "./subscribers.js";
 import { analyzeMutationsInFile } from "./mutations.js";
 import type { MutationAnalysisContext } from "./mutations.js";
 import { addRelation, resolveDerivedRelations } from "./relations.js";
+import { analyzeImperativeReadsInFile, computeImperativeFlags } from "./imperativeFlags.js";
 import { extractScriptsFromSvelteSfc, extractScriptsFromVueSfc } from "./sfc.js";
 
 /**
@@ -199,6 +200,7 @@ export async function scanProject(
 			const importsInfo = collectNanostoresStoreImports(sourceFile, moduleConfig);
 			storeImportsCache.set(sourceFile, importsInfo);
 			analyzeStoresInFile(sourceFile, absRoot, importsInfo, storeContext);
+			detectMountDependentActivation(sourceFile, storeContext, importsInfo.onMountFns);
 		}
 
 		onProgress?.(2, 4, `AST analysis complete: found ${stores.length} stores so far`);
@@ -284,6 +286,8 @@ export async function scanProject(
 			}
 		}
 
+		const imperativeGetIds = new Set<string>();
+
 		const mutationContext: MutationAnalysisContext = {
 			absRoot,
 			mutators,
@@ -293,9 +297,10 @@ export async function scanProject(
 			relationKeys,
 		};
 
-		// --- Third pass: find mutators ---
+		// --- Third pass: find mutators + imperative .get() reads ---
 		for (const sourceFile of project.getSourceFiles()) {
 			analyzeMutationsInFile(sourceFile, absRoot, mutationContext);
+			analyzeImperativeReadsInFile(sourceFile, absRoot, { storesByName, storesBySymbol }, imperativeGetIds);
 		}
 
 		onProgress?.(
@@ -322,6 +327,8 @@ export async function scanProject(
 			mutators,
 			relations,
 		};
+
+		computeImperativeFlags(result, imperativeGetIds);
 
 		onProgress?.(
 			4,

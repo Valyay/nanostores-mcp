@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { ProjectIndex, StoreMatch, SubscriberMatch, StoreKind } from "./types.js";
+import type { ProjectIndex, StoreMatch, SubscriberMatch, StoreKind, StoreFlags } from "./types.js";
 // SubscriberMatch is used in buildStoreImpact below
 
 const PERSISTENT_KINDS = new Set<StoreKind>(["persistentAtom", "persistentMap"]);
@@ -30,6 +30,8 @@ export type GraphOutlineResponse = {
 		subscribersByKind: Record<string, number>;
 		/** Mutator count broken down by kind (action/component/etc.). */
 		mutatorsByKind: Record<string, number>;
+		/** Semantic risk signals from static analysis. */
+		flags?: StoreFlags;
 	}>;
 	/** Top store pairs that co-occur (appear together) in the same subscriber.
 	 * Sorted by co-occurrence count descending. Reveals stores that are
@@ -41,6 +43,40 @@ export type GraphOutlineResponse = {
 		nameB: string;
 		/** Number of subscribers that use both stores simultaneously. */
 		count: number;
+	}>;
+	/** Stores with semantic anomaly flags set — computed side effects, cleanup calls,
+	 * imperative-only reads, story/test-only writers, or writes without subscribers.
+	 * Sorted by connectivity score descending so hub anomalies surface first.
+	 * Each entry carries only the raw flags — interpretation is left to the LLM. */
+	topSemanticAnomalies: Array<{
+		storeId: string;
+		name: string;
+		kind?: string;
+		file?: string;
+		score: number;
+		directSubscribers: number;
+		mutators: number;
+		/** Raw semantic flags that caused this store to be listed. */
+		flags: StoreFlags;
+	}>;
+	/** Stores that appear unreferenced in the static graph but have an observable reason.
+	 * Categorized by the most specific detectable explanation — use this to distinguish
+	 * genuine dead code from scanner blind spots. */
+	topBlindSpots: Array<{
+		storeId: string;
+		name: string;
+		kind?: string;
+		file?: string;
+		/** Most specific detectable reason the store appears unreferenced. */
+		blindSpotType:
+			| "possibly_svelte_reactive"
+			| "factory_local"
+			| "story_or_test_scoped"
+			| "imperative_only"
+			| "truly_unreferenced_candidate";
+		mutatorCount: number;
+		sfcFileReferences: number;
+		flags?: StoreFlags;
 	}>;
 	/** Stores with no detected subscribers or derived dependents in the static graph.
 	 * Raw signals only — qualitative interpretation (dead code, lazy-loaded, template-consumed, etc.)
@@ -239,6 +275,7 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 					mutators: mutatorsCount.get(store.id) ?? 0,
 					subscribersByKind: subscribersByKind.get(store.id) ?? {},
 					mutatorsByKind: mutatorsByKind.get(store.id) ?? {},
+					...(store.flags && { flags: store.flags }),
 				}))
 				.filter(hub => hub.score > 0)
 				.sort(
@@ -271,6 +308,58 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 				}))
 		: [];
 
+	const SEMANTIC_ANOMALY_FLAGS: ReadonlyArray<keyof StoreFlags> = [
+		"computedHasSideEffects",
+		"computedHasCleanupCalls",
+		"writtenWithoutSubscribers",
+		"readViaGetOnly",
+		"storyOrTestOnlyWriter",
+	];
+	const topSemanticAnomalies: GraphOutlineResponse["topSemanticAnomalies"] = index.stores
+		.filter(store => store.flags && SEMANTIC_ANOMALY_FLAGS.some(f => store.flags![f] === true))
+		.map(store => {
+			const subs = subscribersCount.get(store.id) ?? 0;
+			const derived = derivedCount.get(store.id) ?? 0;
+			const muts = mutatorsCount.get(store.id) ?? 0;
+			return {
+				storeId: store.id,
+				name: store.name ?? store.id,
+				kind: store.kind,
+				file: store.file,
+				score: subs * 3 + derived * 2 + muts,
+				directSubscribers: subs,
+				mutators: muts,
+				flags: store.flags!,
+			};
+		})
+		.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+		.slice(0, 7);
+	const topBlindSpots: GraphOutlineResponse["topBlindSpots"] = hasRichEdges
+		? index.stores
+				.filter(store => (subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0)
+				.map(store => {
+					const sfcRefs = sfcStoreRefs.get(store.id)?.size ?? 0;
+					const flags = store.flags;
+					let blindSpotType: GraphOutlineResponse["topBlindSpots"][number]["blindSpotType"];
+					if (sfcRefs > 0) blindSpotType = "possibly_svelte_reactive";
+					else if (flags?.isInsideFactory) blindSpotType = "factory_local";
+					else if (flags?.storyOrTestOnlyWriter) blindSpotType = "story_or_test_scoped";
+					else if (flags?.readViaGetOnly) blindSpotType = "imperative_only";
+					else blindSpotType = "truly_unreferenced_candidate";
+					return {
+						storeId: store.id,
+						name: store.name ?? store.id,
+						kind: store.kind,
+						file: store.file,
+						blindSpotType,
+						mutatorCount: mutatorsCount.get(store.id) ?? 0,
+						sfcFileReferences: sfcRefs,
+						...(flags ? { flags } : {}),
+					};
+				})
+				.slice(0, 10)
+		: [];
+
 	const outline: GraphOutlineResponse = {
 		rootDir: index.rootDir,
 		totals: {
@@ -281,6 +370,8 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 		storeKinds,
 		topDirs,
 		hubs,
+		topSemanticAnomalies,
+		topBlindSpots,
 		unreferencedStores,
 		coOccurringPairs,
 	};

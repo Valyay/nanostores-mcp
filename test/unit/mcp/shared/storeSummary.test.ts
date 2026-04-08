@@ -267,3 +267,68 @@ describe("buildStoreStructuredContent", () => {
 		expect(result.resolution!.requested).toBe("store:src/stores.ts#$counter");
 	});
 });
+
+describe("semantic flags in storeSummary output", () => {
+	it("buildStoreSummaryText: includes flags section when computedHasSideEffects is set", () => {
+		const text = buildStoreSummaryText({
+			store: makeStore({ kind: "computed", flags: { computedHasSideEffects: true } }),
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(text).toContain("Semantic risk signals");
+		expect(text).toContain("computedHasSideEffects");
+	});
+
+	it("buildStoreSummaryText: includes isInsideFactory flag in output", () => {
+		const text = buildStoreSummaryText({
+			store: makeStore({ flags: { isInsideFactory: true } }),
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(text).toContain("isInsideFactory");
+	});
+
+	it("buildStoreSummaryText: includes hasMountDependentActivation flag in output", () => {
+		const text = buildStoreSummaryText({
+			store: makeStore({ flags: { hasMountDependentActivation: true } }),
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(text).toContain("hasMountDependentActivation");
+	});
+
+	it("buildStoreSummaryText: no flags section when store has no flags", () => {
+		const text = buildStoreSummaryText({
+			store: makeStore(),
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(text).not.toContain("Semantic risk signals");
+	});
+
+	it("buildStoreStructuredContent: passes flags through to store object", () => {
+		const result = buildStoreStructuredContent({
+			store: makeStore({ flags: { computedHasSideEffects: true, isInsideFactory: true } }),
+			requestedKey: "$counter",
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(result.store.flags).toEqual({ computedHasSideEffects: true, isInsideFactory: true });
+	});
+
+	it("buildStoreStructuredContent: omits flags field when store has no flags", () => {
+		const result = buildStoreStructuredContent({
+			store: makeStore(),
+			requestedKey: "$counter",
+			subscribers: [],
+			derivesFromStores: [],
+			dependentsStores: [],
+		});
+		expect(result.store.flags).toBeUndefined();
+	});
+});

@@ -26,6 +26,23 @@ export type SubscriberKind = "component" | "hook" | "effect" | "unknown";
 
 export type MutatorKind = "action" | "function" | "method" | "effect" | "unknown";
 
+export interface StoreFlags {
+	/** computed callback contains mutation or async side-effectful calls (.set, .setKey, .subscribe, .listen, setTimeout, fetch, etc.) */
+	computedHasSideEffects?: boolean;
+	/** computed callback contains cleanup calls (.destroy) — typical lifecycle pattern, distinct from state mutations */
+	computedHasCleanupCalls?: boolean;
+	/** store is declared inside a function body, not at module level */
+	isInsideFactory?: boolean;
+	/** onMount() is called on this store in the same file — activation is lazy/subscriber-dependent */
+	hasMountDependentActivation?: boolean;
+	/** store has mutators writing to it but zero reactive subscribers — may be imperative-only or dead */
+	writtenWithoutSubscribers?: boolean;
+	/** store is read only via .get() imperatively — no useStore/subscribe calls detected */
+	readViaGetOnly?: boolean;
+	/** all mutations to this store come from test/story/spec files — store is not written in production code */
+	storyOrTestOnlyWriter?: boolean;
+}
+
 export interface StoreMatch {
 	/** Store node identifier in the graph: store:relativePath#name */
 	id: string;
@@ -37,6 +54,8 @@ export interface StoreMatch {
 	name?: string;
 	/** TypeScript value type, e.g. "number" or "User". Extracted from generic arg or inferred from initialValue. */
 	valueType?: string;
+	/** Semantic risk signals detected by static analysis. */
+	flags?: StoreFlags;
 }
 
 export interface SubscriberMatch {

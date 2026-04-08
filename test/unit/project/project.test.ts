@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ProjectIndex } from "../../../src/domain/project/types.ts";
+import type { ProjectIndex, StoreFlags } from "../../../src/domain/project/types.ts";
 import {
 	buildGraphOutline,
 	buildStoreGraph,
@@ -719,5 +719,145 @@ describe("hubs: weighted score", () => {
 
 		expect(hub).toBeTruthy();
 		expect(hub!.mutators).toBe(1);
+	});
+});
+
+	it("hubs: includes flags when store has semantic risk signals", () => {
+		const indexWithFlags: ProjectIndex = {
+			...projectIndex,
+			stores: [
+				{
+					id: storeCount,
+					file: "src/stores/counter.ts",
+					line: 3,
+					kind: "computed",
+					name: "$count",
+					flags: { computedHasSideEffects: true },
+				},
+				...projectIndex.stores.slice(1),
+			],
+		};
+		const outline = buildGraphOutline(indexWithFlags);
+		const hub = outline.hubs.find(h => h.storeId === storeCount);
+		expect(hub?.flags?.computedHasSideEffects).toBe(true);
+	});
+
+	it("hubs: omits flags field when store has no flags", () => {
+		const outline = buildGraphOutline(projectIndex);
+		const hub = outline.hubs.find(h => h.storeId === storeCount);
+		expect(hub?.flags).toBeUndefined();
+	});
+
+describe("buildGraphOutline — topBlindSpots", () => {
+	const orphanId = "store:src/stores/orphan.ts#$orphan";
+	const otherId = "store:other.ts#other";
+	const otherSub = { id: "subscriber:Other.svelte#Other", file: "Other.svelte", line: 1, kind: "component" as const, name: "Other", storeIds: [otherId] };
+	const otherSubRel = { type: "subscribes_to" as const, from: "subscriber:Other.svelte#Other", to: otherId, file: "Other.svelte" };
+	const otherStore = { id: otherId, file: "other.ts", line: 1, kind: "atom" as const, name: "other" };
+
+	function makeBlindSpotIndex(flags: StoreFlags, sfcDeclares = false, hasSubscriber = false): ProjectIndex {
+		const relations: ProjectIndex["relations"] = [otherSubRel,
+			{ type: "declares", from: sfcDeclares ? "file:Component.svelte" : "file:src/stores/orphan.ts", to: orphanId, file: sfcDeclares ? "Component.svelte" : "src/stores/orphan.ts", line: 1 },
+		];
+		if (hasSubscriber) relations.push({ type: "subscribes_to", from: "subscriber:App.tsx#App", to: orphanId, file: "src/App.tsx" });
+		return {
+			rootDir: "/project", filesScanned: 1,
+			stores: [{ id: orphanId, file: "src/stores/orphan.ts", line: 1, kind: "atom", name: "$orphan", flags }, otherStore],
+			subscribers: [otherSub],
+			mutators: [],
+			relations,
+		};
+	}
+
+	it("categorizes unreferenced factory store as factory_local", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({ isInsideFactory: true }));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("factory_local");
+	});
+
+	it("categorizes story-only writer as story_or_test_scoped", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({ storyOrTestOnlyWriter: true }));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("story_or_test_scoped");
+	});
+
+	it("categorizes imperative-read-only store as imperative_only", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({ readViaGetOnly: true }));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("imperative_only");
+	});
+
+	it("categorizes store with no flags as truly_unreferenced_candidate", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({}));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("truly_unreferenced_candidate");
+	});
+
+	it("possibly_svelte_reactive takes priority over factory_local", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({ isInsideFactory: true }, true));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("possibly_svelte_reactive");
+	});
+
+	it("does not include store with reactive subscriber", () => {
+		const outline = buildGraphOutline(makeBlindSpotIndex({}, false, true));
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")).toBeUndefined();
+	});
+});
+
+describe("buildGraphOutline — topSemanticAnomalies", () => {
+	const storeId = "store:src/stores/page.ts#currentPage";
+
+	function makeAnomalyIndex(flags: StoreFlags): ProjectIndex {
+		return {
+			rootDir: "/project",
+			filesScanned: 1,
+			stores: [{ id: storeId, file: "src/stores/page.ts", line: 1, kind: "computed", name: "currentPage", flags }],
+			subscribers: [],
+			mutators: [],
+			relations: [{ type: "declares", from: "file:src/stores/page.ts", to: storeId, file: "src/stores/page.ts", line: 1 }],
+		};
+	}
+
+	it("includes store with computedHasCleanupCalls flag", () => {
+		const outline = buildGraphOutline(makeAnomalyIndex({ computedHasCleanupCalls: true }));
+		const anomaly = outline.topSemanticAnomalies.find(a => a.storeId === storeId);
+		expect(anomaly).toBeTruthy();
+		expect(anomaly?.flags.computedHasCleanupCalls).toBe(true);
+	});
+
+	it("includes store with computedHasSideEffects flag", () => {
+		const outline = buildGraphOutline(makeAnomalyIndex({ computedHasSideEffects: true }));
+		expect(outline.topSemanticAnomalies.some(a => a.storeId === storeId)).toBe(true);
+	});
+
+	it("includes store with readViaGetOnly flag", () => {
+		const outline = buildGraphOutline(makeAnomalyIndex({ readViaGetOnly: true }));
+		expect(outline.topSemanticAnomalies.some(a => a.storeId === storeId)).toBe(true);
+	});
+
+	it("does not include store with no anomaly flags", () => {
+		const outline = buildGraphOutline(makeAnomalyIndex({}));
+		expect(outline.topSemanticAnomalies.some(a => a.storeId === storeId)).toBe(false);
+	});
+
+	it("does not include store with only isInsideFactory — structural, not anomaly", () => {
+		const outline = buildGraphOutline(makeAnomalyIndex({ isInsideFactory: true }));
+		expect(outline.topSemanticAnomalies.some(a => a.storeId === storeId)).toBe(false);
+	});
+
+	it("sorts hub anomaly before low-connectivity anomaly", () => {
+		const hubId = "store:src/hub.ts#$hub";
+		const lowId = "store:src/low.ts#$low";
+		const sub = "subscriber:src/App.tsx#App";
+		const index: ProjectIndex = {
+			rootDir: "/project",
+			filesScanned: 2,
+			stores: [
+				{ id: lowId, file: "src/low.ts", line: 1, kind: "computed", name: "$low", flags: { computedHasSideEffects: true } },
+				{ id: hubId, file: "src/hub.ts", line: 1, kind: "computed", name: "$hub", flags: { computedHasSideEffects: true } },
+			],
+			subscribers: [{ id: sub, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [hubId] }],
+			mutators: [],
+			relations: [{ type: "subscribes_to", from: sub, to: hubId, file: "src/App.tsx", line: 1 }],
+		};
+		const outline = buildGraphOutline(index);
+		const ids = outline.topSemanticAnomalies.map(a => a.storeId);
+		expect(ids.indexOf(hubId)).toBeLessThan(ids.indexOf(lowId));
 	});
 });

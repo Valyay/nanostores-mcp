@@ -43,6 +43,8 @@ export interface NanostoresStoreImports {
 	nanostoresNamespaces: Set<string>;
 	/** Local names of imported `effect` function from nanostores base module. */
 	effectFns: Set<string>;
+	/** Local names of imported `onMount` function from nanostores base module. */
+	onMountFns: Set<string>;
 }
 
 /**
@@ -57,6 +59,7 @@ export function collectNanostoresStoreImports(
 	const storeFactories = new Map<string, StoreKind>();
 	const nanostoresNamespaces = new Set<string>();
 	const effectFns = new Set<string>();
+	const onMountFns = new Set<string>();
 
 	const baseModules = moduleConfig?.baseModules ?? NANOSTORES_BASE_MODULES;
 	const persistentModules = moduleConfig?.persistentModules ?? NANOSTORES_PERSISTENT_MODULES;
@@ -81,9 +84,12 @@ export function collectNanostoresStoreImports(
 				storeFactories.set(localName, kind);
 			}
 
-			// effect() is a base-module export, not a store factory
+			// effect() and onMount() are base-module exports, not store factories
 			if (isBaseModule && importedName === "effect") {
 				effectFns.add(localName);
+			}
+			if (isBaseModule && importedName === "onMount") {
+				onMountFns.add(localName);
 			}
 		}
 
@@ -96,7 +102,7 @@ export function collectNanostoresStoreImports(
 		}
 	}
 
-	return { storeFactories, nanostoresNamespaces, effectFns };
+	return { storeFactories, nanostoresNamespaces, effectFns, onMountFns };
 }
 
 export interface NanostoresFrameworkImports {

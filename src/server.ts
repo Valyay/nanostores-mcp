@@ -42,7 +42,11 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 	// ── Analysis directive ────────────────────────────────────────────────────
 	// Establishes how to work with tool results before listing the tools themselves.
 	lines.push(
-		"Nanostores tool results expose structural signals — hub scores, subscriber counts, mutator counts, chain depth, co-occurring pairs. Use them to identify which stores warrant investigation.",
+		"Nanostores tool results expose structural signals — hub scores, subscriber counts, mutator counts, chain depth, co-occurring pairs, and store flags. Use them to identify which stores warrant investigation.",
+		"",
+		"Store flags (computedHasSideEffects, computedHasCleanupCalls, isInsideFactory, readViaGetOnly, storyOrTestOnlyWriter, etc.) are observational signals, not conclusions.",
+		"Use them to prioritize investigation. Validate with source code or additional structural evidence before making a strong claim.",
+		"If not validated, present as a possibility — not as a finding.",
 		"",
 		"For each store you investigate, Read the source file before stating findings:",
 		"1. Use structural signals to form a hypothesis about the store's role and usage pattern",
@@ -100,25 +104,26 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		);
 	}
 
-	// ── Request patterns → tool sequences ────────────────────────────────────
+	// ── Tool selection heuristics ─────────────────────────────────────────────
 	lines.push(
 		"",
-		"Request patterns and tool sequences:",
-		`- "Analyze / how is state structured?" → ${TOOLS.projectOutline} → follow investigation hints in the response → Read flagged source files`,
-		`- "Why does $Component re-render?" → ${TOOLS.storeSummary} for each store it uses → ${TOOLS.storeImpact} → Read component and store source`,
-		`- "What happens when [event / action]?" → identify the store that changes → ${TOOLS.storeImpact} → Read mutator source`,
-		`- "Is any state unused / dead?" → ${TOOLS.projectOutline} → unreferencedStores section → Read source files before concluding`,
-		`- "How is [auth / routing / sync] managed?" → ${TOOLS.scanProject}({compact: true}) → ${TOOLS.storeSummary} for relevant stores → Read source files`,
+		"Tool selection heuristics:",
+		`- For topology / architecture questions (how is state structured, what depends on what): prefer graph-level tools first (${TOOLS.projectOutline}, ${TOOLS.storeSummary}, ${TOOLS.storeSubgraph}). Read source files only to validate or explain suspicious findings.`,
+		`- For causal questions (what recomputes when X changes, why does Y re-render): use ${TOOLS.storeImpact} on the root store before reading source.`,
+		`- For dead code questions (unused stores): ${TOOLS.projectOutline} unreferencedStores — treat signals (mutatorCount, sfcFileReferences, isPersistent) as hypotheses, not conclusions. Read the source file before concluding.`,
+		`- For unfamiliar codebases or broad scans: ${TOOLS.scanProject}({compact: true}) gives a directory-level overview without full store lists.`,
 	);
 
 	if (loggerEnabled) {
 		lines.push(
-			`- "Performance / why noisy updates?" → ${TOOLS.findNoisyStores} → ${TOOLS.storeActivity} (runtime events for one store) → ${TOOLS.storeImpact} → Read source`,
+			`- For performance questions (noisy updates, excess re-renders): ${TOOLS.findNoisyStores} → ${TOOLS.storeActivity} → ${TOOLS.storeImpact} → read source. Distinguish cascades (upstream store → this store) from external triggers (user action → store).`,
 		);
 	}
 
 	if (docsEnabled) {
-		lines.push(`- "How do I use [pattern]?" → ${TOOLS.docsSearch} → apply to flagged stores`);
+		lines.push(
+			`- For pattern questions (how to use X, is this idiomatic): ${TOOLS.docsSearch} first, then apply to flagged stores.`,
+		);
 	}
 
 	// ── Structural signals ────────────────────────────────────────────────────
@@ -129,6 +134,15 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		"- fan-in: computed stores that depend on many sources recalculate once per source change.",
 		`- unreferencedStores in ${TOOLS.projectOutline}: stores with no detected subscribers or derived dependents; includes mutatorCount, sfcFileReferences, and isPersistent signals.`,
 		`- coOccurringPairs in ${TOOLS.projectOutline}: stores that consistently appear together in subscribers — candidates for consolidation or a shared derived store.`,
+		"",
+		"Semantic flags on stores (appear in store_summary output under flags):",
+		"- computedHasSideEffects: computed callback calls .set/.subscribe/setTimeout/etc — read source before assuming pure derivation.",
+		"- computedHasCleanupCalls: computed callback calls .destroy() — typical lifecycle pattern, distinct from state mutation side effects.",
+		"- isInsideFactory: store declared inside a function body — may be per-instance, not shared global state.",
+		"- hasMountDependentActivation: onMount() detected — behavior only activates when the store has live subscribers.",
+		"- writtenWithoutSubscribers: mutators exist but no reactive subscribers detected — may be imperative-only config, dead code, or subscribers hidden from static analysis (onMount, onSet, keepMount).",
+		"- readViaGetOnly: only .get() calls detected, no useStore/subscribe — imperative access pattern. Not necessarily dead — could be a service or utility reading state outside the reactive graph.",
+		"- storyOrTestOnlyWriter: all detected mutations come from test/story files — store is not written in production code. Strong signal for test-only or mock state.",
 	);
 
 	if (loggerEnabled) {
@@ -140,31 +154,36 @@ export function buildInstructions(loggerEnabled: boolean, docsEnabled: boolean):
 		);
 	}
 
-	// ── When investigating ────────────────────────────────────────────────────
+	// ── Static analysis blind spots ───────────────────────────────────────────
+	// List of known gaps in static detection. Remove each item when the scanner is fixed.
 	lines.push(
 		"",
-		"When a potential issue is found:",
-		"- Read the source file of the store (file and line are in scan results) — structure shows the symptom, the file shows the intent.",
-		`- Use ${TOOLS.storeSummary} or ${TOOLS.storeSubgraph} on flagged stores to see their full dependency context.`,
+		"Static analysis blind spots — the scanner cannot detect these patterns. Adjust confidence accordingly:",
+		"",
+		"Subscriptions not detected:",
+		"- onMount($store, callback) and onSet($store, callback): nanostores lifecycle hooks are not counted as subscribers. A store with zero detected subscribers may still be actively used via these hooks.",
+		"- keepMount($store): forces a store to stay mounted; invisible to the subscriber graph.",
+		"- $store.get() inside intervals or render loops counts as readViaGetOnly — polling-style reads are detected as imperative access but not as reactive subscriptions.",
+		"",
+		"Store declarations not detected:",
+		"- Stores returned from factory functions and captured via destructuring: `const { $x } = createFoo()` — $x is not linked to the atom() call inside createFoo, so it will not appear in the store index.",
+		"- atomFamily(id) and mapTemplate(id) call sites: each call creates a store instance at runtime, but instances are not tracked. Only the family/template declaration itself is indexed.",
+		"- Dynamic imports: `await import('./stores')` — stores from async-loaded modules are not scanned.",
+		"- CommonJS require(): `const { atom } = require('nanostores')` — only ESM import declarations are parsed.",
+		"- Default import style: `import ns from 'nanostores'` is not recognized; only named imports and `import * as ns` are detected.",
+		"",
+		"Dependency edges not detected:",
+		"- atomFamily / mapTemplate / computedTemplate derives_from edges are intentionally excluded (incomplete dependency semantics). Chains passing through template stores are invisible.",
+		"- onSet($a, () => $b.set(...)) reactive chains: side-effect-driven store-to-store dependencies do not appear as derives_from edges.",
+		"",
+		"Mutation attribution gaps:",
+		"- batch(() => { $a.set(); $b.set() }): individual .set() calls are detected, but the batch boundary is invisible — related mutations are not grouped.",
+		"- Indirect mutations via wrapper functions: `function updateUser(v) { $user.set(v) }` — the call site of updateUser() is not attributed to $user.",
 	);
 
-	if (docsEnabled) {
-		lines.push(
-			`- Use ${TOOLS.docsSearch} for relevant optimization patterns (batched computed, setKey for maps, store composition).`,
-		);
-	}
-
-	// ── Combined static + runtime pattern ─────────────────────────────────────
 	if (loggerEnabled) {
 		lines.push(
-			"",
-			"Combined static + runtime analysis pattern:",
-			`1. ${TOOLS.projectOutline} → identify hubs and hot zones.`,
-			`2. ${TOOLS.storeSummary} for each flagged hub → understand direct neighbors.`,
-			`3. ${TOOLS.runtimeCoverage} → find gaps between static declarations and runtime events.`,
-			`4. For flagged stores: ${TOOLS.storeActivity} (runtime details) + ${TOOLS.storeSubgraph} radius=1 (static impact).`,
-			`5. ${TOOLS.findNoisyStores} → identify performance bottlenecks across the project.`,
-			`6. ${TOOLS.scanProject} {compact: true} → directory-level view of all stores and subscribers.`,
+			`Use ${TOOLS.runtimeCoverage} to cross-check: stores present at runtime but absent in the static index are likely factory-created or loaded dynamically.`,
 		);
 	}
 

@@ -63,16 +63,14 @@ describe("buildInstructions", () => {
 
 	it("includes project_outline and scan_project in task routing guidance", () => {
 		const result = buildInstructions(false, false);
-		// Routing is in request patterns, not a trailing imperative sentence
 		expect(result).toContain("nanostores_project_outline");
 		expect(result).toContain("nanostores_scan_project");
-		// Tool routing is expressed as request pattern → tool sequence
-		expect(result).toContain("Request patterns and tool sequences:");
+		expect(result).toContain("Tool selection heuristics:");
 	});
 
 	it("includes task-based tool routing covering key tools", () => {
 		const result = buildInstructions(false, false);
-		expect(result).toContain("Request patterns and tool sequences:");
+		expect(result).toContain("Tool selection heuristics:");
 		expect(result).toContain("nanostores_store_summary");
 		expect(result).toContain("nanostores_store_impact");
 		expect(result).toContain("nanostores_store_subgraph");
@@ -87,11 +85,11 @@ describe("buildInstructions", () => {
 		expect(disabled).not.toContain("runtime events");
 	});
 
-	it("includes combined analysis pattern when logger enabled", () => {
+	it("includes combined analysis hints when logger enabled", () => {
 		const enabled = buildInstructions(true, false);
 		const disabled = buildInstructions(false, false);
-		expect(enabled).toContain("Combined static + runtime analysis pattern:");
-		expect(disabled).not.toContain("Combined static + runtime");
+		expect(enabled).toContain("Distinguish cascades");
+		expect(disabled).not.toContain("Distinguish cascades");
 	});
 
 	it("analysis directive: combines structural signals with source file reading", () => {
@@ -106,24 +104,30 @@ describe("buildInstructions", () => {
 		expect(result).not.toContain("Routing / navigation");
 	});
 
-	it("request patterns: covers common user intent phrases with tool sequences", () => {
+	it("tool heuristics: covers topology, causal, dead code question types", () => {
 		const result = buildInstructions(false, false);
-		expect(result).toContain("Request patterns and tool sequences:");
-		expect(result).toContain("Analyze / how is state structured?");
-		expect(result).toContain("Why does $Component re-render?");
-		expect(result).toContain("Is any state unused / dead?");
+		expect(result).toContain("Tool selection heuristics:");
+		expect(result).toContain("topology / architecture questions");
+		expect(result).toContain("causal questions");
+		expect(result).toContain("dead code questions");
 	});
 
-	it("request patterns: includes performance pattern only when logger enabled", () => {
+	it("tool heuristics: includes performance pattern only when logger enabled", () => {
 		const enabled = buildInstructions(true, false);
 		const disabled = buildInstructions(false, false);
-		expect(enabled).toContain("Performance / why noisy updates?");
-		expect(disabled).not.toContain("Performance / why noisy updates?");
+		expect(enabled).toContain("noisy updates");
+		expect(disabled).not.toContain("noisy updates");
 	});
 
 	it("structural signals: includes coOccurringPairs", () => {
 		const result = buildInstructions(false, false);
 		expect(result).toContain("coOccurringPairs");
+	});
+
+	it("flags-as-signals rule: instructs LLM to validate flags before concluding", () => {
+		const result = buildInstructions(false, false);
+		expect(result).toContain("observational signals, not conclusions");
+		expect(result).toContain("Validate with source code");
 	});
 
 	it("analysis directive comes before the tools list", () => {
