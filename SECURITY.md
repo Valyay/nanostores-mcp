@@ -13,6 +13,7 @@ Please **do not** open a public GitHub issue for security vulnerabilities.
 Instead, report them privately via [GitHub Security Advisories](https://github.com/Valyay/nanostores-mcp/security/advisories/new).
 
 Include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
