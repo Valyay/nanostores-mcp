@@ -262,12 +262,13 @@ Call tool: nanostores_store_activity  { "storeName": "counter" }
 
 **Static Analysis**
 
-| Tool                         | Description                                                   |
-| ---------------------------- | ------------------------------------------------------------- |
-| `nanostores_scan_project`    | Scan project for all stores, subscribers, and dependencies    |
-| `nanostores_store_summary`   | Detailed summary of a specific store                          |
-| `nanostores_project_outline` | High-level overview: store kinds, top directories, hub stores |
-| `nanostores_store_subgraph`  | BFS-expanded dependency neighborhood of a store               |
+| Tool                         | Description                                                       |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `nanostores_scan_project`    | Scan project for all stores, subscribers, and dependencies        |
+| `nanostores_store_summary`   | Detailed summary of a specific store                              |
+| `nanostores_project_outline` | High-level overview: store kinds, top directories, hub stores     |
+| `nanostores_store_subgraph`  | BFS-expanded dependency neighborhood of a store                   |
+| `nanostores_store_impact`    | Downstream causal chain — what recomputes/re-renders if X changes |
 
 **Runtime Monitoring**
 
