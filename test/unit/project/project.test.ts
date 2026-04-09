@@ -301,20 +301,64 @@ describe("project domain: graph and summary builders", () => {
 			rootDir: "/workspace",
 			filesScanned: 3,
 			stores: [
-				{ id: writeOnlyStore, file: "src/stores/writeOnly.ts", line: 1, kind: "atom", name: "$writeOnly" },
+				{
+					id: writeOnlyStore,
+					file: "src/stores/writeOnly.ts",
+					line: 1,
+					kind: "atom",
+					name: "$writeOnly",
+				},
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 6,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [
-				{ id: mutatorId, file: "src/actions/update.ts", line: 5, kind: "action", name: "updateAction", storeIds: [writeOnlyStore] },
+				{
+					id: mutatorId,
+					file: "src/actions/update.ts",
+					line: 5,
+					kind: "action",
+					name: "updateAction",
+					storeIds: [writeOnlyStore],
+				},
 			],
 			relations: [
-				{ type: "declares", from: "file:src/stores/writeOnly.ts", to: writeOnlyStore, file: "src/stores/writeOnly.ts", line: 1 },
-				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
-				{ type: "mutates", from: mutatorId, to: writeOnlyStore, file: "src/actions/update.ts", line: 5 },
+				{
+					type: "declares",
+					from: "file:src/stores/writeOnly.ts",
+					to: writeOnlyStore,
+					file: "src/stores/writeOnly.ts",
+					line: 1,
+				},
+				{
+					type: "declares",
+					from: "file:src/stores/counter.ts",
+					to: storeCount,
+					file: "src/stores/counter.ts",
+					line: 1,
+				},
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 6,
+				},
+				{
+					type: "mutates",
+					from: mutatorId,
+					to: writeOnlyStore,
+					file: "src/actions/update.ts",
+					line: 5,
+				},
 			],
 		};
 		const outline = buildGraphOutline(woIndex);
@@ -332,14 +376,45 @@ describe("project domain: graph and summary builders", () => {
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 6,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
 			relations: [
-				{ type: "declares", from: "file:src/stores/page.ts", to: svelteStore, file: "src/stores/page.ts", line: 1 },
-				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
-				{ type: "declares", from: "file:components/Page.svelte", to: svelteStore, file: "components/Page.svelte", line: 3 },
+				{
+					type: "declares",
+					from: "file:src/stores/page.ts",
+					to: svelteStore,
+					file: "src/stores/page.ts",
+					line: 1,
+				},
+				{
+					type: "declares",
+					from: "file:src/stores/counter.ts",
+					to: storeCount,
+					file: "src/stores/counter.ts",
+					line: 1,
+				},
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 6,
+				},
+				{
+					type: "declares",
+					from: "file:components/Page.svelte",
+					to: svelteStore,
+					file: "components/Page.svelte",
+					line: 3,
+				},
 			],
 		};
 		const outline = buildGraphOutline(ftIndex);
@@ -353,17 +428,48 @@ describe("project domain: graph and summary builders", () => {
 			rootDir: "/workspace",
 			filesScanned: 2,
 			stores: [
-				{ id: persistentStore, file: "src/stores/prefs.ts", line: 1, kind: "persistentAtom", name: "$prefs" },
+				{
+					id: persistentStore,
+					file: "src/stores/prefs.ts",
+					line: 1,
+					kind: "persistentAtom",
+					name: "$prefs",
+				},
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 6,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
 			relations: [
-				{ type: "declares", from: "file:src/stores/prefs.ts", to: persistentStore, file: "src/stores/prefs.ts", line: 1 },
-				{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+				{
+					type: "declares",
+					from: "file:src/stores/prefs.ts",
+					to: persistentStore,
+					file: "src/stores/prefs.ts",
+					line: 1,
+				},
+				{
+					type: "declares",
+					from: "file:src/stores/counter.ts",
+					to: storeCount,
+					file: "src/stores/counter.ts",
+					line: 1,
+				},
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 6,
+				},
 			],
 		};
 		const outline = buildGraphOutline(pIndex);
@@ -375,10 +481,20 @@ describe("project domain: graph and summary builders", () => {
 		const declaresOnlyIndex: ProjectIndex = {
 			rootDir: "/workspace",
 			filesScanned: 1,
-			stores: [{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			subscribers: [],
 			mutators: [],
-			relations: [{ type: "declares", from: "file:src/stores/counter.ts", to: storeCount, file: "src/stores/counter.ts", line: 1 }],
+			relations: [
+				{
+					type: "declares",
+					from: "file:src/stores/counter.ts",
+					to: storeCount,
+					file: "src/stores/counter.ts",
+					line: 1,
+				},
+			],
 		};
 		const outline = buildGraphOutline(declaresOnlyIndex);
 		expect(outline.unreferencedStores).toEqual([]);
@@ -396,15 +512,47 @@ describe("project domain: graph and summary builders", () => {
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: "subscriber:src/App.tsx#App", file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [storeA, storeB] },
+				{
+					id: "subscriber:src/App.tsx#App",
+					file: "src/App.tsx",
+					line: 1,
+					kind: "component",
+					name: "App",
+					storeIds: [storeA, storeB],
+				},
 				// $count has no co-subscriber partner
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 1, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 1,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
 			relations: [
-				{ type: "subscribes_to", from: "subscriber:src/App.tsx#App", to: storeA, file: "src/App.tsx", line: 1 },
-				{ type: "subscribes_to", from: "subscriber:src/App.tsx#App", to: storeB, file: "src/App.tsx", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 1 },
+				{
+					type: "subscribes_to",
+					from: "subscriber:src/App.tsx#App",
+					to: storeA,
+					file: "src/App.tsx",
+					line: 1,
+				},
+				{
+					type: "subscribes_to",
+					from: "subscriber:src/App.tsx#App",
+					to: storeB,
+					file: "src/App.tsx",
+					line: 1,
+				},
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 1,
+				},
 			],
 		};
 		const outline = buildGraphOutline(pairIndex);
@@ -429,9 +577,30 @@ describe("project domain: graph and summary builders", () => {
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: sub1, file: "src/Comp1.tsx", line: 1, kind: "component", name: "Comp1", storeIds: [storeA, storeB] },
-				{ id: sub2, file: "src/Comp2.tsx", line: 1, kind: "component", name: "Comp2", storeIds: [storeA, storeB, storeCount] },
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 1, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: sub1,
+					file: "src/Comp1.tsx",
+					line: 1,
+					kind: "component",
+					name: "Comp1",
+					storeIds: [storeA, storeB],
+				},
+				{
+					id: sub2,
+					file: "src/Comp2.tsx",
+					line: 1,
+					kind: "component",
+					name: "Comp2",
+					storeIds: [storeA, storeB, storeCount],
+				},
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 1,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
 			relations: [
@@ -440,7 +609,13 @@ describe("project domain: graph and summary builders", () => {
 				{ type: "subscribes_to", from: sub2, to: storeA, file: "src/Comp2.tsx", line: 1 },
 				{ type: "subscribes_to", from: sub2, to: storeB, file: "src/Comp2.tsx", line: 1 },
 				{ type: "subscribes_to", from: sub2, to: storeCount, file: "src/Comp2.tsx", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 1 },
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 1,
+				},
 			],
 		};
 		const outline = buildGraphOutline(pairIndex);
@@ -468,10 +643,38 @@ describe("project domain: graph and summary builders", () => {
 			],
 			subscribers: [
 				// A+B appear together twice; A+C once
-				{ id: sub1, file: "src/S1.tsx", line: 1, kind: "component", name: "S1", storeIds: [storeA, storeB] },
-				{ id: sub2, file: "src/S2.tsx", line: 1, kind: "component", name: "S2", storeIds: [storeA, storeB] },
-				{ id: sub3, file: "src/S3.tsx", line: 1, kind: "component", name: "S3", storeIds: [storeA, storeC] },
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 1, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: sub1,
+					file: "src/S1.tsx",
+					line: 1,
+					kind: "component",
+					name: "S1",
+					storeIds: [storeA, storeB],
+				},
+				{
+					id: sub2,
+					file: "src/S2.tsx",
+					line: 1,
+					kind: "component",
+					name: "S2",
+					storeIds: [storeA, storeB],
+				},
+				{
+					id: sub3,
+					file: "src/S3.tsx",
+					line: 1,
+					kind: "component",
+					name: "S3",
+					storeIds: [storeA, storeC],
+				},
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 1,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
 			relations: [
@@ -481,23 +684,48 @@ describe("project domain: graph and summary builders", () => {
 				{ type: "subscribes_to", from: sub2, to: storeB, file: "src/S2.tsx", line: 1 },
 				{ type: "subscribes_to", from: sub3, to: storeA, file: "src/S3.tsx", line: 1 },
 				{ type: "subscribes_to", from: sub3, to: storeC, file: "src/S3.tsx", line: 1 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 1 },
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 1,
+				},
 			],
 		};
 		const outline = buildGraphOutline(sortIndex);
-		expect(outline.coOccurringPairs[0].count).toBeGreaterThanOrEqual(outline.coOccurringPairs[1].count);
+		expect(outline.coOccurringPairs[0].count).toBeGreaterThanOrEqual(
+			outline.coOccurringPairs[1].count,
+		);
 	});
 
 	it("coOccurringPairs: empty when no subscriber has 2+ known stores", () => {
 		const outline = buildGraphOutline({
 			rootDir: "/workspace",
 			filesScanned: 1,
-			stores: [{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 1, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 1,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [],
-			relations: [{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 1 }],
+			relations: [
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 1,
+				},
+			],
 		});
 		expect(outline.coOccurringPairs).toEqual([]);
 	});
@@ -526,15 +754,41 @@ describe("project domain: graph and summary builders", () => {
 				{ id: storeCart, file: "src/stores/cart.ts", line: 2, kind: "map", name: "$cart" },
 			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 6,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [
-				{ id: actionId, file: "src/actions/reset.ts", line: 3, kind: "action", name: "resetCounter", storeIds: [storeCount] },
+				{
+					id: actionId,
+					file: "src/actions/reset.ts",
+					line: 3,
+					kind: "action",
+					name: "resetCounter",
+					storeIds: [storeCount],
+				},
 			],
 			relations: [
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 6,
+				},
 				{ type: "mutates", from: actionId, to: storeCount, file: "src/actions/reset.ts", line: 3 },
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCart, file: "src/components/Counter.tsx", line: 7 },
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCart,
+					file: "src/components/Counter.tsx",
+					line: 7,
+				},
 			],
 		};
 		const outline = buildGraphOutline(mutatedIndex);
@@ -557,20 +811,65 @@ describe("project domain: graph and summary builders", () => {
 			rootDir: "/workspace",
 			filesScanned: 3,
 			stores: [
-				{ id: writeOnlyStore, file: "src/stores/writeOnly.ts", line: 1, kind: "atom", name: "$writeOnly" },
+				{
+					id: writeOnlyStore,
+					file: "src/stores/writeOnly.ts",
+					line: 1,
+					kind: "atom",
+					name: "$writeOnly",
+				},
 				{ id: storeCount, file: "src/stores/counter.ts", line: 1, kind: "atom", name: "$count" },
 			],
 			subscribers: [
-				{ id: subscriberCounter, file: "src/components/Counter.tsx", line: 6, kind: "component", name: "Counter", storeIds: [storeCount] },
+				{
+					id: subscriberCounter,
+					file: "src/components/Counter.tsx",
+					line: 6,
+					kind: "component",
+					name: "Counter",
+					storeIds: [storeCount],
+				},
 			],
 			mutators: [
-				{ id: actionId, file: "src/actions/update.ts", line: 5, kind: "action", name: "updateAction", storeIds: [writeOnlyStore] },
-				{ id: componentId, file: "src/components/Admin.tsx", line: 12, kind: "component", name: "handleReset", storeIds: [writeOnlyStore] },
+				{
+					id: actionId,
+					file: "src/actions/update.ts",
+					line: 5,
+					kind: "action",
+					name: "updateAction",
+					storeIds: [writeOnlyStore],
+				},
+				{
+					id: componentId,
+					file: "src/components/Admin.tsx",
+					line: 12,
+					kind: "component",
+					name: "handleReset",
+					storeIds: [writeOnlyStore],
+				},
 			],
 			relations: [
-				{ type: "subscribes_to", from: subscriberCounter, to: storeCount, file: "src/components/Counter.tsx", line: 6 },
-				{ type: "mutates", from: actionId, to: writeOnlyStore, file: "src/actions/update.ts", line: 5 },
-				{ type: "mutates", from: componentId, to: writeOnlyStore, file: "src/components/Admin.tsx", line: 12 },
+				{
+					type: "subscribes_to",
+					from: subscriberCounter,
+					to: storeCount,
+					file: "src/components/Counter.tsx",
+					line: 6,
+				},
+				{
+					type: "mutates",
+					from: actionId,
+					to: writeOnlyStore,
+					file: "src/actions/update.ts",
+					line: 5,
+				},
+				{
+					type: "mutates",
+					from: componentId,
+					to: writeOnlyStore,
+					file: "src/components/Admin.tsx",
+					line: 12,
+				},
 			],
 		};
 		const outline = buildGraphOutline(woIndex);
@@ -651,7 +950,16 @@ describe("hubs: weighted score", () => {
 				{ id: storeA, file: "src/a.ts", line: 1, kind: "atom", name: "$a" },
 				{ id: storeC, file: "src/c.ts", line: 1, kind: "atom", name: "$c" },
 			],
-			subscribers: [{ id: subA, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [storeA] }],
+			subscribers: [
+				{
+					id: subA,
+					file: "src/App.tsx",
+					line: 1,
+					kind: "component",
+					name: "App",
+					storeIds: [storeA],
+				},
+			],
 			mutators: [],
 			relations: [
 				{ type: "subscribes_to", from: subA, to: storeA, file: "src/App.tsx", line: 1 },
@@ -683,11 +991,32 @@ describe("hubs: weighted score", () => {
 				{ id: storeIsolated, file: "src/isolated.ts", line: 1, kind: "atom", name: "$isolated" },
 				{ id: storeActive, file: "src/active.ts", line: 1, kind: "atom", name: "$active" },
 			],
-			subscribers: [{ id: sub, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [storeActive] }],
+			subscribers: [
+				{
+					id: sub,
+					file: "src/App.tsx",
+					line: 1,
+					kind: "component",
+					name: "App",
+					storeIds: [storeActive],
+				},
+			],
 			mutators: [],
 			relations: [
-				{ type: "declares", from: "file:src/isolated.ts", to: storeIsolated, file: "src/isolated.ts", line: 1 },
-				{ type: "declares", from: "file:src/active.ts", to: storeActive, file: "src/active.ts", line: 1 },
+				{
+					type: "declares",
+					from: "file:src/isolated.ts",
+					to: storeIsolated,
+					file: "src/isolated.ts",
+					line: 1,
+				},
+				{
+					type: "declares",
+					from: "file:src/active.ts",
+					to: storeActive,
+					file: "src/active.ts",
+					line: 1,
+				},
 				{ type: "subscribes_to", from: sub, to: storeActive, file: "src/App.tsx", line: 1 },
 			],
 		};
@@ -707,7 +1036,16 @@ describe("hubs: weighted score", () => {
 			filesScanned: 2,
 			stores: [{ id: storeA, file: "src/a.ts", line: 1, kind: "atom", name: "$a" }],
 			subscribers: [],
-			mutators: [{ id: mutatorA, file: "src/actions.ts", line: 1, kind: "action", name: "setA", storeIds: [storeA] }],
+			mutators: [
+				{
+					id: mutatorA,
+					file: "src/actions.ts",
+					line: 1,
+					kind: "action",
+					name: "setA",
+					storeIds: [storeA],
+				},
+			],
 			relations: [
 				{ type: "declares", from: "file:src/a.ts", to: storeA, file: "src/a.ts", line: 1 },
 				{ type: "mutates", from: mutatorA, to: storeA, file: "src/actions.ts", line: 1 },
@@ -722,47 +1060,93 @@ describe("hubs: weighted score", () => {
 	});
 });
 
-	it("hubs: includes flags when store has semantic risk signals", () => {
-		const indexWithFlags: ProjectIndex = {
-			...projectIndex,
-			stores: [
-				{
-					id: storeCount,
-					file: "src/stores/counter.ts",
-					line: 3,
-					kind: "computed",
-					name: "$count",
-					flags: { computedHasSideEffects: true },
-				},
-				...projectIndex.stores.slice(1),
-			],
-		};
-		const outline = buildGraphOutline(indexWithFlags);
-		const hub = outline.hubs.find(h => h.storeId === storeCount);
-		expect(hub?.flags?.computedHasSideEffects).toBe(true);
-	});
+it("hubs: includes flags when store has semantic risk signals", () => {
+	const indexWithFlags: ProjectIndex = {
+		...projectIndex,
+		stores: [
+			{
+				id: storeCount,
+				file: "src/stores/counter.ts",
+				line: 3,
+				kind: "computed",
+				name: "$count",
+				flags: { computedHasSideEffects: true },
+			},
+			...projectIndex.stores.slice(1),
+		],
+	};
+	const outline = buildGraphOutline(indexWithFlags);
+	const hub = outline.hubs.find(h => h.storeId === storeCount);
+	expect(hub?.flags?.computedHasSideEffects).toBe(true);
+});
 
-	it("hubs: omits flags field when store has no flags", () => {
-		const outline = buildGraphOutline(projectIndex);
-		const hub = outline.hubs.find(h => h.storeId === storeCount);
-		expect(hub?.flags).toBeUndefined();
-	});
+it("hubs: omits flags field when store has no flags", () => {
+	const outline = buildGraphOutline(projectIndex);
+	const hub = outline.hubs.find(h => h.storeId === storeCount);
+	expect(hub?.flags).toBeUndefined();
+});
 
 describe("buildGraphOutline — topBlindSpots", () => {
 	const orphanId = "store:src/stores/orphan.ts#$orphan";
 	const otherId = "store:other.ts#other";
-	const otherSub = { id: "subscriber:Other.svelte#Other", file: "Other.svelte", line: 1, kind: "component" as const, name: "Other", storeIds: [otherId] };
-	const otherSubRel = { type: "subscribes_to" as const, from: "subscriber:Other.svelte#Other", to: otherId, file: "Other.svelte" };
-	const otherStore = { id: otherId, file: "other.ts", line: 1, kind: "atom" as const, name: "other" };
+	const otherSub = {
+		id: "subscriber:Other.svelte#Other",
+		file: "Other.svelte",
+		line: 1,
+		kind: "component" as const,
+		name: "Other",
+		storeIds: [otherId],
+	};
+	const otherSubRel = {
+		type: "subscribes_to" as const,
+		from: "subscriber:Other.svelte#Other",
+		to: otherId,
+		file: "Other.svelte",
+	};
+	const otherStore = {
+		id: otherId,
+		file: "other.ts",
+		line: 1,
+		kind: "atom" as const,
+		name: "other",
+	};
 
-	function makeBlindSpotIndex(flags: StoreFlags, sfcDeclares = false, hasSubscriber = false): ProjectIndex {
-		const relations: ProjectIndex["relations"] = [otherSubRel,
-			{ type: "declares", from: sfcDeclares ? "file:Component.svelte" : "file:src/stores/orphan.ts", to: orphanId, file: sfcDeclares ? "Component.svelte" : "src/stores/orphan.ts", line: 1 },
+	function makeBlindSpotIndex(
+		flags: StoreFlags,
+		sfcDeclares = false,
+		hasSubscriber = false,
+	): ProjectIndex {
+		const relations: ProjectIndex["relations"] = [
+			otherSubRel,
+			{
+				type: "declares",
+				from: sfcDeclares ? "file:Component.svelte" : "file:src/stores/orphan.ts",
+				to: orphanId,
+				file: sfcDeclares ? "Component.svelte" : "src/stores/orphan.ts",
+				line: 1,
+			},
 		];
-		if (hasSubscriber) relations.push({ type: "subscribes_to", from: "subscriber:App.tsx#App", to: orphanId, file: "src/App.tsx" });
+		if (hasSubscriber)
+			relations.push({
+				type: "subscribes_to",
+				from: "subscriber:App.tsx#App",
+				to: orphanId,
+				file: "src/App.tsx",
+			});
 		return {
-			rootDir: "/project", filesScanned: 1,
-			stores: [{ id: orphanId, file: "src/stores/orphan.ts", line: 1, kind: "atom", name: "$orphan", flags }, otherStore],
+			rootDir: "/project",
+			filesScanned: 1,
+			stores: [
+				{
+					id: orphanId,
+					file: "src/stores/orphan.ts",
+					line: 1,
+					kind: "atom",
+					name: "$orphan",
+					flags,
+				},
+				otherStore,
+			],
 			subscribers: [otherSub],
 			mutators: [],
 			relations,
@@ -771,27 +1155,37 @@ describe("buildGraphOutline — topBlindSpots", () => {
 
 	it("categorizes unreferenced factory store as factory_local", () => {
 		const outline = buildGraphOutline(makeBlindSpotIndex({ isInsideFactory: true }));
-		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("factory_local");
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe(
+			"factory_local",
+		);
 	});
 
 	it("categorizes story-only writer as story_or_test_scoped", () => {
 		const outline = buildGraphOutline(makeBlindSpotIndex({ storyOrTestOnlyWriter: true }));
-		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("story_or_test_scoped");
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe(
+			"story_or_test_scoped",
+		);
 	});
 
 	it("categorizes imperative-read-only store as imperative_only", () => {
 		const outline = buildGraphOutline(makeBlindSpotIndex({ readViaGetOnly: true }));
-		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("imperative_only");
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe(
+			"imperative_only",
+		);
 	});
 
 	it("categorizes store with no flags as truly_unreferenced_candidate", () => {
 		const outline = buildGraphOutline(makeBlindSpotIndex({}));
-		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("truly_unreferenced_candidate");
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe(
+			"truly_unreferenced_candidate",
+		);
 	});
 
 	it("possibly_svelte_reactive takes priority over factory_local", () => {
 		const outline = buildGraphOutline(makeBlindSpotIndex({ isInsideFactory: true }, true));
-		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe("possibly_svelte_reactive");
+		expect(outline.topBlindSpots.find(s => s.name === "$orphan")?.blindSpotType).toBe(
+			"possibly_svelte_reactive",
+		);
 	});
 
 	it("does not include store with reactive subscriber", () => {
@@ -807,10 +1201,27 @@ describe("buildGraphOutline — topSemanticAnomalies", () => {
 		return {
 			rootDir: "/project",
 			filesScanned: 1,
-			stores: [{ id: storeId, file: "src/stores/page.ts", line: 1, kind: "computed", name: "currentPage", flags }],
+			stores: [
+				{
+					id: storeId,
+					file: "src/stores/page.ts",
+					line: 1,
+					kind: "computed",
+					name: "currentPage",
+					flags,
+				},
+			],
 			subscribers: [],
 			mutators: [],
-			relations: [{ type: "declares", from: "file:src/stores/page.ts", to: storeId, file: "src/stores/page.ts", line: 1 }],
+			relations: [
+				{
+					type: "declares",
+					from: "file:src/stores/page.ts",
+					to: storeId,
+					file: "src/stores/page.ts",
+					line: 1,
+				},
+			],
 		};
 	}
 
@@ -849,10 +1260,33 @@ describe("buildGraphOutline — topSemanticAnomalies", () => {
 			rootDir: "/project",
 			filesScanned: 2,
 			stores: [
-				{ id: lowId, file: "src/low.ts", line: 1, kind: "computed", name: "$low", flags: { computedHasSideEffects: true } },
-				{ id: hubId, file: "src/hub.ts", line: 1, kind: "computed", name: "$hub", flags: { computedHasSideEffects: true } },
+				{
+					id: lowId,
+					file: "src/low.ts",
+					line: 1,
+					kind: "computed",
+					name: "$low",
+					flags: { computedHasSideEffects: true },
+				},
+				{
+					id: hubId,
+					file: "src/hub.ts",
+					line: 1,
+					kind: "computed",
+					name: "$hub",
+					flags: { computedHasSideEffects: true },
+				},
 			],
-			subscribers: [{ id: sub, file: "src/App.tsx", line: 1, kind: "component", name: "App", storeIds: [hubId] }],
+			subscribers: [
+				{
+					id: sub,
+					file: "src/App.tsx",
+					line: 1,
+					kind: "component",
+					name: "App",
+					storeIds: [hubId],
+				},
+			],
 			mutators: [],
 			relations: [{ type: "subscribes_to", from: sub, to: hubId, file: "src/App.tsx", line: 1 }],
 		};

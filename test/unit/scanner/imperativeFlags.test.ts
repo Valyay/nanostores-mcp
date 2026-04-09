@@ -36,7 +36,9 @@ function createStoreContext(absRoot: string): StoreAnalysisContext {
 describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 	it("sets writtenWithoutSubscribers when store has mutators but no subscribers", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [
 				{ type: "mutates", from: "mutator:actions.ts#increment", to: "store:stores.ts#$count" },
 			],
@@ -49,7 +51,9 @@ describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 
 	it("does not set writtenWithoutSubscribers when store also has subscribers", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [
 				{ type: "mutates", from: "mutator:actions.ts#increment", to: "store:stores.ts#$count" },
 				{ type: "subscribes_to", from: "subscriber:App.tsx#App", to: "store:stores.ts#$count" },
@@ -63,7 +67,9 @@ describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 
 	it("does not set writtenWithoutSubscribers when store has no mutators at all", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [],
 		});
 
@@ -75,8 +81,19 @@ describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 	it("does not set writtenWithoutSubscribers when storyOrTestOnlyWriter explains all mutations", () => {
 		// storyOrTestOnlyWriter fully explains the absence of subscribers — no need to also flag writtenWithoutSubscribers
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" }],
-			mutators: [{ id: "mutator:Modal.stories.ts#setup", file: "Modal.stories.ts", line: 5, kind: "function", name: "setup", storeIds: ["store:stores.ts#$modal"] }],
+			stores: [
+				{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" },
+			],
+			mutators: [
+				{
+					id: "mutator:Modal.stories.ts#setup",
+					file: "Modal.stories.ts",
+					line: 5,
+					kind: "function",
+					name: "setup",
+					storeIds: ["store:stores.ts#$modal"],
+				},
+			],
 			relations: [
 				{ type: "mutates", from: "mutator:Modal.stories.ts#setup", to: "store:stores.ts#$modal" },
 			],
@@ -93,8 +110,20 @@ describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 		// $filter is reactive through the derived chain — not dead, not imperative-only
 		const index = makeIndex({
 			stores: [
-				{ id: "store:stores.ts#$filter", file: "stores.ts", line: 1, kind: "atom", name: "$filter" },
-				{ id: "store:stores.ts#$filtered", file: "stores.ts", line: 2, kind: "computed", name: "$filtered" },
+				{
+					id: "store:stores.ts#$filter",
+					file: "stores.ts",
+					line: 1,
+					kind: "atom",
+					name: "$filter",
+				},
+				{
+					id: "store:stores.ts#$filtered",
+					file: "stores.ts",
+					line: 2,
+					kind: "computed",
+					name: "$filtered",
+				},
 			],
 			relations: [
 				{ type: "mutates", from: "mutator:actions.ts#setFilter", to: "store:stores.ts#$filter" },
@@ -112,11 +141,12 @@ describe("computeImperativeFlags — writtenWithoutSubscribers", () => {
 
 describe("analyzeImperativeReadsInFile — .get() detection", () => {
 	it("collects store id when $store.get() is called", () => {
-		const storeCode = ['import { atom } from "nanostores";', "export const $count = atom(0);"].join("\n");
-		const readerCode = [
-			'import { $count } from "./stores";',
-			"const value = $count.get();",
-		].join("\n");
+		const storeCode = ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+			"\n",
+		);
+		const readerCode = ['import { $count } from "./stores";', "const value = $count.get();"].join(
+			"\n",
+		);
 
 		const { sourceFile: storesFile, absRoot } = createSourceFile(storeCode, "stores.ts");
 		const importsInfo = collectNanostoresStoreImports(storesFile);
@@ -132,11 +162,10 @@ describe("analyzeImperativeReadsInFile — .get() detection", () => {
 	});
 
 	it("does not collect store id from .set() or other methods", () => {
-		const storeCode = ['import { atom } from "nanostores";', "export const $count = atom(0);"].join("\n");
-		const readerCode = [
-			'import { $count } from "./stores";',
-			"$count.set(5);",
-		].join("\n");
+		const storeCode = ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+			"\n",
+		);
+		const readerCode = ['import { $count } from "./stores";', "$count.set(5);"].join("\n");
 
 		const { sourceFile: storesFile, absRoot } = createSourceFile(storeCode, "stores.ts");
 		const importsInfo = collectNanostoresStoreImports(storesFile);
@@ -154,7 +183,9 @@ describe("analyzeImperativeReadsInFile — .get() detection", () => {
 describe("computeImperativeFlags — readViaGetOnly", () => {
 	it("sets readViaGetOnly when store is read via .get() and has no subscribers", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [],
 		});
 		const imperativeGetIds = new Set(["store:stores.ts#$count"]);
@@ -166,7 +197,9 @@ describe("computeImperativeFlags — readViaGetOnly", () => {
 
 	it("does not set readViaGetOnly when store also has reactive subscribers", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [
 				{ type: "subscribes_to", from: "subscriber:App.tsx#App", to: "store:stores.ts#$count" },
 			],
@@ -182,8 +215,19 @@ describe("computeImperativeFlags — readViaGetOnly", () => {
 describe("computeImperativeFlags — storyOrTestOnlyWriter", () => {
 	it("sets storyOrTestOnlyWriter when all mutators come from story files", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" }],
-			mutators: [{ id: "mutator:Modal.stories.ts#setup", file: "Modal.stories.ts", line: 5, kind: "function", name: "setup", storeIds: ["store:stores.ts#$modal"] }],
+			stores: [
+				{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" },
+			],
+			mutators: [
+				{
+					id: "mutator:Modal.stories.ts#setup",
+					file: "Modal.stories.ts",
+					line: 5,
+					kind: "function",
+					name: "setup",
+					storeIds: ["store:stores.ts#$modal"],
+				},
+			],
 			relations: [
 				{ type: "mutates", from: "mutator:Modal.stories.ts#setup", to: "store:stores.ts#$modal" },
 			],
@@ -196,9 +240,22 @@ describe("computeImperativeFlags — storyOrTestOnlyWriter", () => {
 
 	it("sets storyOrTestOnlyWriter when all mutators come from test files", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$flag", file: "stores.ts", line: 1, kind: "atom", name: "$flag" }],
-			mutators: [{ id: "mutator:auth.test.ts#reset", file: "auth.test.ts", line: 3, kind: "function", name: "reset", storeIds: ["store:stores.ts#$flag"] }],
-			relations: [{ type: "mutates", from: "mutator:auth.test.ts#reset", to: "store:stores.ts#$flag" }],
+			stores: [
+				{ id: "store:stores.ts#$flag", file: "stores.ts", line: 1, kind: "atom", name: "$flag" },
+			],
+			mutators: [
+				{
+					id: "mutator:auth.test.ts#reset",
+					file: "auth.test.ts",
+					line: 3,
+					kind: "function",
+					name: "reset",
+					storeIds: ["store:stores.ts#$flag"],
+				},
+			],
+			relations: [
+				{ type: "mutates", from: "mutator:auth.test.ts#reset", to: "store:stores.ts#$flag" },
+			],
 		});
 
 		computeImperativeFlags(index);
@@ -209,8 +266,19 @@ describe("computeImperativeFlags — storyOrTestOnlyWriter", () => {
 	it("sets storyOrTestOnlyWriter when all mutators come from __tests__ directory", () => {
 		const index = makeIndex({
 			stores: [{ id: "store:stores.ts#$x", file: "stores.ts", line: 1, kind: "atom", name: "$x" }],
-			mutators: [{ id: "mutator:__tests__/helpers.ts#set", file: "__tests__/helpers.ts", line: 1, kind: "function", name: "set", storeIds: ["store:stores.ts#$x"] }],
-			relations: [{ type: "mutates", from: "mutator:__tests__/helpers.ts#set", to: "store:stores.ts#$x" }],
+			mutators: [
+				{
+					id: "mutator:__tests__/helpers.ts#set",
+					file: "__tests__/helpers.ts",
+					line: 1,
+					kind: "function",
+					name: "set",
+					storeIds: ["store:stores.ts#$x"],
+				},
+			],
+			relations: [
+				{ type: "mutates", from: "mutator:__tests__/helpers.ts#set", to: "store:stores.ts#$x" },
+			],
 		});
 
 		computeImperativeFlags(index);
@@ -220,10 +288,26 @@ describe("computeImperativeFlags — storyOrTestOnlyWriter", () => {
 
 	it("does not set storyOrTestOnlyWriter when any mutator is from a production file", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" }],
+			stores: [
+				{ id: "store:stores.ts#$modal", file: "stores.ts", line: 1, kind: "atom", name: "$modal" },
+			],
 			mutators: [
-				{ id: "mutator:Modal.stories.ts#setup", file: "Modal.stories.ts", line: 5, kind: "function", name: "setup", storeIds: ["store:stores.ts#$modal"] },
-				{ id: "mutator:actions.ts#openModal", file: "actions.ts", line: 10, kind: "function", name: "openModal", storeIds: ["store:stores.ts#$modal"] },
+				{
+					id: "mutator:Modal.stories.ts#setup",
+					file: "Modal.stories.ts",
+					line: 5,
+					kind: "function",
+					name: "setup",
+					storeIds: ["store:stores.ts#$modal"],
+				},
+				{
+					id: "mutator:actions.ts#openModal",
+					file: "actions.ts",
+					line: 10,
+					kind: "function",
+					name: "openModal",
+					storeIds: ["store:stores.ts#$modal"],
+				},
 			],
 			relations: [
 				{ type: "mutates", from: "mutator:Modal.stories.ts#setup", to: "store:stores.ts#$modal" },
@@ -238,7 +322,9 @@ describe("computeImperativeFlags — storyOrTestOnlyWriter", () => {
 
 	it("does not set storyOrTestOnlyWriter when store has no mutators", () => {
 		const index = makeIndex({
-			stores: [{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" }],
+			stores: [
+				{ id: "store:stores.ts#$count", file: "stores.ts", line: 1, kind: "atom", name: "$count" },
+			],
 			relations: [],
 		});
 

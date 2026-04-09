@@ -117,12 +117,31 @@ describe("scan_project tool: compact mode", () => {
 	it("compact mode returns byDir grouped by directory", () => {
 		const data = makeIndex({
 			stores: [
-				{ id: "store:src/stores/a.ts#$a", file: "src/stores/a.ts", line: 1, kind: "atom", name: "$a" },
-				{ id: "store:src/stores/b.ts#$b", file: "src/stores/b.ts", line: 2, kind: "computed", name: "$b" },
+				{
+					id: "store:src/stores/a.ts#$a",
+					file: "src/stores/a.ts",
+					line: 1,
+					kind: "atom",
+					name: "$a",
+				},
+				{
+					id: "store:src/stores/b.ts#$b",
+					file: "src/stores/b.ts",
+					line: 2,
+					kind: "computed",
+					name: "$b",
+				},
 				{ id: "store:lib/c.ts#$c", file: "lib/c.ts", line: 1, kind: "atom", name: "$c" },
 			],
 			subscribers: [
-				{ id: "subscriber:src/App.tsx#App", file: "src/App.tsx", line: 8, kind: "component", name: "App", storeIds: ["store:src/stores/a.ts#$a"] },
+				{
+					id: "subscriber:src/App.tsx#App",
+					file: "src/App.tsx",
+					line: 8,
+					kind: "component",
+					name: "App",
+					storeIds: ["store:src/stores/a.ts#$a"],
+				},
 			],
 			mutators: [],
 			relations: [],
@@ -131,7 +150,13 @@ describe("scan_project tool: compact mode", () => {
 		const { structuredContent } = buildScanProjectResponse(data, undefined, true);
 
 		expect(structuredContent.byDir).toBeDefined();
-		const byDir = structuredContent.byDir as Array<{ dir: string; storeCount: number; subscriberCount: number; mutatorCount: number; storeKinds: Record<string, number> }>;
+		const byDir = structuredContent.byDir as Array<{
+			dir: string;
+			storeCount: number;
+			subscriberCount: number;
+			mutatorCount: number;
+			storeKinds: Record<string, number>;
+		}>;
 
 		const storesDir = byDir.find(d => d.dir === "src/stores");
 		expect(storesDir?.storeCount).toBe(2);
@@ -168,7 +193,11 @@ describe("scan_project tool: compact mode", () => {
 	it("compact mode includes totals in structured content", () => {
 		const { structuredContent } = buildScanProjectResponse(makeIndex(), undefined, true);
 
-		const totals = structuredContent.totals as { stores: number; subscribers: number; relations: number };
+		const totals = structuredContent.totals as {
+			stores: number;
+			subscribers: number;
+			relations: number;
+		};
 		expect(totals.stores).toBe(2);
 		expect(totals.subscribers).toBe(1);
 	});

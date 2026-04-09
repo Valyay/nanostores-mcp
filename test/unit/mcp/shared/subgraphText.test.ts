@@ -4,9 +4,7 @@ import type { StoreSubgraphResponse } from "../../../../src/domain/project/summa
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function makeSubgraph(
-	overrides: Partial<StoreSubgraphResponse> = {},
-): StoreSubgraphResponse {
+function makeSubgraph(overrides: Partial<StoreSubgraphResponse> = {}): StoreSubgraphResponse {
 	return {
 		centerStoreId: "store:src/stores.ts#$count",
 		radius: 1,

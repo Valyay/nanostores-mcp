@@ -227,9 +227,30 @@ describe("buildStoreImpact", () => {
 		const typedIndex: ProjectIndex = {
 			...projectIndex,
 			stores: [
-				{ id: storeUser, file: "src/stores/user.ts", line: 1, kind: "atom", name: "$user", valueType: "User" },
-				{ id: storeIsLoggedIn, file: "src/stores/auth.ts", line: 1, kind: "computed", name: "$isLoggedIn", valueType: "boolean" },
-				{ id: storeGreeting, file: "src/stores/greeting.ts", line: 1, kind: "computed", name: "$greeting", valueType: "string" },
+				{
+					id: storeUser,
+					file: "src/stores/user.ts",
+					line: 1,
+					kind: "atom",
+					name: "$user",
+					valueType: "User",
+				},
+				{
+					id: storeIsLoggedIn,
+					file: "src/stores/auth.ts",
+					line: 1,
+					kind: "computed",
+					name: "$isLoggedIn",
+					valueType: "boolean",
+				},
+				{
+					id: storeGreeting,
+					file: "src/stores/greeting.ts",
+					line: 1,
+					kind: "computed",
+					name: "$greeting",
+					valueType: "string",
+				},
 				{ id: storeTitle, file: "src/stores/title.ts", line: 1, kind: "atom", name: "$title" },
 			],
 		};

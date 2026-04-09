@@ -160,9 +160,7 @@ describe("extractStoreValueType", () => {
 	});
 
 	it("returns callback return type for single-dep computed", () => {
-		const call = getCallExpr(
-			"const $x = computed($a, (n: number) => n * 2);",
-		);
+		const call = getCallExpr("const $x = computed($a, (n: number) => n * 2);");
 		expect(extractStoreValueType(call)).toBe("number");
 	});
 
@@ -192,106 +190,123 @@ describe("scanner/stores — semantic flags", () => {
 	// ── computedHasSideEffects ────────────────────────────────────────────────
 
 	it("flags computed with .set() call inside callback", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"const $b = computed($a, v => { $a.set(v + 1); return v; });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"const $b = computed($a, v => { $a.set(v + 1); return v; });",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
 		expect(stores.get("$a")?.flags?.computedHasSideEffects).toBeUndefined();
 	});
 
 	it("flags computed with .subscribe() call inside callback", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"const $b = computed($a, v => { $a.subscribe(() => {}); return v; });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"const $b = computed($a, v => { $a.subscribe(() => {}); return v; });",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
 	});
 
 	it("flags computed with .destroy() call as computedHasCleanupCalls, not computedHasSideEffects", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"declare const prev: any;",
-			"const $b = computed($a, v => { prev?.destroy(); return v; });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"declare const prev: any;",
+				"const $b = computed($a, v => { prev?.destroy(); return v; });",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasCleanupCalls).toBe(true);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBeUndefined();
 	});
 
 	it("flags computed with setTimeout inside callback", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"const $b = computed($a, v => { setTimeout(() => {}, 1000); return v; });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"const $b = computed($a, v => { setTimeout(() => {}, 1000); return v; });",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
 	});
 
 	it("does not flag computed with pure derivation", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"const $b = computed($a, v => v * 2);",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"const $b = computed($a, v => v * 2);",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBeUndefined();
 	});
 
 	// ── isInsideFactory ───────────────────────────────────────────────────────
 
 	it("can set both computedHasCleanupCalls and computedHasSideEffects on same store", () => {
-		const stores = scanCode([
-			'import { atom, computed } from "nanostores";',
-			"const $a = atom(0);",
-			"declare const prev: any;",
-			"const $b = computed($a, v => { prev?.destroy(); $a.set(v); return v; });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, computed } from "nanostores";',
+				"const $a = atom(0);",
+				"declare const prev: any;",
+				"const $b = computed($a, v => { prev?.destroy(); $a.set(v); return v; });",
+			].join("\n"),
+		);
 		expect(stores.get("$b")?.flags?.computedHasCleanupCalls).toBe(true);
 		expect(stores.get("$b")?.flags?.computedHasSideEffects).toBe(true);
 	});
 
 	it("flags atom declared inside a function", () => {
-		const stores = scanCode([
-			'import { atom } from "nanostores";',
-			"export const $global = atom(0);",
-			"export function createPage() {",
-			"  const $local = atom(false);",
-			"  return { $local };",
-			"}",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom } from "nanostores";',
+				"export const $global = atom(0);",
+				"export function createPage() {",
+				"  const $local = atom(false);",
+				"  return { $local };",
+				"}",
+			].join("\n"),
+		);
 		expect(stores.get("$global")?.flags?.isInsideFactory).toBeUndefined();
 		expect(stores.get("$local")?.flags?.isInsideFactory).toBe(true);
 	});
 
 	it("flags atom declared inside an arrow function", () => {
-		const stores = scanCode([
-			'import { atom } from "nanostores";',
-			"export const createMixin = () => {",
-			"  const $x = atom('');",
-			"  return $x;",
-			"};",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom } from "nanostores";',
+				"export const createMixin = () => {",
+				"  const $x = atom('');",
+				"  return $x;",
+				"};",
+			].join("\n"),
+		);
 		expect(stores.get("$x")?.flags?.isInsideFactory).toBe(true);
 	});
 
 	// ── hasMountDependentActivation ───────────────────────────────────────────
 
 	it("flags store that has onMount call in the same file", () => {
-		const stores = scanCode([
-			'import { atom, onMount } from "nanostores";',
-			"export const $status = atom('idle');",
-			"onMount($status, () => { $status.set('active'); return () => $status.set('idle'); });",
-		].join("\n"));
+		const stores = scanCode(
+			[
+				'import { atom, onMount } from "nanostores";',
+				"export const $status = atom('idle');",
+				"onMount($status, () => { $status.set('active'); return () => $status.set('idle'); });",
+			].join("\n"),
+		);
 		expect(stores.get("$status")?.flags?.hasMountDependentActivation).toBe(true);
 	});
 
 	it("does not flag store without onMount", () => {
-		const stores = scanCode([
-			'import { atom } from "nanostores";',
-			"export const $value = atom(0);",
-		].join("\n"));
+		const stores = scanCode(
+			['import { atom } from "nanostores";', "export const $value = atom(0);"].join("\n"),
+		);
 		expect(stores.get("$value")?.flags?.hasMountDependentActivation).toBeUndefined();
 	});
 });

@@ -9,7 +9,7 @@ import {
 	type StoreAnalysisContext,
 } from "../../../src/domain/project/scanner/stores.ts";
 import { collectNanostoresStoreImports } from "../../../src/domain/project/scanner/imports.ts";
-import { createSourceFile, createTsMorphProject } from "../../helpers/tsMorphProject.ts";
+import { createTsMorphProject } from "../../helpers/tsMorphProject.ts";
 
 function createStoreContext(absRoot: string): StoreAnalysisContext {
 	return {
@@ -71,9 +71,10 @@ describe("scanner/mutations", () => {
 
 	it("detects $map.setKey() call", () => {
 		const files = {
-			"stores.ts": ['import { map } from "nanostores";', "export const $user = map({ name: '' });"].join(
-				"\n",
-			),
+			"stores.ts": [
+				'import { map } from "nanostores";',
+				"export const $user = map({ name: '' });",
+			].join("\n"),
 			"actions.ts": [
 				'import { $user } from "./stores";',
 				"",
@@ -206,9 +207,10 @@ describe("scanner/mutations", () => {
 
 	it("handles module-level mutation (outside any function)", () => {
 		const files = {
-			"stores.ts": ['import { atom } from "nanostores";', "export const $ready = atom(false);"].join(
-				"\n",
-			),
+			"stores.ts": [
+				'import { atom } from "nanostores";',
+				"export const $ready = atom(false);",
+			].join("\n"),
 			"init.ts": [
 				'import { $ready } from "./stores";',
 				"",
@@ -234,10 +236,9 @@ describe("scanner/mutations", () => {
 
 	it("resolves mutation by symbol when two files export same store name", () => {
 		const files = {
-			"stores/a.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores/a.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"stores/b.ts": [
 				'import { atom } from "nanostores";',
 				"export const $count = atom(100);",

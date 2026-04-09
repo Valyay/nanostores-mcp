@@ -300,10 +300,9 @@ describe("scanner/subscribers", () => {
 
 	it("detects $store.subscribe() as a subscriber", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"effect.ts": [
 				'import { $count } from "./stores";',
 				"",
@@ -337,10 +336,9 @@ describe("scanner/subscribers", () => {
 
 	it("detects $store.listen() as a subscriber", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"listener.ts": [
 				'import { $count } from "./stores";',
 				"",
@@ -445,10 +443,9 @@ describe("scanner/subscribers", () => {
 
 	it("ignores .subscribe() on non-store objects", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"service.ts": [
 				'import { $count } from "./stores";',
 				"",
@@ -483,10 +480,9 @@ describe("scanner/subscribers", () => {
 
 	it("detects .subscribe() with import alias", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"aliased.ts": [
 				'import { $count as $myCount } from "./stores";',
 				"",
@@ -620,10 +616,9 @@ describe("scanner/subscribers", () => {
 
 	it("detects namespace effect call: import * as ns from 'nanostores'; ns.effect([...], fn)", () => {
 		const files = {
-			"stores.ts": [
-				'import { atom } from "nanostores";',
-				"export const $count = atom(0);",
-			].join("\n"),
+			"stores.ts": ['import { atom } from "nanostores";', "export const $count = atom(0);"].join(
+				"\n",
+			),
 			"side.ts": [
 				'import * as ns from "nanostores";',
 				'import { $count } from "./stores";',
