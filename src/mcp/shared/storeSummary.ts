@@ -1,4 +1,9 @@
-import type { StoreMatch, StoreRelation, SubscriberMatch, MutatorMatch } from "../../domain/project/types.js";
+import type {
+	StoreMatch,
+	StoreRelation,
+	SubscriberMatch,
+	MutatorMatch,
+} from "../../domain/project/types.js";
 
 export interface StoreStructuredContent extends Record<string, unknown> {
 	store: {
@@ -190,25 +195,39 @@ export function buildStoreSummaryText(args: {
 		lines.push("");
 		lines.push("Semantic risk signals:");
 		if (store.flags.computedHasSideEffects) {
-			lines.push("  ⚠ computedHasSideEffects: callback contains side-effectful calls (.set, .subscribe, setTimeout, etc.) — read source before assuming pure derivation");
+			lines.push(
+				"  ⚠ computedHasSideEffects: callback contains side-effectful calls (.set, .subscribe, setTimeout, etc.) — read source before assuming pure derivation",
+			);
 		}
 		if (store.flags.computedHasCleanupCalls) {
-			lines.push("  ⚠ computedHasCleanupCalls: callback contains .destroy() calls — typical lifecycle cleanup pattern, verify it is intentional");
+			lines.push(
+				"  ⚠ computedHasCleanupCalls: callback contains .destroy() calls — typical lifecycle cleanup pattern, verify it is intentional",
+			);
 		}
 		if (store.flags.isInsideFactory) {
-			lines.push("  ⚠ isInsideFactory: declared inside a function — may be absent from storeKinds count and hub ranking");
+			lines.push(
+				"  ⚠ isInsideFactory: declared inside a function — may be absent from storeKinds count and hub ranking",
+			);
 		}
 		if (store.flags.hasMountDependentActivation) {
-			lines.push("  ⚠ hasMountDependentActivation: lazy activation via onMount — behavior only starts when the store has active subscribers");
+			lines.push(
+				"  ⚠ hasMountDependentActivation: lazy activation via onMount — behavior only starts when the store has active subscribers",
+			);
 		}
 		if (store.flags.writtenWithoutSubscribers) {
-			lines.push("  ⚠ writtenWithoutSubscribers: mutators exist but no reactive subscribers detected — may be imperative-only usage, dead code, or subscribers hidden from static analysis");
+			lines.push(
+				"  ⚠ writtenWithoutSubscribers: mutators exist but no reactive subscribers detected — may be imperative-only usage, dead code, or subscribers hidden from static analysis",
+			);
 		}
 		if (store.flags.readViaGetOnly) {
-			lines.push("  ⚠ readViaGetOnly: read only via .get() calls, no useStore/subscribe detected — imperative access pattern, not reactive");
+			lines.push(
+				"  ⚠ readViaGetOnly: read only via .get() calls, no useStore/subscribe detected — imperative access pattern, not reactive",
+			);
 		}
 		if (store.flags.storyOrTestOnlyWriter) {
-			lines.push("  ⚠ storyOrTestOnlyWriter: all detected mutations come from test/story files — store is not written in production code");
+			lines.push(
+				"  ⚠ storyOrTestOnlyWriter: all detected mutations come from test/story files — store is not written in production code",
+			);
 		}
 	}
 

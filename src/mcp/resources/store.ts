@@ -70,8 +70,14 @@ export function registerStoreResource(
 				}
 
 				// Get neighbors using service
-				const { subscribers, mutators, derivesFrom, derivesFromEdges, dependents, dependentsEdges } =
-					await projectService.getStoreNeighbors(rootPath, store);
+				const {
+					subscribers,
+					mutators,
+					derivesFrom,
+					derivesFromEdges,
+					dependents,
+					dependentsEdges,
+				} = await projectService.getStoreNeighbors(rootPath, store);
 
 				const summaryText = buildStoreSummaryText({
 					store,

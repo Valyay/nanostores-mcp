@@ -74,9 +74,10 @@ function tryResolveMutation(
 	return [];
 }
 
-function findMutatorContainerInfo(
-	callExpr: CallExpression,
-): { containerName?: string; containerStartLine: number } {
+function findMutatorContainerInfo(callExpr: CallExpression): {
+	containerName?: string;
+	containerStartLine: number;
+} {
 	let node: Node | undefined = callExpr;
 
 	while (node && !Node.isSourceFile(node)) {
@@ -89,7 +90,10 @@ function findMutatorContainerInfo(
 		if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
 			const varDecl = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
 			if (varDecl) {
-				return { containerName: varDecl.getName(), containerStartLine: varDecl.getStartLineNumber() };
+				return {
+					containerName: varDecl.getName(),
+					containerStartLine: varDecl.getStartLineNumber(),
+				};
 			}
 			return { containerName: undefined, containerStartLine: node.getStartLineNumber() };
 		}
@@ -98,8 +102,7 @@ function findMutatorContainerInfo(
 			const methodName = node.getName();
 			const classDecl = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
 			const className = classDecl?.getName();
-			const name =
-				className && methodName ? `${className}.${methodName}` : methodName || className;
+			const name = className && methodName ? `${className}.${methodName}` : methodName || className;
 			return { containerName: name, containerStartLine: node.getStartLineNumber() };
 		}
 

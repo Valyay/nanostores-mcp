@@ -16,10 +16,7 @@ function shortPath(fullPath: string): string {
  * Shows store nodes with their kinds and relationships, and subscriber files,
  * instead of just opaque counts.
  */
-export function formatSubgraphText(
-	subgraph: StoreSubgraphResponse,
-	centerName: string,
-): string {
+export function formatSubgraphText(subgraph: StoreSubgraphResponse, centerName: string): string {
 	const { centerStoreId, radius, nodes, edges } = subgraph;
 
 	// ── index edges by source for fast lookup ──────────────────────────────────
@@ -61,9 +58,7 @@ export function formatSubgraphText(
 				line += " ← center";
 			} else {
 				// Show derives_from source if this store derives from another in the subgraph
-				const derivesEdges = (edgesFrom.get(node.id) ?? []).filter(
-					e => e.type === "derives_from",
-				);
+				const derivesEdges = (edgesFrom.get(node.id) ?? []).filter(e => e.type === "derives_from");
 				if (derivesEdges.length > 0) {
 					const sources = derivesEdges
 						.map(e => nodeById.get(e.to))
@@ -83,9 +78,7 @@ export function formatSubgraphText(
 	if (subscriberFiles.length > 0) {
 		out += `\n\nSubscribers (${subscriberFiles.length} file${subscriberFiles.length === 1 ? "" : "s"}):`;
 		for (const file of subscriberFiles) {
-			const subEdges = (edgesFrom.get(file.id) ?? []).filter(
-				e => e.type === "subscribes_to",
-			);
+			const subEdges = (edgesFrom.get(file.id) ?? []).filter(e => e.type === "subscribes_to");
 			const storeNames = subEdges
 				.map(e => nodeById.get(e.to))
 				.filter(Boolean)

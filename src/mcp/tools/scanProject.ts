@@ -163,10 +163,22 @@ export function buildScanProjectResponse(
 
 		const dirStats = new Map<
 			string,
-			{ storeCount: number; subscriberCount: number; mutatorCount: number; storeKinds: Record<string, number> }
+			{
+				storeCount: number;
+				subscriberCount: number;
+				mutatorCount: number;
+				storeKinds: Record<string, number>;
+			}
 		>();
 
-		const ensureDir = (dir: string) => {
+		const ensureDir = (
+			dir: string,
+		): {
+			storeCount: number;
+			subscriberCount: number;
+			mutatorCount: number;
+			storeKinds: Record<string, number>;
+		} => {
 			let entry = dirStats.get(dir);
 			if (!entry) {
 				entry = { storeCount: 0, subscriberCount: 0, mutatorCount: 0, storeKinds: {} };

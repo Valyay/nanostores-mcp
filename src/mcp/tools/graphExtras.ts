@@ -187,7 +187,8 @@ export function registerProjectOutlineTool(
 					for (const store of outline.unreferencedStores) {
 						const signals: string[] = [];
 						if (store.mutatorCount > 0) signals.push(`${store.mutatorCount} mutator(s)`);
-						if (store.sfcFileReferences > 0) signals.push(`${store.sfcFileReferences} SFC file ref(s)`);
+						if (store.sfcFileReferences > 0)
+							signals.push(`${store.sfcFileReferences} SFC file ref(s)`);
 						if (store.isPersistent) signals.push("persistent");
 						if (store.valueType) signals.push(`type: ${store.valueType}`);
 						const signalStr = signals.length > 0 ? ` [${signals.join(", ")}]` : "";
@@ -195,7 +196,7 @@ export function registerProjectOutlineTool(
 					}
 				}
 
-					return {
+				return {
 					content: [{ type: "text", text: summary }],
 					structuredContent: outline,
 				};

@@ -123,8 +123,14 @@ export function registerStoreSummaryTool(
 
 				const { store, by: resolutionBy } = resolution;
 
-				const { subscribers, mutators, derivesFrom, derivesFromEdges, dependents, dependentsEdges } =
-					await projectService.getStoreNeighbors(rootPath, store);
+				const {
+					subscribers,
+					mutators,
+					derivesFrom,
+					derivesFromEdges,
+					dependents,
+					dependentsEdges,
+				} = await projectService.getStoreNeighbors(rootPath, store);
 
 				const structuredContent = buildStoreStructuredContent({
 					store,

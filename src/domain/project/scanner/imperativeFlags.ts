@@ -59,8 +59,10 @@ export function analyzeImperativeReadsInFile(
 
 /** Returns true if the file path looks like a test or story file. */
 function isTestOrStoryFile(file: string): boolean {
-	return /\.(stories|test|spec)\.[^.]+$/.test(file) ||
-		/(^|[/\\])(__tests__|stories|storybook)[/\\]/i.test(file);
+	return (
+		/\.(stories|test|spec)\.[^.]+$/.test(file) ||
+		/(^|[/\\])(__tests__|stories|storybook)[/\\]/i.test(file)
+	);
 }
 
 /**
@@ -115,7 +117,11 @@ export function computeImperativeFlags(
 		const flags = store.flags ?? {};
 
 		const mutatorFiles = mutatorFilesByStore.get(store.id);
-		const isTestOnly = !!(mutatorFiles && mutatorFiles.size > 0 && [...mutatorFiles].every(isTestOrStoryFile));
+		const isTestOnly = !!(
+			mutatorFiles &&
+			mutatorFiles.size > 0 &&
+			[...mutatorFiles].every(isTestOrStoryFile)
+		);
 
 		if (isTestOnly) {
 			flags.storyOrTestOnlyWriter = true;
@@ -125,7 +131,7 @@ export function computeImperativeFlags(
 			mutatedStoreIds.has(store.id) &&
 			!subscribedStoreIds.has(store.id) &&
 			!derivedSourceIds.has(store.id) &&
-			!isTestOnly  // storyOrTestOnlyWriter fully explains the absence of subscribers
+			!isTestOnly // storyOrTestOnlyWriter fully explains the absence of subscribers
 		) {
 			flags.writtenWithoutSubscribers = true;
 		}

@@ -192,7 +192,11 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 				mutatorsCount.set(rel.to, (mutatorsCount.get(rel.to) ?? 0) + 1);
 			}
 			// Track distinct SFC files that reference each store
-			if (rel.file && SFC_EXTENSIONS.has(path.extname(rel.file).toLowerCase()) && storeIds.has(rel.to)) {
+			if (
+				rel.file &&
+				SFC_EXTENSIONS.has(path.extname(rel.file).toLowerCase()) &&
+				storeIds.has(rel.to)
+			) {
 				let files = sfcStoreRefs.get(rel.to);
 				if (!files) {
 					files = new Set();
@@ -229,7 +233,10 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 
 	// Co-occurrence: count how often each pair of stores appears in the same subscriber
 	const pairCounts = new Map<string, number>();
-	const pairMeta = new Map<string, { storeIdA: string; nameA: string; storeIdB: string; nameB: string }>();
+	const pairMeta = new Map<
+		string,
+		{ storeIdA: string; nameA: string; storeIdB: string; nameB: string }
+	>();
 	for (const sub of index.subscribers) {
 		const knownIds = sub.storeIds.filter(id => storeIds.has(id));
 		if (knownIds.length < 2) continue;
@@ -292,8 +299,7 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 	const unreferencedStores = hasRichEdges
 		? index.stores
 				.filter(
-					store =>
-						(subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0,
+					store => (subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0,
 				)
 				.map(store => ({
 					storeId: store.id,
@@ -336,7 +342,9 @@ export function buildGraphOutline(index: ProjectIndex): GraphOutlineResponse {
 		.slice(0, 7);
 	const topBlindSpots: GraphOutlineResponse["topBlindSpots"] = hasRichEdges
 		? index.stores
-				.filter(store => (subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0)
+				.filter(
+					store => (subscribersCount.get(store.id) ?? 0) + (derivedCount.get(store.id) ?? 0) === 0,
+				)
 				.map(store => {
 					const sfcRefs = sfcStoreRefs.get(store.id)?.size ?? 0;
 					const flags = store.flags;

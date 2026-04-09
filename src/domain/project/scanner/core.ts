@@ -218,7 +218,13 @@ export async function scanProject(
 		for (const sourceFile of project.getSourceFiles()) {
 			const frameworkImports = collectNanostoresFrameworkImports(sourceFile, moduleConfig);
 			const storeImports = storeImportsCache.get(sourceFile);
-			analyzeSubscribersInFile(sourceFile, absRoot, frameworkImports, subscriberContext, storeImports);
+			analyzeSubscribersInFile(
+				sourceFile,
+				absRoot,
+				frameworkImports,
+				subscriberContext,
+				storeImports,
+			);
 		}
 
 		// --- Svelte template $store auto-subscriptions ---
@@ -272,7 +278,13 @@ export async function scanProject(
 				};
 				subscribers.push(subscriber);
 				addRelation(
-					{ type: "declares", from: `file:${relativeFile}`, to: subscriberId, file: relativeFile, line: 1 },
+					{
+						type: "declares",
+						from: `file:${relativeFile}`,
+						to: subscriberId,
+						file: relativeFile,
+						line: 1,
+					},
 					relations,
 					relationKeys,
 				);
@@ -300,7 +312,12 @@ export async function scanProject(
 		// --- Third pass: find mutators + imperative .get() reads ---
 		for (const sourceFile of project.getSourceFiles()) {
 			analyzeMutationsInFile(sourceFile, absRoot, mutationContext);
-			analyzeImperativeReadsInFile(sourceFile, absRoot, { storesByName, storesBySymbol }, imperativeGetIds);
+			analyzeImperativeReadsInFile(
+				sourceFile,
+				absRoot,
+				{ storesByName, storesBySymbol },
+				imperativeGetIds,
+			);
 		}
 
 		onProgress?.(

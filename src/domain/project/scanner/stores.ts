@@ -50,7 +50,8 @@ function isInsideFunction(node: Node): boolean {
 			Node.isFunctionDeclaration(parent) ||
 			Node.isArrowFunction(parent) ||
 			Node.isFunctionExpression(parent)
-		) return true;
+		)
+			return true;
 		parent = parent.getParent();
 	}
 	return false;
