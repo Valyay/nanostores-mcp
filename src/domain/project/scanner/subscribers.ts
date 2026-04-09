@@ -32,7 +32,7 @@ export interface SubscriberAccumulator {
  * try to resolve the receiver to a known store.
  * Returns matched stores or empty array when the call is not a direct subscribe.
  */
-export function tryResolveDirectSubscribe(
+function tryResolveDirectSubscribe(
 	callExpr: CallExpression,
 	context: Pick<SubscriberAnalysisContext, "storesBySymbol" | "storesByName">,
 	relativeFile: string,
@@ -228,7 +228,7 @@ export function inferSubscriberKind(relativeFile: string, containerName?: string
  * If `callExpr` is `effect([store1, store2], fn)` or `ns.effect([...], fn)` imported from
  * nanostores, returns all store matches from the dependency array. Returns empty array otherwise.
  */
-export function tryResolveEffectArgs(
+function tryResolveEffectArgs(
 	callExpr: CallExpression,
 	storeImports: Pick<NanostoresStoreImports, "effectFns" | "nanostoresNamespaces">,
 	context: Pick<SubscriberAnalysisContext, "storesBySymbol" | "storesByName">,
