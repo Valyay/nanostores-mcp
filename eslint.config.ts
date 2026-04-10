@@ -2,7 +2,7 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
 
-export default [
+export default tseslint.config(
 	{
 		ignores: ["dist/**", "node_modules/**"],
 	},
@@ -33,4 +33,4 @@ export default [
 		},
 	},
 	eslintConfigPrettier,
-];
+);
