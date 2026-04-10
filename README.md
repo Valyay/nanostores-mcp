@@ -142,10 +142,7 @@ Requires **GitHub Copilot** extension (VS Code 1.99+). Create `.vscode/mcp.json`
 		"nanostores": {
 			"type": "stdio",
 			"command": "npx",
-			"args": ["-y", "nanostores-mcp"],
-			"env": {
-				"NANOSTORES_MCP_ROOT": "${workspaceFolder}"
-			}
+			"args": ["-y", "nanostores-mcp"]
 		}
 	}
 }
@@ -162,10 +159,7 @@ Create `.cursor/mcp.json` in your project root (or `~/.cursor/mcp.json` for glob
 	"mcpServers": {
 		"nanostores": {
 			"command": "npx",
-			"args": ["-y", "nanostores-mcp"],
-			"env": {
-				"NANOSTORES_MCP_ROOT": "/path/to/your/project"
-			}
+			"args": ["-y", "nanostores-mcp"]
 		}
 	}
 }
