@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.valyay/nanostores-mcp",
+  "name": "io.github.Valyay/nanostores-mcp",
   "title": "Nanostores MCP",
   "description": "Debug and analyze Nanostores apps with AI: scan stores, monitor runtime events, and search docs.",
   "version": "0.1.0",
