@@ -1,5 +1,6 @@
 {
   "name": "nanostores-mcp",
+  "mcpName": "io.github.valyay/nanostores-mcp",
   "version": "0.1.0",
   "description": "MCP server for Nano Stores: devtools, migration helpers, logger integration",
   "repository": "https://github.com/Valyay/nanostores-mcp",
