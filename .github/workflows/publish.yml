@@ -30,7 +30,7 @@ jobs:
         with:
           registry-url: https://registry.npmjs.org
       - run: pnpm build
-      - run: pnpm publish --no-git-checks --provenance --access public --ignore-scripts
+      - run: npm publish --provenance --access public
 
   release:
     needs: publish
