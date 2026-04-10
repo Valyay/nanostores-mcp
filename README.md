@@ -20,6 +20,10 @@ Ask your AI: _"Analyze my store architecture"_ or _"Which stores update most fre
 
 ---
 
+<img src="https://cdn.evilmartians.com/badges/logo-no-label.svg" alt="" width="22" height="16" /> Made at <b><a href="https://evilmartians.com/devtools?utm_source=nanostores-mcp&utm_campaign=devtools-button&utm_medium=github">Evil Martians</a></b>, product consulting for <b>developer tools</b>.
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
@@ -637,7 +641,3 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please open an issue or PR.
-
-## Author
-
-Built by [@Valyay](https://github.com/Valyay)
