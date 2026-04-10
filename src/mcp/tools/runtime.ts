@@ -230,8 +230,9 @@ export function buildRuntimeOverviewSummary(args: {
 		summary +=
 			"\uD83D\uDCED No runtime activity detected. Make sure:\n" +
 			"  1. Your app is running with @nanostores/logger integration\n" +
-			"  2. Logger bridge is enabled (NANOSTORES_MCP_LOGGER_ENABLED=true)\n" +
-			"  3. Events are being sent to the correct port\n";
+			"  2. attachMcpLogger() is called for your stores\n" +
+			"  3. Events are being sent to the correct port (default: 3999)\n" +
+			"  4. Logger bridge is not disabled (NANOSTORES_MCP_LOGGER_ENABLED must not be false/0)\n";
 	}
 
 	return summary;

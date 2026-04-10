@@ -9,7 +9,7 @@ export const EnvSchema = z.object({
 	NANOSTORES_MCP_LOGGER_ENABLED: z
 		.string()
 		.optional()
-		.transform(val => val === "true" || val === "1"),
+		.transform(val => val !== "false" && val !== "0"),
 	NANOSTORES_MCP_LOGGER_PORT: z
 		.string()
 		.optional()

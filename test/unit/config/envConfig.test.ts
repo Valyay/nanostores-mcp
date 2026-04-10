@@ -9,32 +9,29 @@ function parseEnv(
 
 describe("config/envConfig", () => {
 	describe("NANOSTORES_MCP_LOGGER_ENABLED", () => {
-		it('transforms "true" and "1" to true', () => {
-			expect(
-				parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "true" }).NANOSTORES_MCP_LOGGER_ENABLED,
-			).toBe(true);
-			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "1" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
-				true,
-			);
-		});
-
-		it("transforms other values to false", () => {
+		it('disables only on "false" and "0"', () => {
 			expect(
 				parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "false" }).NANOSTORES_MCP_LOGGER_ENABLED,
 			).toBe(false);
 			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "0" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
 				false,
 			);
-			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "yes" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
-				false,
+		});
+
+		it('enables on "true", "1", and any other non-disabling value', () => {
+			expect(
+				parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "true" }).NANOSTORES_MCP_LOGGER_ENABLED,
+			).toBe(true);
+			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "1" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
+				true,
 			);
-			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
-				false,
+			expect(parseEnv({ NANOSTORES_MCP_LOGGER_ENABLED: "yes" }).NANOSTORES_MCP_LOGGER_ENABLED).toBe(
+				true,
 			);
 		});
 
-		it("defaults to false when absent", () => {
-			expect(parseEnv({}).NANOSTORES_MCP_LOGGER_ENABLED).toBe(false);
+		it("defaults to true when absent", () => {
+			expect(parseEnv({}).NANOSTORES_MCP_LOGGER_ENABLED).toBe(true);
 		});
 	});
 

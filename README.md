@@ -239,7 +239,7 @@ Or create `.mcp.json` in your project root (shared with the team):
 | `NANOSTORES_MCP_ROOTS`          | —           | Platform-delimited roots (`:` on Unix, `;` on Windows) for multi-project setup  |
 | `WORKSPACE_FOLDER`              | —           | Alias for `NANOSTORES_MCP_ROOT` — set automatically by VS Code and some editors |
 | `WORKSPACE_FOLDER_PATHS`        | —           | Alias for `NANOSTORES_MCP_ROOTS` — set automatically by some editors            |
-| `NANOSTORES_MCP_LOGGER_ENABLED` | `false`     | Enable runtime event collection                                                 |
+| `NANOSTORES_MCP_LOGGER_ENABLED` | `true`      | Set to `false` or `0` to disable runtime event collection and the logger bridge |
 | `NANOSTORES_MCP_LOGGER_PORT`    | `3999`      | HTTP port for logger bridge                                                     |
 | `NANOSTORES_MCP_LOGGER_HOST`    | `127.0.0.1` | Host to bind. Allowed values: `127.0.0.1`, `localhost`, `::1`                   |
 | `NANOSTORES_DOCS_ROOT`          | auto-detect | Path to documentation directory                                                 |
@@ -376,14 +376,7 @@ For runtime analysis, integrate the MCP Logger client into your application.
 npm install nanostores-mcp
 ```
 
-Add `NANOSTORES_MCP_LOGGER_ENABLED` to your MCP server config (see [Configuration](#configuration) for your editor's format):
-
-```json
-"env": {
-	"NANOSTORES_MCP_ROOT": "/path/to/your/project",
-	"NANOSTORES_MCP_LOGGER_ENABLED": "true"
-}
-```
+The logger bridge starts automatically — no extra config needed. To disable it, set `NANOSTORES_MCP_LOGGER_ENABLED=false` in your MCP server config.
 
 **2. Define stores with logger attached** (`src/stores.ts`):
 
