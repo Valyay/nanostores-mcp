@@ -46,6 +46,7 @@
     "test:coverage": "vitest run --coverage",
     "check": "pnpm run lint && pnpm run format && pnpm run test && pnpm run build",
     "prepublishOnly": "pnpm run check",
+    "actions-up": "actions-up",
     "knip": "knip"
   },
   "keywords": [
@@ -91,6 +92,7 @@
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.0.18",
     "@vue/compiler-sfc": "^3.5.27",
+    "actions-up": "^1.13.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "knip": "^5.85.0",
