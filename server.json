@@ -1,23 +1,23 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Valyay/nanostores-mcp",
-  "title": "Nanostores MCP",
-  "description": "Debug and analyze Nanostores apps with AI: scan stores, monitor runtime events, and search docs.",
-  "version": "0.1.1",
-  "websiteUrl": "https://github.com/Valyay/nanostores-mcp#readme",
-  "repository": {
-    "url": "https://github.com/Valyay/nanostores-mcp",
-    "source": "github"
-  },
-  "packages": [
-    {
-      "registryType": "npm",
-      "identifier": "nanostores-mcp",
-      "version": "0.1.1",
-      "runtimeHint": "npx",
-      "transport": {
-        "type": "stdio"
-      }
-    }
-  ]
+	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+	"name": "io.github.Valyay/nanostores-mcp",
+	"title": "Nanostores MCP",
+	"description": "Debug and analyze Nanostores apps with AI: scan stores, monitor runtime events, and search docs.",
+	"version": "0.1.1",
+	"websiteUrl": "https://github.com/Valyay/nanostores-mcp#readme",
+	"repository": {
+		"url": "https://github.com/Valyay/nanostores-mcp",
+		"source": "github"
+	},
+	"packages": [
+		{
+			"registryType": "npm",
+			"identifier": "nanostores-mcp",
+			"version": "0.1.1",
+			"runtimeHint": "npx",
+			"transport": {
+				"type": "stdio"
+			}
+		}
+	]
 }
