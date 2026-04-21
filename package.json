@@ -1,7 +1,7 @@
 {
   "name": "nanostores-mcp",
   "mcpName": "io.github.Valyay/nanostores-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MCP server for Nano Stores: devtools, migration helpers, logger integration",
   "repository": "https://github.com/Valyay/nanostores-mcp",
   "homepage": "https://github.com/Valyay/nanostores-mcp#readme",
@@ -68,6 +68,7 @@
     "is-path-inside": "^4.0.0",
     "nanoid": "^5.1.6",
     "ts-morph": "^27.0.2",
+    "typescript": "^5.9.3",
     "zod": "^4.3.6"
   },
   "peerDependencies": {
@@ -101,7 +102,6 @@
     "prettier": "^3.7.0",
     "svelte": "^5.49.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.17"
   }

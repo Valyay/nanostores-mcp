@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+### Fixes
+
+- Move `typescript` from `devDependencies` to `dependencies`. Scanner imports enums (`JsxEmit`, `ScriptKind`) from `typescript` directly; without it in runtime deps, `npx nanostores-mcp` failed with `ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'`.
+
 ## 0.1.0
 
 Initial release of Nano Stores MCP server.

@@ -6,5 +6,6 @@ pnpm-lock.yaml
 .cache
 .changeset
 .vscode
+.claude
 node_modules
 .git
