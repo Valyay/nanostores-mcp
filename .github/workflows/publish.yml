@@ -16,6 +16,15 @@ jobs:
       - uses: ./.github/actions/prepare-runner
         with:
           node-version: ${{ matrix.node-version }}
+      - name: Verify server.json version matches package.json
+        run: |
+          PKG_VERSION=$(jq -r '.version' package.json)
+          SERVER_VERSION=$(jq -r '.version' server.json)
+          SERVER_PKG_VERSION=$(jq -r '.packages[0].version' server.json)
+          if [ "$PKG_VERSION" != "$SERVER_VERSION" ] || [ "$PKG_VERSION" != "$SERVER_PKG_VERSION" ]; then
+            echo "::error::Version mismatch. package.json=$PKG_VERSION server.json.version=$SERVER_VERSION server.json.packages[0].version=$SERVER_PKG_VERSION"
+            exit 1
+          fi
       - run: pnpm lint
       - run: pnpm format
       - run: pnpm knip
@@ -36,6 +45,23 @@ jobs:
           node-version: "24"
       - run: pnpm build
       - run: pnpm publish --no-git-checks --provenance --access public
+
+  mcp-registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install mcp-publisher
+        run: |
+          curl -fL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" \
+            | tar -xz mcp-publisher
+      - name: Login to MCP registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+      - name: Publish to MCP registry
+        run: ./mcp-publisher publish
 
   release:
     needs: publish
